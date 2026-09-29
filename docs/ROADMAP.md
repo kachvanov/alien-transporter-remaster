@@ -8,7 +8,7 @@
 
 | | ID | Задача | Зависит от | Размер |
 |---|---|---|---|---|
-| [ ] | T0.1 | Каркас репозитория (electron-vite, TS, ESLint-границы, Vitest, Playwright, скрипты) | — | M |
+| [x] | T0.1 | Каркас репозитория (electron-vite, TS, ESLint-границы, Vitest, Playwright, скрипты) `a3c363e` | — | M |
 | [ ] | T0.2 | JPEXS + декомпиляция → `reference/` | T0.1 | S |
 | [ ] | T0.3 | `SymbolInfo.java` в пайплайне → `symbols.json`, `placements.json` | T0.2 | S |
 | [ ] | T0.4 | Растеризация спрайтов, whitelist/blacklist, trim/dedupe, атласы, `manifest.json`, альфа-маски | T0.3 | L |

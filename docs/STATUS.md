@@ -1,11 +1,10 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: —
+Обновлено: 2026-09-29 · Последний merge: T0.1 a3c363e
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T0.1 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:03 |
 
 ## Ворота
 | Милстоун | статус |
@@ -23,3 +22,9 @@
 
 ## Журнал
 - 2026-09-29 — пакет документов и настройка оркестрации созданы (Opus). Следующая задача: T0.1.
+- 2026-09-30 T0.1 merged a3c363e (попытка 1)
+
+## Заметки оркестратора
+- В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
+- Electron 44 не качает бинарь в postinstall: после `npm install` выполнять `node node_modules/electron/install.js` (в основной копии сделано).
+- Версии из T0.1: TS 6.0.3 (peer typescript-eslint), vite 7.3.6 (peer electron-vite 5).
