@@ -1,0 +1,5 @@
+{
+  "FadeEffectShow_mc": { "maxTier": "1x" },
+  "FadeEffectHide_mc": { "maxTier": "1x" },
+  "PortalBG_mc": { "maxTier": "2x" }
+}

@@ -13,6 +13,7 @@ import {
   verifyReference,
   type Paths,
 } from './decompile';
+import { runSprites, spritesInputs, spritesOutputsOk } from './sprites';
 import { runSymbols, symbolsInputs, symbolsOutputsOk } from './symbols';
 
 interface StepContext {
@@ -26,7 +27,7 @@ interface Step {
   inputs(ctx: StepContext): Record<string, string>;
   /** True when the step's outputs are still present and valid. */
   outputsOk(ctx: StepContext): boolean;
-  run(ctx: StepContext): { summary: string };
+  run(ctx: StepContext): { summary: string } | Promise<{ summary: string }>;
 }
 
 // New steps (sprites, sounds, data, levels, ...) are appended here by later tasks.
@@ -50,6 +51,12 @@ const STEPS: Step[] = [
     outputsOk: ({ paths }) => symbolsOutputsOk(paths),
     run: ({ paths }) => runSymbols(paths),
   },
+  {
+    name: 'sprites',
+    inputs: ({ paths, swfSource }) => spritesInputs(paths, prepareSwf(paths, swfSource)),
+    outputsOk: ({ paths }) => spritesOutputsOk(paths),
+    run: ({ paths }) => runSprites(paths),
+  },
 ];
 
 type Cache = Record<string, string>;
@@ -70,7 +77,7 @@ function keyOf(inputs: Record<string, string>): string {
   return createHash('sha256').update(sorted).digest('hex');
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const stepArg = args.find((a) => a.startsWith('--step='))?.slice('--step='.length);
   const force = args.includes('--force');
@@ -96,7 +103,7 @@ function main(): void {
       continue;
     }
     console.log(`[${step.name}] running...`);
-    const result = step.run(ctx);
+    const result = await step.run(ctx);
     cache[step.name] = key;
     writeFileSync(cacheFile, `${JSON.stringify(cache, null, 2)}\n`);
     console.log(
@@ -105,9 +112,7 @@ function main(): void {
   }
 }
 
-try {
-  main();
-} catch (e) {
+main().catch((e: unknown) => {
   console.error(e instanceof Error ? e.message : e);
   process.exit(1);
-}
+});

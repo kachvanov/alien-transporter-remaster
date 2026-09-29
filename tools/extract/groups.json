@@ -1,0 +1,25 @@
+{
+  "comment": "Atlas groups (docs/02-extraction-pipeline.md §4.4). Rules are regular expressions tested in order; the first match wins. '$1' in `group` is the first capture group of `match`.",
+  "default": "game-common",
+  "rules": [
+    { "group": "level-$1", "match": "^Level(\\d\\d)(?:Back|BG|FG)_mc$" },
+    { "group": "ui", "match": "^Font:" },
+    {
+      "group": "ui",
+      "match": "^(?:ShuttleBar|PassengerBar|FuelIndicator|MissionBar|MissionPopup|MissionComplete)"
+    },
+    { "group": "ui", "match": "Preview_mc$" },
+    { "group": "shuttles", "match": "^(?:Shuttle|Engine|Indicator)" },
+    { "group": "passengers", "match": "^(?:Passenger|Frag)" },
+    {
+      "group": "effects",
+      "match": "^(?:Smoke|Fire|Spark|Flash|Explosion|Magic|Particle|Dust|Oil|Blow_mc|Wave)"
+    },
+    { "group": "ui", "match": "^(?:Btn|Icon|Title)" },
+    { "group": "ui", "match": "TextEN_mc$" },
+    {
+      "group": "ui",
+      "match": "(?:BG|Popup|Screen)[A-Za-z0-9]*_mc$|^(?:Copyright|BgLine|ColumnBar|LivesIcon|CoinsIcon|Player\\d|PressKeyAnim|Notify|Star(?:Tiny|Middle|Big)|Tutorial\\d)"
+    }
+  ]
+}
