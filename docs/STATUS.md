@@ -1,11 +1,11 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T0.3 aec4b79
+Обновлено: 2026-09-29 · Последний merge: T0.4 9c63578
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T0.4 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:21 |
+| T0.7 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:37 |
 | T1.1 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:16 |
 
 ## Ворота
@@ -27,8 +27,10 @@
 - 2026-09-30 T0.1 merged a3c363e (попытка 1)
 - 2026-09-30 T0.2 merged 05e22c1 (попытка 1)
 - 2026-09-30 T0.3 merged aec4b79 (попытка 1)
+- 2026-09-30 T0.4 merged 9c63578 (попытка 1)
 
 ## Заметки оркестратора
 - В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
 - Electron 44 не качает бинарь в postinstall: после `npm install` выполнять `node node_modules/electron/install.js` (в основной копии сделано).
 - Версии из T0.1: TS 6.0.3 (peer typescript-eslint), vite 7.3.6 (peer electron-vite 5).
+- T0.4: FadeEffectShow/Hide_mc имеют maxTier 1x (бюджет атласов на 2x недостижим) — обоснованное отклонение от docs/02. Порядок битов альфа-маски: MSB слева.
