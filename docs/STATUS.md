@@ -1,12 +1,12 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T0.4 9c63578
+Обновлено: 2026-09-29 · Последний merge: T1.1 8189ffe
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T0.7 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:37 |
-| T1.1 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:16 |
+| T1.2 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:40 |
 
 ## Ворота
 | Милстоун | статус |
@@ -28,9 +28,11 @@
 - 2026-09-30 T0.2 merged 05e22c1 (попытка 1)
 - 2026-09-30 T0.3 merged aec4b79 (попытка 1)
 - 2026-09-30 T0.4 merged 9c63578 (попытка 1)
+- 2026-09-30 T1.1 merged 8189ffe (попытка 1)
 
 ## Заметки оркестратора
 - В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
 - Electron 44 не качает бинарь в postinstall: после `npm install` выполнять `node node_modules/electron/install.js` (в основной копии сделано).
 - Версии из T0.1: TS 6.0.3 (peer typescript-eslint), vite 7.3.6 (peer electron-vite 5).
 - T0.4: FadeEffectShow/Hide_mc имеют maxTier 1x (бюджет атласов на 2x недостижим) — обоснованное отклонение от docs/02. Порядок битов альфа-маски: MSB слева.
+- T1.1: `sortAS3`/`sortOnAS3` (порт avmplus ArraySort, проверен golden-тестом на 418 кейсах) обязательны для AntCore.updatePriority, AntEntity.sort и Vector.sort. Заглушка `STUB(T1.2)`: src/engine/core/AntGStub.ts — T1.2 заменяет её на настоящий AntG в 4 файлах. Решить в T1.2, нужен ли flash.geom.ColorTransform (AntActor, AntMask). Проверить, что AntEntity реализует IBubbleEventHandler.
