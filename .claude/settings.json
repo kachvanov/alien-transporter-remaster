@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "ORIGINAL_SWF": "/Applications/Flash Games/AlienTransporter.swf"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "autoContinueAtUsageLimit": true,
+  "worktree": {
+    "baseRef": "head",
+    "symlinkDirectories": ["node_modules", "vendor", "reference", "assets", "build"]
+  },
+  "permissions": {
+    "additionalDirectories": ["/Applications/Flash Games"],
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npm install)",
+      "Bash(npm view *)",
+      "Bash(npm ls *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(tsx *)",
+      "Bash(java *)",
+      "Bash(javac *)",
+      "Bash(ffmpeg *)",
+      "Bash(ffprobe *)",
+      "Bash(curl *)",
+      "Bash(shasum *)",
+      "Bash(unzip *)",
+      "Bash(sips *)",
+      "Bash(iconutil *)",
+      "Bash(bash tools/*)",
+      "Bash(sh tools/*)",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(sed *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(touch *)",
+      "Bash(chmod +x *)",
+      "Bash(rm -rf out*)",
+      "Bash(rm -rf dist*)",
+      "Bash(rm -f *)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:registry.npmjs.org)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:www.electronjs.org)",
+      "WebFetch(domain:pixijs.com)",
+      "WebFetch(domain:vitest.dev)",
+      "WebFetch(domain:playwright.dev)",
+      "WebFetch(domain:www.electron.build)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *)",
+      "Bash(git filter-branch*)",
+      "Bash(npm ci*)",
+      "Bash(npm publish*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)",
+      "Bash(rm -rf node_modules*)",
+      "Bash(rm -rf vendor*)",
+      "Bash(rm -rf reference*)",
+      "Bash(rm -rf assets*)",
+      "Bash(rm -rf build*)"
+    ]
+  }
+}
