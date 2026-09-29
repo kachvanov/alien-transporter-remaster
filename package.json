@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "tool:int-report": "tsx tools/int-report.ts",
     "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && eslint . && vitest run",
     "test": "vitest",
     "test:e2e": "playwright test",
