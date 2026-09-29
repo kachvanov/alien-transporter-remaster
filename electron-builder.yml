@@ -1,0 +1,24 @@
+appId: local.alientransporter.remaster
+productName: Alien Transporter Remaster
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: assets
+    to: assets
+    filter:
+      - '**/*'
+mac:
+  target:
+    - target: dmg
+      arch: arm64
+  identity: null
+win:
+  target:
+    - target: nsis
+      arch: x64
+    - target: portable
+      arch: x64
