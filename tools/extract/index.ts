@@ -13,6 +13,7 @@ import {
   verifyReference,
   type Paths,
 } from './decompile';
+import { levelsInputs, levelsOutputsOk, runLevels } from './levels';
 import { runSprites, spritesInputs, spritesOutputsOk } from './sprites';
 import { runSymbols, symbolsInputs, symbolsOutputsOk } from './symbols';
 
@@ -56,6 +57,12 @@ const STEPS: Step[] = [
     inputs: ({ paths, swfSource }) => spritesInputs(paths, prepareSwf(paths, swfSource)),
     outputsOk: ({ paths }) => spritesOutputsOk(paths),
     run: ({ paths }) => runSprites(paths),
+  },
+  {
+    name: 'levels',
+    inputs: ({ paths, swfSource }) => levelsInputs(paths, prepareSwf(paths, swfSource)),
+    outputsOk: ({ paths }) => levelsOutputsOk(paths),
+    run: ({ paths }) => runLevels(paths),
   },
 ];
 
