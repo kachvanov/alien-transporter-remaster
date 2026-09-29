@@ -1,11 +1,10 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T1.1 8189ffe
+Обновлено: 2026-09-29 · Последний merge: T0.7 51b5de0
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T0.7 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:37 |
 | T1.2 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 02:40 |
 
 ## Ворота
@@ -29,6 +28,7 @@
 - 2026-09-30 T0.3 merged aec4b79 (попытка 1)
 - 2026-09-30 T0.4 merged 9c63578 (попытка 1)
 - 2026-09-30 T1.1 merged 8189ffe (попытка 1)
+- 2026-09-30 T0.7 merged 51b5de0 (попытка 1)
 
 ## Заметки оркестратора
 - В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
@@ -36,3 +36,4 @@
 - Версии из T0.1: TS 6.0.3 (peer typescript-eslint), vite 7.3.6 (peer electron-vite 5).
 - T0.4: FadeEffectShow/Hide_mc имеют maxTier 1x (бюджет атласов на 2x недостижим) — обоснованное отклонение от docs/02. Порядок битов альфа-маски: MSB слева.
 - T1.1: `sortAS3`/`sortOnAS3` (порт avmplus ArraySort, проверен golden-тестом на 418 кейсах) обязательны для AntCore.updatePriority, AntEntity.sort и Vector.sort. Заглушка `STUB(T1.2)`: src/engine/core/AntGStub.ts — T1.2 заменяет её на настоящий AntG в 4 файлах. Решить в T1.2, нужен ли flash.geom.ColorTransform (AntActor, AntMask). Проверить, что AntEntity реализует IBubbleEventHandler.
+- T0.7: 406 объектов уровней имеют skew матрицы (размер считается по scaleX/scaleY) — при расхождении физики в T1.9b сверять с Ruffle. Level13 шире 800×600 (x от −102 до 2516) — решение за LevelCore. Ожидают очереди M0: T0.5, T0.6, T0.8.
