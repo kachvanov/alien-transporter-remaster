@@ -13,6 +13,7 @@ import {
   verifyReference,
   type Paths,
 } from './decompile';
+import { runSymbols, symbolsInputs, symbolsOutputsOk } from './symbols';
 
 interface StepContext {
   paths: Paths;
@@ -42,6 +43,12 @@ const STEPS: Step[] = [
       existsSync(join(paths.extractDir, 'symbolClass.csv')) &&
       verifyReference(join(paths.root, 'reference')).length === 0,
     run: ({ paths, swfSource }) => runDecompile(paths, swfSource),
+  },
+  {
+    name: 'symbols',
+    inputs: ({ paths, swfSource }) => symbolsInputs(paths, prepareSwf(paths, swfSource)),
+    outputsOk: ({ paths }) => symbolsOutputsOk(paths),
+    run: ({ paths }) => runSymbols(paths),
   },
 ];
 
