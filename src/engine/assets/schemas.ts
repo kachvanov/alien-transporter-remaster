@@ -95,3 +95,245 @@ export type Manifest = z.infer<typeof ManifestSchema>;
 export function parseManifest(json: string): Manifest {
   return ManifestSchema.parse(JSON.parse(json));
 }
+
+// ---------------------------------------------------------------------------------------
+// assets/data/levels/levelNN.json and assets/data/models.json
+// (docs/02-extraction-pipeline.md §7.5-7.6, written by tools/extract/levels.ts).
+// ---------------------------------------------------------------------------------------
+
+const StringListSchema = z.array(z.string());
+
+/** Flash matrix `[a, b, c, d, tx, ty]`. */
+export const MatrixSchema = z.tuple([
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+  z.number(),
+]);
+
+const PlacedBaseShape = {
+  /** Depth in the parent clip: creation order = `getChildAt` order of the original. */
+  depth: IntSchema,
+  instanceName: z.string().nullable(),
+  x: z.number(),
+  y: z.number(),
+  /** Degrees, (-180, 180], y down, clockwise positive. */
+  rotation: z.number(),
+  scaleX: z.number(),
+  /** Negative for reflected clips. */
+  scaleY: z.number(),
+  /** Flash `width`/`height` at `rotation = 0`. */
+  width: z.number(),
+  height: z.number(),
+  matrix: MatrixSchema,
+};
+
+const NoProps = z.strictObject({});
+
+/**
+ * Object of a given class. Instances without an inspector initialiser (`instanceName === null`)
+ * have `props = {}`; named instances must carry every required parameter of the class.
+ */
+function placed<C extends string, S extends z.ZodRawShape>(cls: C, propsShape: S) {
+  return z
+    .strictObject({
+      ...PlacedBaseShape,
+      cls: z.literal(cls),
+      props: z.union([z.strictObject(propsShape), NoProps]),
+    })
+    .refine((o) => o.instanceName === null || Object.keys(o.props).length > 0, {
+      message: `${cls}: named instance without parameters`,
+      path: ['props'],
+    });
+}
+
+/** Class without inspector parameters. */
+function plain<C extends string>(cls: C) {
+  return z.strictObject({ ...PlacedBaseShape, cls: z.literal(cls), props: NoProps });
+}
+
+const RockProps = { alias: z.string(), kind: z.string(), actionDelay: z.number() };
+const BlinkerProps = {
+  alias: z.string(),
+  active: z.boolean(),
+  spriteKind: z.string(),
+  animationSpeed: z.number(),
+  reverse: z.boolean(),
+};
+const ShapeProps = {
+  alias: z.string(),
+  density: z.number(),
+  friction: z.number(),
+  restitution: z.number(),
+  isSensor: z.boolean(),
+  animation: z.string(),
+  sortIndex: z.number(),
+  shapeList: StringListSchema.optional(),
+};
+
+/** Level markup objects, discriminated by `cls`. */
+export const LevelObjectSchema = z.discriminatedUnion('cls', [
+  placed('Station_com', {
+    alias: z.string(),
+    maxPassengers: z.number(),
+    isFuelStation: z.boolean(),
+    stationList: StringListSchema.optional(),
+  }),
+  placed('SpawnManager_com', {
+    alias: z.string(),
+    availPassengers: z.number(),
+    spawnInterval: z.number(),
+    lowerSpawnInterval: z.number(),
+    upperSpawnInterval: z.number(),
+    stationList: StringListSchema.optional(),
+  }),
+  placed('Trigger_com', {
+    alias: z.string(),
+    targetAliases: StringListSchema.optional(),
+    triggerAliases: StringListSchema.optional(),
+    isActive: z.boolean(),
+    once: z.boolean(),
+  }),
+  placed('Sensor_com', {
+    alias: z.string(),
+    length: z.number(),
+    lowerAngle: z.number(),
+    upperAngle: z.number(),
+    isActive: z.boolean(),
+    targetAliases: StringListSchema,
+    once: z.boolean(),
+    rotate: z.boolean(),
+    lowerRotation: z.number(),
+    upperRotation: z.number(),
+    rotationSpeed: z.number(),
+    rotationDelay: z.number(),
+    blinkerAlias: z.string(),
+  }),
+  placed('MissilePoint_com', {
+    alias: z.string(),
+    speed: z.number(),
+    respawnDelay: z.number(),
+    actionDelay: z.number(),
+    sensorAlias: z.string(),
+  }),
+  placed('ObjectSpawner_com', {
+    alias: z.string(),
+    active: z.boolean(),
+    interval: z.number(),
+    lowerInterval: z.number(),
+    upperInterval: z.number(),
+    objects: StringListSchema,
+    count: z.number(),
+  }),
+  placed('ObjectRemover_com', { alias: z.string(), active: z.boolean() }),
+  placed('Transporter_com', { alias: z.string(), active: z.boolean(), movementSpeed: z.number() }),
+  placed('TransporterWheel_com', BlinkerProps),
+  placed('Blinker_com', BlinkerProps),
+  placed('ExitPortal_com', { alias: z.string(), levelKey: z.string() }),
+  placed('GoalManager_com', {
+    alias: z.string(),
+    goalKind: z.string(),
+    goalValue: z.number(),
+    targetAliases: StringListSchema,
+    triggerAliases: StringListSchema.optional(),
+  }),
+  placed('LevelPreferences_com', {
+    alias: z.string(),
+    allStarGoal: z.number(),
+    defRecord: z.number(),
+  }),
+  placed('ShuttleSpawn_com', { alias: z.string(), player: z.string() }),
+  placed('StaticEffect_com', { alias: z.string(), effect: z.string(), active: z.boolean() }),
+  placed('Tutorial_com', {
+    alias: z.string(),
+    isVisible: z.boolean(),
+    timeOut: z.number(),
+    animationName: z.string(),
+    layer: z.string(),
+  }),
+  placed('Rock01_com', RockProps),
+  placed('Rock02_com', RockProps),
+  placed('Rock03_com', RockProps),
+  placed('Rock04_com', RockProps),
+  placed('Rock05_com', RockProps),
+  placed('Rock06_com', RockProps),
+  placed('Rock07_com', RockProps),
+  placed('BarrelExp_com', { alias: z.string(), actionDelay: z.number() }),
+  placed('CoinPoint_mc', { alias: z.string(), delay: z.number() }),
+  placed('Passenger_com', { alias: z.string(), lowerLimit: z.number(), upperLimit: z.number() }),
+  plain('GroundBox_com'),
+  plain('GroundCircle_com'),
+  plain('Stopper_com'),
+  plain('HouseFront01_mc'),
+  plain('KeyPoint_mc'),
+  plain('SpawnPoint_mc'),
+  plain('ArrowPoint_com'),
+  plain('Barrel_com'),
+  plain('BoxBig_com'),
+  plain('BoxSmall_com'),
+  plain('Coin_mc'),
+  plain('Fuel_mc'),
+  plain('Trophy_mc'),
+  plain('Shuttle01PassGreen_mc'),
+]);
+export type LevelObject = z.infer<typeof LevelObjectSchema>;
+
+export const LevelSchema = z.strictObject({
+  /** `Level01`. */
+  name: z.string().regex(/^Level\d\d$/),
+  /** `Level01Physic_mc`. */
+  clip: z.string().regex(/^Level\d\dPhysic_mc$/),
+  /** Sorted by `depth`. */
+  objects: z.array(LevelObjectSchema),
+});
+export type LevelData = z.infer<typeof LevelSchema>;
+
+/**
+ * Model / ragdoll objects: physics shapes and joints (all named, all parameters required)
+ * plus the unnamed debris graphics (`*Frag0N_mc`, `RockFragment0N_mc`) that ragdolls place.
+ */
+const FragmentSchema = z.strictObject({
+  ...PlacedBaseShape,
+  cls: z.string().regex(/^(Shuttle0\dFrag0\d|RockFragment0\d)_mc$/),
+  props: NoProps,
+});
+
+export const ModelObjectSchema = z.union([
+  placed('CircleShape_com', ShapeProps),
+  placed('RectShape_com', ShapeProps),
+  placed('RevoluteJoint_com', {
+    alias: z.string(),
+    lowerAngle: z.number(),
+    upperAngle: z.number(),
+    enableLimit: z.boolean(),
+    motorSpeed: z.number(),
+    maxMotorTorque: z.number(),
+    enableMotor: z.boolean(),
+    weakness: z.number(),
+    bodyAliasA: z.string(),
+    bodyAliasB: z.string(),
+  }),
+  placed('PrismaticJoint_com', {
+    alias: z.string(),
+    lowerTranslation: z.number(),
+    upperTranslation: z.number(),
+    enableLimit: z.boolean(),
+    motorSpeed: z.number(),
+    maxMotorForce: z.number(),
+    enableMotor: z.boolean(),
+    weakness: z.number(),
+    bodyAliasA: z.string(),
+    bodyAliasB: z.string(),
+  }),
+  FragmentSchema,
+]);
+export type ModelObject = z.infer<typeof ModelObjectSchema>;
+
+/** `Shuttle01Model_mc` -> objects (sorted by depth). 33 clips: *Model_mc and *Ragdoll_mc. */
+export const ModelsSchema = z.record(
+  z.string().regex(/(Model|Ragdoll)_mc$/),
+  z.strictObject({ objects: z.array(ModelObjectSchema) }),
+);
+export type ModelsData = z.infer<typeof ModelsSchema>;
