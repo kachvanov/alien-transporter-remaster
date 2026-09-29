@@ -2,7 +2,12 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['tests/unit/**/*.test.ts', 'tests/golden/**/*.test.ts', 'src/**/*.test.ts'],
+    include: [
+      'tests/unit/**/*.test.ts',
+      'tests/golden/**/*.test.ts',
+      'src/**/*.test.ts',
+      'tools/**/*.test.ts',
+    ],
     // .claude/worktrees holds copies of the project for other agents: never test them.
     exclude: [
       '**/node_modules/**',
