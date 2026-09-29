@@ -1,0 +1,17 @@
+{
+  "source": "reference/as3/ru/alientransporter/views/ShuttleView.as (the AntLightEnvironment entity, Factory.makeShuttle) and its children _shuttle and _passenger",
+  "symbols": [
+    "Shuttle01Back_mc",
+    "Shuttle02Back_mc",
+    "Shuttle03Back_mc",
+    "Shuttle04Back_mc",
+    "Shuttle01Body_mc",
+    "Shuttle02Body_mc",
+    "Shuttle03Body_mc",
+    "Shuttle04Body_mc",
+    "Shuttle01PassGreen_mc",
+    "Shuttle01PassOrange_mc",
+    "Shuttle01PassBlue_mc",
+    "Shuttle01PassPink_mc"
+  ]
+}

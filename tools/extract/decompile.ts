@@ -69,7 +69,7 @@ export function resolveSwfPath(root: string, env: NodeJS.ProcessEnv = process.en
   return DEFAULT_SWF;
 }
 
-function javaBin(): string {
+export function javaBin(): string {
   const probe = spawnSync('java', ['-version'], { encoding: 'utf8' });
   if (!probe.error && probe.status === 0) return 'java';
   if (existsSync(JAVA_FALLBACK)) return JAVA_FALLBACK;
