@@ -1,0 +1,9 @@
+.claude
+reference
+build
+assets
+vendor
+out
+dist
+node_modules
+package-lock.json
