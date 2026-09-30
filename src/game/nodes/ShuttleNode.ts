@@ -7,7 +7,7 @@ import { Info } from '../components/Info';
 import { Physic } from '../components/Physic';
 import { ShuttleControl } from '../components/ShuttleControl';
 import { ShuttleStats } from '../components/ShuttleStats';
-import { ShuttleModel } from '../models/ShuttleModel'; // STUB(T1.9b)
+import { ShuttleModel } from '../models/ShuttleModel';
 
 /** Component fields in the order of the `public var` declarations of the original (AntFamily reads them). */
 export class ShuttleNode extends AntNode {

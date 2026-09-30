@@ -6,7 +6,7 @@ import { AntTaskManager } from '../../engine/plugins/AntTaskManager';
 import { AntMath } from '../../engine/utils/AntMath';
 import { asType } from '../../engine/utils/cast';
 import { G } from '../G';
-import { Factory } from '../map/Factory'; // STUB(T1.9b)
+import { Factory } from '../map/Factory';
 import { Display } from './Display';
 import type { IActionComponent } from './IActionComponent';
 

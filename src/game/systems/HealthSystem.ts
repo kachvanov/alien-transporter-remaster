@@ -5,4 +5,8 @@ import { AntSystem } from '../../engine/ants/AntSystem';
 
 export class HealthSystem extends AntSystem {
   static readonly className = 'HealthSystem';
+
+  /** AS3 `applyExplosionDamage(aX:int, aY:int, aRadius:Number, aDamage:Number)`; the stub does nothing. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  applyExplosionDamage(_aX: number, _aY: number, _aRadius: number, _aDamage: number): void {}
 }

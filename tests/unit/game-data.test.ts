@@ -16,6 +16,7 @@ import { PlayerData } from '../../src/game/data/PlayerData';
 import { Fonts } from '../../src/game/Fonts';
 import { Font } from '../../src/game/fonts/Font';
 import { G } from '../../src/game/G';
+import '../../src/game/levels/LevelManager'; // sets G.levelManagerClass (G does not import LevelManager, see G.ts)
 import { MODEL_CLIPS, Models } from '../../src/game/Models';
 import { GameState } from '../../src/game/states/GameState';
 import { ControlSystem } from '../../src/game/systems/ControlSystem';

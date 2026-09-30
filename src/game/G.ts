@@ -5,7 +5,7 @@ import { AntG } from '../engine/core/AntG';
 import { AntBox2DManager } from '../physics/anthill/AntBox2DManager';
 import { Config } from './Config';
 import { GameData } from './data/GameData';
-import { LevelManager } from './levels/LevelManager'; // STUB(T1.9b)
+import type { LevelManager } from './levels/LevelManager';
 import { MusicManager } from './MusicManager'; // STUB(T2.7)
 import { ContentManager } from './missions/ContentManager'; // STUB(T2.7)
 import { MissionManager } from './missions/MissionManager'; // STUB(T2.7)
@@ -34,6 +34,14 @@ export class G {
   static models: Models;
   static physics: AntBox2DManager;
   static levelManager: LevelManager;
+
+  /**
+   * DEVIATION (ES module cycles): G must not import LevelManager, because LevelManager -> LevelCore -> Factory / the
+   * node classes -> the components -> G is a cycle in which `static components = {...}` of a node reads a component
+   * class that is not evaluated yet. levels/LevelManager.ts sets this field when its module loads (the game state
+   * of T1.9e imports it); G.init() then does the `new LevelManager()` of the original.
+   */
+  static levelManagerClass: (new () => LevelManager) | null = null;
   static gameData: GameData;
   static music: MusicManager;
   static missions: MissionManager;
@@ -62,7 +70,10 @@ export class G {
     G.physics = new AntBox2DManager();
     G.physics.create();
     G.models = new Models();
-    G.levelManager = new LevelManager();
+    if (G.levelManagerClass != null) {
+      G.levelManager = new G.levelManagerClass();
+    }
+
     G.gameData = new GameData();
     G.music = new MusicManager();
     G.missions = new MissionManager();
