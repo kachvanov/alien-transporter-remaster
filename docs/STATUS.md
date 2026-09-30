@@ -1,12 +1,12 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-30 · Последний merge: T1.6 b030894
+Обновлено: 2026-09-30 · Последний merge: T1.8 211b2c0
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T1.9b | 1 | worktree-agent-a813e71f665c24164 | .claude/worktrees/agent-a813e71f665c24164 | 2026-09-30 |
-| T1.8 | 1 | worktree-agent-a6c7b46052ae4db9e | .claude/worktrees/agent-a6c7b46052ae4db9e | 2026-09-30 |
+| FIX-1 | 1 | (определится) | | 2026-09-30 |
 
 ## Ворота
 | Милстоун | статус |
@@ -39,9 +39,11 @@
 - 2026-09-30 T1.4 merged 11f462c (попытка 1)
 - 2026-09-30 T1.3 merged 9135dae (попытка 1)
 - 2026-09-30 T1.6 merged b030894 (попытка 1)
+- 2026-09-30 T1.8 merged 211b2c0 (попытка 1)
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
 
 ## Заметки оркестратора
+- T1.8: AntSoundManagerStub удалён, AntG.sounds настоящий. Звук в Frame: источник или повторы>1 → loops (стабильный channelId), иначе oneShots. SOUND_COMPLETE эмулируется (AntSound.TICK_MS). Sounds.init() зовёт сейчас TestState — T1.9e (GameState.create) должен звать сам; Music.as не портирован — T2.7 (MusicManager со своим AntSoundManager, затем `collectFrameAudio(AntG.sounds, G.music.manager, G.music.mute)` в GameLoop.renderFrame, STUB(T2.7)). Проверить, что порты не передают число вместо Boolean в play(..., aLoop). Ручная проверка на слух (не блокирует): `unset ELECTRON_RUN_AS_NODE; npm run dev` — звук движка, панорама, перезапуск ~6.4 с без щелчков. Prettier в check не входит.
 - T1.6: src/sim/TestState.ts и TestScene.ts (+ тест в render.test.ts) — временные, удалить после T1.9e. headless.ts в tsconfig.node.json. Добавлено сообщение воркера {t:'saveLoad',key}. STUB(T3.2): simPort в worker.ts; STUB(T4.1): запись ввода только в памяти (GameLoop.lastRecording). GameData.storage — глобальная статика (каждый GameLoop перезаписывает). SAVE_KEY vs save.json — согласовать в T2.8.
 - Пользователь попросил завершить сессию: после T1.9a остановлено. Следующая по плану: T1.6 (sim runtime; конфликт в src/app/main.ts — см. T1.7).
 - В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
