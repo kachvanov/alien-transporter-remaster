@@ -1,11 +1,10 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-30 · Последний merge: FIX-1 626217d
+Обновлено: 2026-09-30 · Последний merge: T0.6 7437cf7
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T0.6 | 1 | worktree-agent-afcad1db48502b690 | .claude/worktrees/agent-afcad1db48502b690 | 2026-09-30 |
 
 ## Ворота
 | Милстоун | статус |
@@ -41,9 +40,11 @@
 - 2026-09-30 T1.8 merged 211b2c0 (попытка 1)
 - 2026-09-30 T1.9b merged 257fb53 (попытка 1; check красный из-за параллельного FIX-1 в общих build/assets — перепроверить после мержа FIX-1)
 - 2026-09-30 FIX-1 merged 626217d (models.json 53 клипа; check зелёный: 558 тестов)
+- 2026-09-30 T0.6 merged 7437cf7 (попытка 1; check зелёный: 570 тестов)
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
 
 ## Заметки оркестратора
+- T0.6: assets/data/{fonts/fontXX.json, missions, texts, effects}.json; схемы FontSchema/MissionsSchema/TextsSchema/EffectsSchema в src/engine/assets/schemas.ts (типы FontData, MissionsData, TextsData, EffectsData) — T1.9e/T2.3/T2.7; AssetRegistry пока отдаёт AnyObject — типизировать там. Из CacheList в манифесте нет 7 клипов (Background_mc, PortalParticle_mc, MagicFlyGreen/Yellow_mc, MagicLeafPurpleA/YellowA_mc, SparkGreen_mc) — T2.3 должна пропускать отсутствующие при кешировании. texts_en.xml имеет lang="ru" (оставлено 1:1). Числовые атрибуты missions/effects остаются строками.
 - T1.9b: ES-цикл модулей: G больше не импортирует LevelManager (G.levelManagerClass ставит сам LevelManager при загрузке) — GameState (T1.9e) ОБЯЗАН импортировать levels/LevelManager и содержать smokeSimulation/fireSimulation/oilSimulation/lightEnvironment. Когда G.gamePause начнёт тянуть настоящие системы (T1.9c/d/e), цикл G↔системы↔узлы↔компоненты вернётся: резать ребро (регистрация pauseSystem снаружи) или сделать `components` узлов ленивыми. Заглушки views STUB(T2.1): Rock/SmallBox/BigBox/Barrel/House/Coin/Bonus/TransporterWheel/Indicator/Missile/Blinker/Sensor/Tutorial; STUB(T1.9c) ShuttleView, HealthSystem.applyExplosionDamage; STUB(T1.9d) PassengerView, PassengerLogic/PassengerSense; STUB(T1.9e) UISystem, GameState. LevelCore: слои — имена символов; Level01..20 — фабрика levelClass(n). Сохранены баги: ShuttleModel.shuttleColor читает кадр левого двигателя; dropCoins(n) создаёт n монет; progress загрузки 100+100/3. Тесты с AntBox2DBody: G.physics.stop() перед новым G.init в том же файле. Skew-объекты (406): размер из JSON при rotation 0, сверка с Ruffle в T4.2. PassengerModel.createRagdoll падает на null-модели, пока нет FIX-1. symbols.test.ts («53 clips» → 73 в общем build) править вместе с FIX-1.
 - T1.8: AntSoundManagerStub удалён, AntG.sounds настоящий. Звук в Frame: источник или повторы>1 → loops (стабильный channelId), иначе oneShots. SOUND_COMPLETE эмулируется (AntSound.TICK_MS). Sounds.init() зовёт сейчас TestState — T1.9e (GameState.create) должен звать сам; Music.as не портирован — T2.7 (MusicManager со своим AntSoundManager, затем `collectFrameAudio(AntG.sounds, G.music.manager, G.music.mute)` в GameLoop.renderFrame, STUB(T2.7)). Проверить, что порты не передают число вместо Boolean в play(..., aLoop). Ручная проверка на слух (не блокирует): `unset ELECTRON_RUN_AS_NODE; npm run dev` — звук движка, панорама, перезапуск ~6.4 с без щелчков. Prettier в check не входит.
 - T1.6: src/sim/TestState.ts и TestScene.ts (+ тест в render.test.ts) — временные, удалить после T1.9e. headless.ts в tsconfig.node.json. Добавлено сообщение воркера {t:'saveLoad',key}. STUB(T3.2): simPort в worker.ts; STUB(T4.1): запись ввода только в памяти (GameLoop.lastRecording). GameData.storage — глобальная статика (каждый GameLoop перезаписывает). SAVE_KEY vs save.json — согласовать в T2.8.
