@@ -5,8 +5,8 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T1.4 | 1 | (worktree агента a8821463) | .claude/worktrees/… | 2026-09-30 13:48 |
-| T1.3 | 1 | (worktree агента aa0259e7) | .claude/worktrees/… | 2026-09-30 13:48 |
+| T1.4 | 1 | worktree-agent-a8821463d2b3140f0 | .claude/worktrees/agent-a8821463d2b3140f0 | 2026-09-30 13:48 |
+| T1.3 | 1 | worktree-agent-aa0259e79e31bad09 | .claude/worktrees/agent-aa0259e79e31bad09 | 2026-09-30 13:48 |
 
 ## Ворота
 | Милстоун | статус |
