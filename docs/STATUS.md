@@ -6,6 +6,7 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T1.5 | 1 | worktree-agent-a3a6a72ee494bc112 | .claude/worktrees/agent-a3a6a72ee494bc112 | 2026-09-30 13:58 |
+| T1.9a | 1 | worktree-agent-a8bd6c833830d78fe | .claude/worktrees/agent-a8bd6c833830d78fe | 2026-09-30 14:08 |
 
 ## Ворота
 | Милстоун | статус |
@@ -37,6 +38,7 @@
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
 
 ## Заметки оркестратора
+- ПЛАН (по просьбе пользователя): T1.9a → T1.7 → T1.6 (T1.7 и T1.6 стартуют после мержа T1.5), затем остановка (`until=T1.6`).
 - В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
 - Electron 44 не качает бинарь в postinstall: после `npm install` выполнять `node node_modules/electron/install.js` (в основной копии сделано).
 - Версии из T0.1: TS 6.0.3 (peer typescript-eslint), vite 7.3.6 (peer electron-vite 5).
