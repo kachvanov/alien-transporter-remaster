@@ -3,7 +3,7 @@
 import { AntG } from '../../engine/core/AntG';
 import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
 import { G } from '../G';
-import { Factory } from '../map/Factory'; // STUB(T1.9b)
+import { Factory } from '../map/Factory';
 
 export class ShuttleSpawn {
   static readonly className = 'ShuttleSpawn';

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AntNode } from '../../src/engine/ants/AntNode';
 import type { AntNodeClass } from '../../src/engine/ants/AntNode';
 import { AntObject } from '../../src/engine/ants/AntObject';
@@ -48,6 +48,14 @@ import { GameState } from '../../src/game/states/GameState';
 import { TutorialView } from '../../src/game/views/TutorialView';
 import { PassengerView } from '../../src/game/views/PassengerView';
 import { ShuttleView } from '../../src/game/views/ShuttleView';
+import { hasAssets, loadAssets } from './helpers/assets';
+
+// Factory (T1.9b) is the real one: it needs the animations (manifest) and the models of the assets.
+beforeAll(async () => {
+  if (hasAssets) {
+    await loadAssets();
+  }
+});
 
 beforeEach(() => {
   AntMath.seed(12345);
@@ -422,7 +430,7 @@ describe('small components', () => {
 });
 
 describe('components that create objects, effects and tasks', () => {
-  it('CoinPoint.call without a delay makes a coin at once', () => {
+  it.skipIf(!hasAssets)('CoinPoint.call without a delay makes a coin at once', () => {
     const cp = new CoinPoint(5, 6);
     cp.call();
     expect(cp.isActive).toBe(true);
@@ -436,7 +444,7 @@ describe('components that create objects, effects and tasks', () => {
     expect(AntG.plugins.numActive).toBeGreaterThanOrEqual(plugins);
   });
 
-  it('Death.create calls the creator with the model name and makes the coins', () => {
+  it.skipIf(!hasAssets)('Death.create calls the creator with the model name and makes the coins', () => {
     const calls: unknown[][] = [];
     const creator = (...a: unknown[]): AntObject => {
       calls.push(a);
@@ -455,20 +463,20 @@ describe('components that create objects, effects and tasks', () => {
     new Death(null, 'x').create(0, 0, 0, new AntPoint()); // no creator: nothing happens
   });
 
-  it('ShuttleSpawn.spawn makes the effect', () => {
+  it.skipIf(!hasAssets)('ShuttleSpawn.spawn makes the effect', () => {
     const before = G.gameState.layerMainEffects.numChildren;
     new ShuttleSpawn(1.5, 2.5, 'Player1').spawn();
     expect(G.gameState.layerMainEffects.numChildren).toBe(before + 1);
   });
 
-  it('MissilePoint keeps its state and launches a spawned missile', () => {
+  it.skipIf(!hasAssets)('MissilePoint keeps its state and launches a spawned missile', () => {
     const mp = new MissilePoint(10, 20, 90, 3);
     expect([mp.x, mp.y, mp.angle, mp.respawnDelay, mp.delay, mp.speed, mp.hasMissile]).toEqual([10, 20, 90, 3, 3, 0, false]);
     mp.call(); // nothing to launch
     mp.spawn();
     expect(mp.hasMissile).toBe(true);
-    mp.call(); // the stub missile has no PhysicModel: only marks the launch
-    expect(mp.hasMissile).toBe(true);
+    mp.call(); // the real missile (Factory.makeMissile) has a PhysicModel: it is launched (onLaunch drops it)
+    expect(mp.hasMissile).toBe(false);
   });
 
   it('FlyingLabel counts the value, moves up, times out and hides', () => {
@@ -498,7 +506,7 @@ describe('components that create objects, effects and tasks', () => {
     named.destroy();
   });
 
-  it('Tutorial switches animation and adds the key labels', () => {
+  it.skipIf(!hasAssets)('Tutorial switches animation and adds the key labels', () => {
     Config.keyP1Gas = 'UP';
     const labels: string[] = [];
     const view = new TutorialView();

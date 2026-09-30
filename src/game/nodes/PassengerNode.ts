@@ -6,7 +6,7 @@ import { Display } from '../components/Display';
 import { Info } from '../components/Info';
 import { PassengerMediator } from '../components/PassengerMediator';
 import { WaitingTimer } from '../components/WaitingTimer';
-import { PassengerModel } from '../models/PassengerModel'; // STUB(T1.9b)
+import { PassengerModel } from '../models/PassengerModel';
 
 /** Component fields in the order of the `public var` declarations of the original (AntFamily reads them). */
 export class PassengerNode extends AntNode {

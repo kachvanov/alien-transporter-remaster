@@ -3,7 +3,7 @@
 import { AntNode } from '../../engine/ants/AntNode';
 import { Info } from '../components/Info';
 import { Physic } from '../components/Physic';
-import { MissileModel } from '../models/MissileModel'; // STUB(T1.9b)
+import { MissileModel } from '../models/MissileModel';
 
 /** Component fields in the order of the `public var` declarations of the original (AntFamily reads them). */
 export class MissileNode extends AntNode {

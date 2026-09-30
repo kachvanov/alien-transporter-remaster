@@ -12,7 +12,7 @@ import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STU
 import type { AnyObject } from '../../engine/utils/types';
 import { Config } from '../Config';
 import { G } from '../G';
-import { LevelManager } from '../levels/LevelManager'; // STUB(T1.9b)
+import { TOTAL_LEVELS } from '../levels/TotalLevels';
 import { LevelData } from './LevelData';
 import { PlayerData } from './PlayerData';
 
@@ -117,7 +117,7 @@ export class GameData {
     this._playerData = [new PlayerData(PlayerData.PLAYER1), new PlayerData(PlayerData.PLAYER2)];
     this._levelData = [];
     let i = 0; // :int
-    while (i < LevelManager.TOTAL_LEVELS) {
+    while (i < TOTAL_LEVELS) {
       this._levelData[this._levelData.length] = new LevelData(i + 1);
       i++;
     }

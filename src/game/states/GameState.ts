@@ -6,6 +6,23 @@
 import { AntEntity } from '../../engine/core/AntEntity';
 import { AntState } from '../../engine/core/AntState';
 
+/** STUB(T2.2): stand-in for ru/alientransporter/elements/ElementSimulation.as. */
+export class StubElementSimulation {
+  /** AS3 `pour(aX:Number, aY:Number, aVelocityX:Number, aVelocityY:Number)`. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  pour(_aX: number, _aY: number, _aVelocityX: number, _aVelocityY: number): void {}
+
+  clear(): void {}
+}
+
+/** STUB(T2.4): stand-in for ru/antkarlov/anthill/extensions/livinglights/AntLightEnvironment.as. */
+export class StubLightEnvironment {
+  /** AS3 `add(aChild:AntEntity):AntEntity`. */
+  add(aChild: AntEntity): AntEntity {
+    return aChild;
+  }
+}
+
 export class GameState extends AntState {
   cameraAnchor: AntEntity = new AntEntity();
   layerBack: AntEntity = new AntEntity();
@@ -30,6 +47,13 @@ export class GameState extends AntState {
   layerMenuBG: AntEntity = new AntEntity();
   layerMenu: AntEntity = new AntEntity();
   layerMenuFG: AntEntity = new AntEntity();
+
+  // STUB(T2.2, T2.4): the element simulations and the light environment; only what map/Factory.ts and
+  // map/LevelCore.ts call (pour, clear, add) with the signatures of the original; they do nothing.
+  oilSimulation: StubElementSimulation = new StubElementSimulation();
+  smokeSimulation: StubElementSimulation = new StubElementSimulation();
+  fireSimulation: StubElementSimulation = new StubElementSimulation();
+  lightEnvironment: StubLightEnvironment = new StubLightEnvironment();
 
   /** AS3 `setFancyQuality(aValue:Boolean)`: the value is only remembered. */
   fancyQuality = true;

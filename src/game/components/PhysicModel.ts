@@ -2,7 +2,7 @@
 
 import { AntPoint } from '../../engine/utils/AntPoint';
 import type { AnyObject } from '../../engine/utils/types';
-import type { BasicModel } from '../models/BasicModel'; // STUB(T1.9b)
+import type { BasicModel } from '../models/BasicModel';
 
 /**
  * `physic.hasOwnProperty("hitPoint")` of the original is `"hitPoint" in physic`: the members are declared

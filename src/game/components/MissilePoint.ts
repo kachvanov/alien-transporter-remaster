@@ -8,7 +8,7 @@ import { AntMath } from '../../engine/utils/AntMath';
 import { asType } from '../../engine/utils/cast';
 import type { AntBox2DBody } from '../../physics/anthill/AntBox2DBody';
 import { G } from '../G';
-import { Factory } from '../map/Factory'; // STUB(T1.9b)
+import { Factory } from '../map/Factory';
 import type { IActionComponent } from './IActionComponent';
 import { PhysicModel } from './PhysicModel';
 
