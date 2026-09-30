@@ -357,3 +357,59 @@ export type SoundEntry = z.infer<typeof SoundEntrySchema>;
 
 export const SoundsSchema = z.array(SoundEntrySchema);
 export type SoundsData = z.infer<typeof SoundsSchema>;
+
+// ---------------------------------------------------------------- fonts / missions / texts / effects
+// Written by tools/extract/data.ts from reference/data/*.xml (docs/02-extraction-pipeline.md §6).
+// Fonts are converted to a game format (numbers), everything else is the generic xmlToJson tree
+// (docs/04-porting-guide.md §5): attributes -> string fields, repeated children -> arrays.
+
+/** assets/data/fonts/fontXX.json; `chars` keep the XML order (Font.chars indexes frames by it). */
+export const FontCharSchema = z.strictObject({
+  name: z.string().min(1),
+  x: IntSchema,
+  y: IntSchema,
+  w: IntSchema,
+  h: IntSchema,
+  /** Optional in Font.parseAtlasXML (NaN -> 0); absent from the shipped fonts. */
+  offsetX: z.number().optional(),
+  offsetY: z.number().optional(),
+});
+export const FontSchema = z.strictObject({
+  name: z.string().min(1),
+  charInterval: IntSchema,
+  chars: z.array(FontCharSchema).min(1),
+});
+export type FontData = z.infer<typeof FontSchema>;
+
+/** `<SubProp name="" value=""/>` — a name/value pair, both strings. */
+export const SubPropSchema = z.strictObject({ name: z.string(), value: z.string() });
+
+/** missions.json = `<MissionsData>`: `Mission` -> `SubProp` list (MissionManager.loadMissionFrom). */
+export const MissionsSchema = z.strictObject({
+  Mission: z.array(z.strictObject({ SubProp: z.array(SubPropSchema).min(1) })).min(1),
+});
+export type MissionsData = z.infer<typeof MissionsSchema>;
+
+/** texts.json = `<TextData lang="ru">`: `SubText` id -> value (Text.loadXML). */
+export const TextsSchema = z.strictObject({
+  lang: z.string(),
+  SubText: z.array(z.strictObject({ id: z.string().min(1), value: z.string() })).min(1),
+});
+export type TextsData = z.infer<typeof TextsSchema>;
+
+/** effects.json = `<EffectProject>` (AntEffectManager.loadXML). */
+export const EffectsSchema = z.strictObject({
+  /** Leftover of the effect editor (`resourcesSWF`, `backgroundClip`). */
+  PropertiesList: z.array(z.strictObject({ Property: z.array(SubPropSchema) })).length(1),
+  /** Clips whose frames AntEffectManager caches; they live in the main SWF. */
+  CacheList: z.array(z.strictObject({ Clip: z.array(z.strictObject({ name: z.string() })).min(1) })).length(1),
+  Effect: z
+    .array(
+      z.strictObject({
+        name: z.string().regex(/_eff$/),
+        EffectProperty: z.array(z.strictObject({ name: z.string(), SubProp: z.array(SubPropSchema).min(1) })).min(1),
+      }),
+    )
+    .min(1),
+});
+export type EffectsData = z.infer<typeof EffectsSchema>;
