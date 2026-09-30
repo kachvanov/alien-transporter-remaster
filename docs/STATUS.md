@@ -6,7 +6,7 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T1.9b | 1 | worktree-agent-a813e71f665c24164 | .claude/worktrees/agent-a813e71f665c24164 | 2026-09-30 |
-| T1.8 | 1 | (определится после запуска) | | 2026-09-30 |
+| T1.8 | 1 | worktree-agent-a6c7b46052ae4db9e | .claude/worktrees/agent-a6c7b46052ae4db9e | 2026-09-30 |
 
 ## Ворота
 | Милстоун | статус |
