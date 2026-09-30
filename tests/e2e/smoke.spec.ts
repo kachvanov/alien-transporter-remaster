@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from '@playwright/test';
 import { PNG } from 'pngjs';
 
-test('window opens, canvas shows text, worker ticks grow', async () => {
+test('window opens, canvas shows the scene, worker ticks grow', async () => {
   // ELECTRON_RUN_AS_NODE (set by some hosts/CI) would make Electron start as plain Node.
   const env = Object.fromEntries(
     Object.entries(process.env).filter(
@@ -23,7 +23,7 @@ test('window opens, canvas shows text, worker ticks grow', async () => {
     expect(t1 - t0).toBeGreaterThan(20);
     expect(t1 - t0).toBeLessThan(50);
 
-    // The canvas must contain non-black pixels (caption + counter text).
+    // The canvas must contain non-black pixels (the test scene: level background, coins, shuttle).
     const png = PNG.sync.read(await page.screenshot());
     let lit = 0;
     for (let i = 0; i < png.data.length; i += 4) {
