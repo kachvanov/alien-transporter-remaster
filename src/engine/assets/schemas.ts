@@ -292,11 +292,11 @@ export type LevelData = z.infer<typeof LevelSchema>;
 
 /**
  * Model / ragdoll objects: physics shapes and joints (all named, all parameters required)
- * plus the unnamed debris graphics (`*Frag0N_mc`, `RockFragment0N_mc`) that ragdolls place.
+ * plus the unnamed debris graphics (`*Frag0N_mc`, `RockFragment0N_mc`, `FragBandage_mc`) that ragdolls place.
  */
 const FragmentSchema = z.strictObject({
   ...PlacedBaseShape,
-  cls: z.string().regex(/^(Shuttle0\dFrag0\d|RockFragment0\d)_mc$/),
+  cls: z.string().regex(/^(Shuttle0\dFrag0\d|RockFragment0\d|FragBandage)_mc$/),
   props: NoProps,
 });
 
@@ -331,9 +331,9 @@ export const ModelObjectSchema = z.union([
 ]);
 export type ModelObject = z.infer<typeof ModelObjectSchema>;
 
-/** `Shuttle01Model_mc` -> objects (sorted by depth). 33 clips: *Model_mc and *Ragdoll_mc. */
+/** `Shuttle01Model_mc` -> objects (sorted by depth). 53 clips: *Model_mc, *Ragdoll_mc and *Ragdoll0N_mc. */
 export const ModelsSchema = z.record(
-  z.string().regex(/(Model|Ragdoll)_mc$/),
+  z.string().regex(/(Model|Ragdoll(\d\d)?)_mc$/),
   z.strictObject({ objects: z.array(ModelObjectSchema) }),
 );
 export type ModelsData = z.infer<typeof ModelsSchema>;

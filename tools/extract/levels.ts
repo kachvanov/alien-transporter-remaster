@@ -40,7 +40,8 @@ export function isLevelClip(name: string): boolean {
 }
 
 export function isModelClip(name: string): boolean {
-  return /Model_mc$|Ragdoll_mc$/.test(name);
+  // Ragdoll_mc plus the numbered passenger ragdolls (Passenger<Color>Ragdoll0N_mc).
+  return /Model_mc$|Ragdoll(\d\d)?_mc$/.test(name);
 }
 
 export function levelsDir(p: Paths): string {

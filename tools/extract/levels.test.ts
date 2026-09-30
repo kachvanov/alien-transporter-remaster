@@ -276,10 +276,24 @@ describe.skipIf(!hasModels || !hasRef)('models.json', () => {
     ? ModelsSchema.parse(JSON.parse(readFileSync(modelsPath(paths), 'utf8')))
     : {};
 
-  it('has 33 clips', () => {
-    expect(Object.keys(models)).toHaveLength(33);
+  it('has 53 clips: exactly those registered in Models.as', () => {
+    // FIX-1: was 33; the 20 Passenger<Color>Ragdoll0N_mc clips were dropped by the filter.
+    expect(Object.keys(models)).toHaveLength(53);
     expect(models.Shuttle01Model_mc).toBeDefined();
     expect(models.Passenger01Model_mc).toBeDefined();
+    const src = readFileSync(join(paths.refAs3, 'ru', 'alientransporter', 'Models.as'), 'utf8');
+    const registered = [...new Set(src.match(/[A-Za-z0-9_]+_mc/g) ?? [])].sort();
+    expect(registered).toHaveLength(53);
+    expect(Object.keys(models).sort()).toEqual(registered);
+  });
+
+  it('has the 20 passenger ragdolls (4 colors x 5 variants), each with physics objects', () => {
+    for (const color of ['Blue', 'Pink', 'Green', 'Orange']) {
+      for (let i = 1; i <= 5; i++) {
+        const clip = `Passenger${color}Ragdoll0${i}_mc`;
+        expect(models[clip]?.objects.length, clip).toBeGreaterThan(0);
+      }
+    }
   });
 
   it('named instances per class = fields of the .as', () => {

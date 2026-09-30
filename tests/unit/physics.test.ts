@@ -627,7 +627,8 @@ describe('AntModelManager', () => {
     it('every clip of models.json builds; counts match', () => {
       const mm = makeModels(models);
       const names = Object.keys(models);
-      expect(names.length).toBe(33);
+      // FIX-1: 53 clips (was 33: the 20 Passenger<Color>Ragdoll0N_mc were missing from models.json).
+      expect(names.length).toBe(53);
       for (const name of names) mm.addModelFromClip(name);
       let shapes = 0;
       let joints = 0;
@@ -637,8 +638,9 @@ describe('AntModelManager', () => {
         shapes += model?.numShapes ?? 0;
         joints += model?.numJoints ?? 0;
       }
-      expect(shapes).toBe(99 + 19);
-      expect(joints).toBe(67 + 8);
+      // 33 original clips + 20 passenger ragdolls (144 shapes, 116 joints, counted from the .as fields).
+      expect(shapes).toBe(99 + 19 + 144);
+      expect(joints).toBe(67 + 8 + 116);
     });
   });
 });
