@@ -376,9 +376,9 @@ describe('Models', () => {
     const registry = new AssetRegistry(new FileAssetSource(assetsRoot, (p) => readFile(p)));
     await registry.loadModels();
     const models = new Models(registry.getModels() as never);
-    // models.json has 33 of the 53 clips: the 20 Passenger*Ragdoll0N_mc are absent (pipeline gap, see the report).
-    expect(models.missing).toHaveLength(20);
-    expect(models.missing.every((n) => /^Passenger(Blue|Pink|Green|Orange)Ragdoll0[1-5]_mc$/.test(n))).toBe(true);
+    // FIX-1: models.json has all 53 clips registered in Models.as (was 33; the 20 Passenger*Ragdoll0N_mc were missing).
+    expect(models.missing).toHaveLength(0);
+    expect(models.manager.getModel('PassengerBlueRagdoll01_mc')).not.toBeNull();
     const shuttle = models.manager.getModel('Shuttle01Model_mc')!;
     expect(shuttle).not.toBeNull();
     expect(shuttle.name).toBe('Shuttle01Model_mc');

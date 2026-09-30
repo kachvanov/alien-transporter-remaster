@@ -37,7 +37,7 @@ java -Djava.awt.headless=true -cp "vendor/jpexs/lib/*:build/extract/java" Symbol
   vendor/original/AlienTransporter.swf build/extract   # → symbols.json, placements.json
 ```
 - `symbols.json`: массив `{id, className, kind: sprite|shape|image|sound|…, frames?, rect, rectWithFilters, sound?}`. Координаты в пикселях (twips / 20). `sound = {format: 2 (MP3), rate, stereo, sampleCount, seekSamples}`. Проверено: у всех 55 именованных звуков `seekSamples = 0`.
-- `placements.json`: `{ "<ClassName>": [ {depth, characterId, className|null, instanceName|null, move, matrix:[a,b,c,d,tx,ty]} ] }` — кадр 1 каждого клипа, подходящего под regex `Level\d\dPhysic_mc|.*Model_mc|.*Ragdoll_mc`. Всего 53 клипа: 20 уровней и 33 модели/рэгдолла. Порядок — порядок тегов. **Перед использованием сортировать по `depth`**, потому что в AS3 `getChildAt(i)` — это порядок глубин.
+- `placements.json`: `{ "<ClassName>": [ {depth, characterId, className|null, instanceName|null, move, matrix:[a,b,c,d,tx,ty]} ] }` — кадр 1 каждого клипа, подходящего под regex `Level\d\dPhysic_mc|.*Model_mc|.*Ragdoll(\d\d)?_mc`. Всего 73 клипа: 20 уровней и 53 модели/рэгдолла (из них 20 — `Passenger<Цвет>Ragdoll0N_mc`; именно 53 зарегистрировано в `Models.as`). Порядок — порядок тегов. **Перед использованием сортировать по `depth`**, потому что в AS3 `getChildAt(i)` — это порядок глубин.
 - Проверено: в `Level01Physic_mc` 189 размещений (GroundBox_com 16, GroundCircle_com 18, Station_com 2, Trigger_com 5 и т.д.). 108 из них `className = null`: это безымянная графика редактора, игра её игнорирует.
 
 ## Шаг 4. Спрайты (`sprites.ts`)

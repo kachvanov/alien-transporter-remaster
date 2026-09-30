@@ -37,7 +37,7 @@ public class SymbolInfo {
     SWF swf = new SWF(new BufferedInputStream(new FileInputStream(a[0])), false);
     File out = new File(a[1]);
     out.mkdirs();
-    String placeRe = a.length > 2 ? a[2] : "Level\\d\\dPhysic_mc|.*Model_mc|.*Ragdoll_mc";
+    String placeRe = a.length > 2 ? a[2] : "Level\\d\\dPhysic_mc|.*Model_mc|.*Ragdoll(\\d\\d)?_mc";
     Map<Integer, CharacterTag> chars = swf.getCharacters(false);
 
     StringBuilder sym = new StringBuilder("[\n");

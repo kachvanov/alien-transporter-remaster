@@ -91,8 +91,9 @@ describe.skipIf(!hasData)('build/extract symbols.json and placements.json', () =
     });
   });
 
-  it('placements: 53 clips, Level01Physic_mc has 189 placements', () => {
-    expect(Object.keys(placements)).toHaveLength(53);
+  it('placements: 73 clips (20 levels + 53 models), Level01Physic_mc has 189 placements', () => {
+    // FIX-1: was 53; the regex missed the 20 Passenger<Color>Ragdoll0N_mc.
+    expect(Object.keys(placements)).toHaveLength(73);
     const level = placements['Level01Physic_mc'] ?? [];
     expect(level).toHaveLength(189);
     expect(level.filter((p) => p.className === 'GroundBox_com')).toHaveLength(16);
