@@ -1,11 +1,10 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T1.3 9135dae
+Обновлено: 2026-09-29 · Последний merge: T1.4 11f462c
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T1.4 | 1 | worktree-agent-a8821463d2b3140f0 | .claude/worktrees/agent-a8821463d2b3140f0 | 2026-09-30 13:48 |
 | T1.5 | 1 | worktree-agent-a3a6a72ee494bc112 | .claude/worktrees/agent-a3a6a72ee494bc112 | 2026-09-30 13:58 |
 
 ## Ворота
@@ -33,6 +32,7 @@
 - 2026-09-30 T1.2 прервана лимитом сессии (до коммита, правки остались в worktree) — возобновляю того же агента
 - 2026-09-30 T0.5 merged 91f3ce0 (попытка 1)
 - 2026-09-30 T1.2 merged 1ef4970 (попытка 1, возобновлена после лимита)
+- 2026-09-30 T1.4 merged 11f462c (попытка 1)
 - 2026-09-30 T1.3 merged 9135dae (попытка 1)
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
 
@@ -48,3 +48,4 @@
 - T1.2 отклонения: Anthill.tick рисует «update, затем draw» для нескольких камер (у оригинала покамерно; при одной камере совпадает); AntCamera.shake теперь тянет один AntMath.random (сдвиг PRNG относительно оригинала неизбежен по правилу 4).
 - Гонка: параллельные M0-задачи перегенерируют assets/gfx, и тесты в другой задаче могут падать на этом; при красном check — перезапустить `npm run extract`.
 - T1.3: ВАЖНО для GameState (T1.9e) и T4.2: все `Priority.*` = 0 (проверено grep, присваиваний нет), поэтому порядок update 18 систем определяет нестабильный Array.sort Flash; `AntCore.updatePriority` использует `sortAS3` (воспроизводит его, покрыт тестом) — порядок НЕ равен порядку addSystem (напр. для 8 систем: e,b,c,d,a,f,g,h). Не «чинить». Сверить порядок систем с Ruffle в T4.2 (риск: декомпилятор мог потерять статический инициализатор Priority). Node-классы: `static override readonly components = {поле: Класс}` вместо describeType; `AntObject.get<T>()` типизирован как T.
+- T1.4: `_allowSleep` в оригинале нигде не присваивается → doSleep=false, тела не засыпают; сохранено (не включать сон). Эталон падающего ящика — из самого box2dweb, не из Flash (сверка с Ruffle — T4.2). AntBox2DDrawer заменён на `collectDebugLines` (Float32Array, 5 float/линия). ClipProxy в src/engine/assets/ClipProxy.ts (для T1.9b). AntModelManager: компонент-класс — строка-имя (`registerShapeComponent`). `electron.vite.config.ts` получил optimizeDeps.include=['box2dweb'] — проверить при первом `npm run dev` (T1.7). Сохранён баг оригинала: сеттер friction.

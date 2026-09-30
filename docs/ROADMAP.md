@@ -24,7 +24,7 @@
 | [x] | T1.1 | Утилиты Anthill: AntMath/PRNG, geom, сигналы, плагины (Task/Tween), AS3-хелперы, int-report `8189ffe` | T0.1 | M |
 | [x] | T1.2 | Сцена: AntBasic/Entity/Actor/Animation/Camera/TileMap/State, AntG, ввод, AssetRegistry `1ef4970` | T1.1, T0.4 | L |
 | [x] | T1.3 | ECS «ants» `9135dae` | T1.1 | M |
-| [ ] | T1.4 | Физика: box2dweb + порт Box2D-for-Anthill + ModelManager | T1.2, T0.7 | L |
+| [x] | T1.4 | Физика: box2dweb + порт Box2D-for-Anthill + ModelManager `11f462c` | T1.2, T0.7 | L |
 | [ ] | T1.5 | Формат `Frame`: writer/reader/uid/teleport | T1.2 | M |
 | [ ] | T1.6 | Sim runtime: GameLoop 35 Гц, worker, headless, SaveStorage, InputRouter | T1.2, T1.3, T1.5 | M |
 | [ ] | T1.7 | Electron shell + Pixi-рендер + FramePlayer + letterbox + атласы + ввод | T1.5, T0.4 | L |
