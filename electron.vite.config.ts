@@ -37,5 +37,8 @@ export default defineConfig({
       rollupOptions: { input: resolve(__dirname, 'index.html') },
     },
     worker: { format: 'es' },
+    // box2dweb is CommonJS and is first imported from the sim worker, which the dev dependency scan does not
+    // follow: pre-bundle it explicitly so the default import (module.exports = Box2D) works in dev as in build.
+    optimizeDeps: { include: ['box2dweb'] },
   },
 });
