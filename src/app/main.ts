@@ -1,5 +1,5 @@
 // Renderer entry (T1.7): FramePlayer + PixiRenderer + InputCollector around a frame source.
-// TEMPORARY frame source: the test scene of src/sim/testWorker.ts. T1.6 (SimClient) and T1.9e replace it.
+// The frame source is the sim worker (SimClient, T1.6).
 
 import { FetchAssetSource } from '../engine/assets/AssetSource';
 import { parseManifest } from '../engine/assets/schemas';
@@ -9,6 +9,7 @@ import { FramePlayer } from '../render/FramePlayer';
 import { InputCollector } from '../render/InputCollector';
 import { PerfOverlay } from '../render/PerfOverlay';
 import { PixiRenderer } from '../render/PixiRenderer';
+import { SimClient } from './SimClient';
 
 const ASSETS_URL = 'app://assets/';
 
@@ -34,22 +35,33 @@ async function bootstrap(): Promise<void> {
   let frameBytes = 0;
   let tickCostMs = 0;
 
-  // --- frame source (temporary: test scene) ---
-  const worker = new Worker(new URL('../sim/testWorker.ts', import.meta.url), { type: 'module' });
-  worker.onmessage = (ev: MessageEvent<{ type: string; n?: number; buffer?: ArrayBuffer; message?: string }>) => {
-    const m = ev.data;
-    if (m.type === 'frame' && m.buffer !== undefined) {
-      frameBytes = m.buffer.byteLength;
-      player.push(m.buffer, performance.now());
+  // --- frame source: the sim worker ---
+  let lastReport = 0;
+  const sim = new SimClient({
+    seed: (Math.random() * 0x100000000) >>> 0,
+    assetBase: ASSETS_URL,
+    at: window.at,
+    onFrame: (buffer) => {
+      frameBytes = buffer.byteLength;
+      player.push(buffer, performance.now());
       const cur = player.current;
-      if (cur !== null) tickCostMs = cur.tickCost / 100;
-    } else if (m.type === 'tick' && m.n !== undefined) {
-      // Test hook for the Playwright smoke test.
-      root.dataset['ticks'] = String(m.n);
-    } else if (m.type === 'error') {
-      console.error('sim worker:', m.message);
-    }
-  };
+      if (cur !== null) {
+        tickCostMs = cur.tickCost / 100;
+        // Test hook for the Playwright smoke test: the tick number of the last frame.
+        root.dataset['ticks'] = String(cur.tick + 1);
+      }
+      const now = performance.now();
+      if (now - lastReport >= 5000) {
+        lastReport = now;
+        root.dataset['simFps'] = sim.framesPerSecond.toFixed(1);
+        console.info(`[sim] ${sim.framesPerSecond.toFixed(1)} frames/s, ${buffer.byteLength} bytes`);
+      }
+    },
+    onReady: () => {
+      if (flags.startLevel !== null) sim.command('startLevel', [flags.startLevel]);
+    },
+  });
+  sim.start();
 
   // --- input ---
   let inputDirty = false;
@@ -70,7 +82,7 @@ async function bootstrap(): Promise<void> {
   const loop = (now: number): void => {
     if (inputDirty) {
       inputDirty = false;
-      worker.postMessage({ type: 'input', snapshot: input.snapshot() });
+      sim.sendInput(input.snapshot());
     }
     const sample = player.sample(now);
     if (sample !== null) {
