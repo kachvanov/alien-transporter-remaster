@@ -1,12 +1,11 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T1.5 f80ee62
+Обновлено: 2026-09-29 · Последний merge: T1.7 503ec59
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T1.9a | 1 | worktree-agent-a8bd6c833830d78fe | .claude/worktrees/agent-a8bd6c833830d78fe | 2026-09-30 14:08 |
-| T1.7 | 1 | worktree-agent-a70c275f5601b10b4 | .claude/worktrees/agent-a70c275f5601b10b4 | 2026-09-30 14:16 |
 
 ## Ворота
 | Милстоун | статус |
@@ -17,7 +16,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
-—
+- (не блокирует) T1.7: на MBP 120 Гц запусти `unset ELECTRON_RUN_AS_NODE; npm run dev` (F3 — FPS/interp) и посмотри, плавно ли летит монета; потом `npm run dev -- --classic` — должно быть ступенчато 35 fps.
 
 ## Заблокировано
 —
@@ -33,6 +32,7 @@
 - 2026-09-30 T1.2 прервана лимитом сессии (до коммита, правки остались в worktree) — возобновляю того же агента
 - 2026-09-30 T0.5 merged 91f3ce0 (попытка 1)
 - 2026-09-30 T1.2 merged 1ef4970 (попытка 1, возобновлена после лимита)
+- 2026-09-30 T1.7 merged 503ec59 (попытка 1)
 - 2026-09-30 T1.5 merged f80ee62 (попытка 1)
 - 2026-09-30 T1.4 merged 11f462c (попытка 1)
 - 2026-09-30 T1.3 merged 9135dae (попытка 1)
@@ -53,3 +53,4 @@
 - T1.3: ВАЖНО для GameState (T1.9e) и T4.2: все `Priority.*` = 0 (проверено grep, присваиваний нет), поэтому порядок update 18 систем определяет нестабильный Array.sort Flash; `AntCore.updatePriority` использует `sortAS3` (воспроизводит его, покрыт тестом) — порядок НЕ равен порядку addSystem (напр. для 8 систем: e,b,c,d,a,f,g,h). Не «чинить». Сверить порядок систем с Ruffle в T4.2 (риск: декомпилятор мог потерять статический инициализатор Priority). Node-классы: `static override readonly components = {поле: Класс}` вместо describeType; `AntObject.get<T>()` типизирован как T.
 - T1.4: `_allowSleep` в оригинале нигде не присваивается → doSleep=false, тела не засыпают; сохранено (не включать сон). Эталон падающего ящика — из самого box2dweb, не из Flash (сверка с Ruffle — T4.2). AntBox2DDrawer заменён на `collectDebugLines` (Float32Array, 5 float/линия). ClipProxy в src/engine/assets/ClipProxy.ts (для T1.9b). AntModelManager: компонент-класс — строка-имя (`registerShapeComponent`). `electron.vite.config.ts` получил optimizeDeps.include=['box2dweb'] — проверить при первом `npm run dev` (T1.7). Сохранён баг оригинала: сеттер friction.
 - T1.5: экранные координаты = global + scroll×scrollFactor (плюс, как в оригинале; в docs/03 было минус). Сущности со своим draw() (Label, AntLight, ElementSimulation…) реализуют `writeFrame(sink: FrameSink)` из src/frame/types.ts и сами выполняют побочные эффекты оригинального draw() — напомнить в T1.9e/T2.2/T2.4/T2.5. FrameScene (root, camera, tick, audio, debugLines, levelGroup) собирает GameLoop в T1.6. Тесты с камерой: сначала new AntCamera, потом AntBasic.resetEntityIds(). Debug-линии — последний узел uid=0. Origin AntTileMap-слоя проверить при интеграции уровней (T1.9b).
+- T1.7 → T1.6: возможен конфликт в src/app/main.ts — заменить источник кадров testWorker (src/sim/TestScene.ts, testWorker.ts — временные) на SimClient, кадры в player.push(buffer, performance.now()). src/sim/worker.ts T1.7 не трогала. Заглушки: STUB(T2.4) ext LIGHT/DEBUG_LINES не рисуются; STUB(T2.8) save/settings/window.json. Отклонение: anchor/scale считаются в растре тира (точнее формулы карточки). openExternal whitelist: zombotron.com, ahuraster.com (уточнить в Credits). Вне задачи: нет CSP в index.html (отдельной задачей, с app: и worker-src); overlay-blend не проверен на реальных узлах; e2e оставляет каталог userData `*-profilee2e`.
