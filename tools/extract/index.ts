@@ -14,6 +14,7 @@ import {
   type Paths,
 } from './decompile';
 import { levelsInputs, levelsOutputsOk, runLevels } from './levels';
+import { runSounds, soundsInputs, soundsOutputsOk } from './sounds';
 import { runSprites, spritesInputs, spritesOutputsOk } from './sprites';
 import { runSymbols, symbolsInputs, symbolsOutputsOk } from './symbols';
 
@@ -57,6 +58,12 @@ const STEPS: Step[] = [
     inputs: ({ paths, swfSource }) => spritesInputs(paths, prepareSwf(paths, swfSource)),
     outputsOk: ({ paths }) => spritesOutputsOk(paths),
     run: ({ paths }) => runSprites(paths),
+  },
+  {
+    name: 'sounds',
+    inputs: ({ paths, swfSource }) => soundsInputs(paths, prepareSwf(paths, swfSource)),
+    outputsOk: ({ paths }) => soundsOutputsOk(paths),
+    run: ({ paths }) => runSounds(paths),
   },
   {
     name: 'levels',

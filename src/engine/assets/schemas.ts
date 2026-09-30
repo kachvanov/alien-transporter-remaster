@@ -337,3 +337,23 @@ export const ModelsSchema = z.record(
   z.strictObject({ objects: z.array(ModelObjectSchema) }),
 );
 export type ModelsData = z.infer<typeof ModelsSchema>;
+
+// ---------------------------------------------------------------- sounds.json (docs/02-extraction-pipeline.md §5)
+// Written by tools/extract/sounds.ts. `id` is the index in the array (sorted by name); `samples` is the length of
+// the audio file per channel, i.e. the SWF sampleCount minus `trimStartSamples` (leading MP3 silence cut from loops).
+
+export const SoundEntrySchema = z.strictObject({
+  id: IntSchema.nonnegative(),
+  name: z.string().regex(/^Snd\w+$/),
+  /** Path under assets/, e.g. `sfx/SndEngineGas.ogg`. */
+  file: z.string().regex(/^sfx\/Snd\w+\.(ogg|flac)$/),
+  loop: z.boolean(),
+  rate: IntSchema.positive(),
+  channels: z.union([z.literal(1), z.literal(2)]),
+  samples: IntSchema.positive(),
+  trimStartSamples: IntSchema.nonnegative(),
+});
+export type SoundEntry = z.infer<typeof SoundEntrySchema>;
+
+export const SoundsSchema = z.array(SoundEntrySchema);
+export type SoundsData = z.infer<typeof SoundsSchema>;

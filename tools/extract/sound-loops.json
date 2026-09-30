@@ -1,0 +1,47 @@
+{
+  "_comment": "Sounds that the original plays with repeats > 1 (AntSoundManager.play(name, source, unique, repeats, volume) -> AntSound.play -> flash Sound.play(0, repeats)). Only `loops` get loop=true in assets/sounds.json (and only they lose their leading MP3 silence). `notLoops` are sounds that look like loops but are not, see the note. `source` = path:line of the play() call in reference/as3 (checked by sounds.test.ts).",
+  "loops": [
+    {
+      "name": "SndPortalIdle",
+      "repeats": 999,
+      "source": "reference/as3/ru/alientransporter/components/Portal.as:62",
+      "note": "AntG.sounds.play(\"SndPortalIdle\", this._effect, false, 999); stopped in Portal.as:39"
+    },
+    {
+      "name": "SndFuelRefill",
+      "repeats": 999,
+      "source": "reference/as3/ru/alientransporter/systems/StationSystem.as:180",
+      "note": "AntG.sounds.play(\"SndFuelRefill\", view, false, 999); stopped in StationSystem.as:188 and :331"
+    },
+    {
+      "name": "SndMusicMenu01",
+      "repeats": 10,
+      "source": "reference/as3/ru/alientransporter/MusicManager.as:105",
+      "note": "manager.play(trackName, cameraAnchor, false, 10, 0.5): 10 repeats = 11 plays, then silence; in practice a loop"
+    },
+    {
+      "name": "SndMusicGameplay01",
+      "repeats": 10,
+      "source": "reference/as3/ru/alientransporter/MusicManager.as:105",
+      "note": "same call as SndMusicMenu01 (random pick from _gameThemes)"
+    },
+    {
+      "name": "SndMusicGameplay02",
+      "repeats": 10,
+      "source": "reference/as3/ru/alientransporter/MusicManager.as:105",
+      "note": "same call as SndMusicMenu01 (random pick from _gameThemes)"
+    }
+  ],
+  "notLoops": [
+    {
+      "name": "SndEngineGas",
+      "source": "reference/as3/ru/alientransporter/systems/ShuttleSystem.as:217",
+      "note": "AntG.sounds.play(\"EngineGas_snd\", actor, 999): 999 lands in the Boolean parameter `unique` (-> true), so repeats stays 1. The engine sound is restarted by ShuttleSystem.playEngineSound whenever !isPlaying(); the sound is played once per call. Kept as a one-shot with its MP3 padding, like the original."
+    },
+    {
+      "name": "SndLowFuelAlarm",
+      "source": "reference/as3/ru/alientransporter/components/FuelIndicator.as:59",
+      "note": "played once, re-triggered by a timer every 1000 ms"
+    }
+  ]
+}
