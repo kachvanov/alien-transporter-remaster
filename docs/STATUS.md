@@ -1,11 +1,10 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-30 · Последний merge: T1.9a bc2150c
+Обновлено: 2026-09-30 · Последний merge: T1.6 b030894
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T1.6 | 1 | worktree-agent-aae9ff1630a884915 | .claude/worktrees/agent-aae9ff1630a884915 | 2026-09-30 |
 | T1.9b | 1 | worktree-agent-a813e71f665c24164 | .claude/worktrees/agent-a813e71f665c24164 | 2026-09-30 |
 
 ## Ворота
@@ -38,9 +37,11 @@
 - 2026-09-30 T1.5 merged f80ee62 (попытка 1)
 - 2026-09-30 T1.4 merged 11f462c (попытка 1)
 - 2026-09-30 T1.3 merged 9135dae (попытка 1)
+- 2026-09-30 T1.6 merged b030894 (попытка 1)
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
 
 ## Заметки оркестратора
+- T1.6: src/sim/TestState.ts и TestScene.ts (+ тест в render.test.ts) — временные, удалить после T1.9e. headless.ts в tsconfig.node.json. Добавлено сообщение воркера {t:'saveLoad',key}. STUB(T3.2): simPort в worker.ts; STUB(T4.1): запись ввода только в памяти (GameLoop.lastRecording). GameData.storage — глобальная статика (каждый GameLoop перезаписывает). SAVE_KEY vs save.json — согласовать в T2.8.
 - Пользователь попросил завершить сессию: после T1.9a остановлено. Следующая по плану: T1.6 (sim runtime; конфликт в src/app/main.ts — см. T1.7).
 - В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
 - Electron 44 не качает бинарь в postinstall: после `npm install` выполнять `node node_modules/electron/install.js` (в основной копии сделано).
