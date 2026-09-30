@@ -4,7 +4,7 @@
     "lib": ["ES2022", "DOM"],
     "types": ["node"]
   },
-  "include": ["electron/**/*", "tools/**/*", "tests/**/*", "*.config.ts"],
+  "include": ["electron/**/*", "tools/**/*", "tests/**/*", "*.config.ts", "src/sim/headless.ts"],
   "exclude": [
     ".claude/**",
     "reference/**",

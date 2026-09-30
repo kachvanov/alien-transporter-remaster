@@ -6,6 +6,7 @@
   },
   "include": ["src/**/*"],
   "exclude": [
+    "src/sim/headless.ts",
     ".claude/**",
     "reference/**",
     "build/**",
