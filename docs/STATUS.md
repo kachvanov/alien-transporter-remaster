@@ -1,12 +1,12 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T1.9a bc2150c
+Обновлено: 2026-09-30 · Последний merge: T1.9a bc2150c
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T1.6 | 1 | (worktree agent) | .claude/worktrees/… | 2026-09-30 |
-| T1.9b | 1 | (worktree agent) | .claude/worktrees/… | 2026-09-30 |
+| T1.6 | 1 | worktree-agent-aae9ff1630a884915 | .claude/worktrees/agent-aae9ff1630a884915 | 2026-09-30 |
+| T1.9b | 1 | worktree-agent-a813e71f665c24164 | .claude/worktrees/agent-a813e71f665c24164 | 2026-09-30 |
 
 ## Ворота
 | Милстоун | статус |
