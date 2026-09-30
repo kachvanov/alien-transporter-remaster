@@ -30,7 +30,7 @@
 | [x] | T1.7 | Electron shell + Pixi-рендер + FramePlayer + letterbox + атласы + ввод `503ec59` | T1.5, T0.4 | L |
 | [x] | T1.8 | Звук: порт AntSound/AntSoundManager + AudioEngine `211b2c0` | T1.2, T0.5, T1.7 | M |
 | [x] | T1.9a | Порт данных игры: Config/G/Assets/Models/AvailKeys, data/, components/, tags/, nodes/ `bc2150c` | T1.3, T1.4 | L |
-| [ ] | T1.9b | Порт map/, levels/, models/ (ClipProxy, Factory, Ground, LevelCore) | T1.9a, T0.7 | L |
+| [x] | T1.9b | Порт map/, levels/, models/ (ClipProxy, Factory, Ground, LevelCore) `257fb53` | T1.9a, T0.7 | L |
 | [ ] | T1.9c | Системы Control/Shuttle/Health/Render/Station + ShuttleView и соседние view | T1.9b | L |
 | [ ] | T1.9d | ai/, системы Passenger/Spawn/Trigger/Portal/Goal + PassengerView | T1.9b | L |
 | [ ] | T1.9e | GameState (слои), Label/шрифты, HUD (UISystem) → **Level01 играбелен** | T1.9c, T1.9d, T1.6, T1.7, T1.8, T0.6 | L |
