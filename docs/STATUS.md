@@ -1,12 +1,11 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T1.2 1ef4970
+Обновлено: 2026-09-29 · Последний merge: T1.3 9135dae
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T1.4 | 1 | worktree-agent-a8821463d2b3140f0 | .claude/worktrees/agent-a8821463d2b3140f0 | 2026-09-30 13:48 |
-| T1.3 | 1 | worktree-agent-aa0259e79e31bad09 | .claude/worktrees/agent-aa0259e79e31bad09 | 2026-09-30 13:48 |
 
 ## Ворота
 | Милстоун | статус |
@@ -33,6 +32,7 @@
 - 2026-09-30 T1.2 прервана лимитом сессии (до коммита, правки остались в worktree) — возобновляю того же агента
 - 2026-09-30 T0.5 merged 91f3ce0 (попытка 1)
 - 2026-09-30 T1.2 merged 1ef4970 (попытка 1, возобновлена после лимита)
+- 2026-09-30 T1.3 merged 9135dae (попытка 1)
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
 
 ## Заметки оркестратора
@@ -46,3 +46,4 @@
 - T1.2 → задачам далее: STUB(T1.8): src/engine/core/AntSoundManagerStub.ts (AntG.sounds). T1.5: камера/тряска — только scroll; AntActor.draw() содержит updateBounds() (влияет на hitTest/onScreen) — FrameWriter вызывает state.draw(camera) или делает updateBounds сам; флаг teleport = AntEntity.justReset. T1.6: звать AntBasic.resetEntityIds() при старте; FileAssetSource(root, readFile) в Node, FetchAssetSource(baseUrl) в воркере. Поле снимка ввода: `wheelDelta` (в docs/01 §8 названо `wheel`). AssetRegistry возвращает levels/models/fonts/effects/missions/texts как AnyObject — типизировать схемами из T0.6/T0.7. AntMask не портирован (игра не использует), ColorTransform не добавлен (Label в T1.9e решит).
 - T1.2 отклонения: Anthill.tick рисует «update, затем draw» для нескольких камер (у оригинала покамерно; при одной камере совпадает); AntCamera.shake теперь тянет один AntMath.random (сдвиг PRNG относительно оригинала неизбежен по правилу 4).
 - Гонка: параллельные M0-задачи перегенерируют assets/gfx, и тесты в другой задаче могут падать на этом; при красном check — перезапустить `npm run extract`.
+- T1.3: ВАЖНО для GameState (T1.9e) и T4.2: все `Priority.*` = 0 (проверено grep, присваиваний нет), поэтому порядок update 18 систем определяет нестабильный Array.sort Flash; `AntCore.updatePriority` использует `sortAS3` (воспроизводит его, покрыт тестом) — порядок НЕ равен порядку addSystem (напр. для 8 систем: e,b,c,d,a,f,g,h). Не «чинить». Сверить порядок систем с Ruffle в T4.2 (риск: декомпилятор мог потерять статический инициализатор Priority). Node-классы: `static override readonly components = {поле: Класс}` вместо describeType; `AntObject.get<T>()` типизирован как T.
