@@ -15,6 +15,7 @@ import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import { AntMath } from '../engine/utils/AntMath';
 import type { Ctor } from '../engine/utils/types';
 import { GameData } from '../game/data/GameData';
+import { collectFrameAudio } from '../frame/collectAudio';
 import { FrameWriter } from '../frame/FrameWriter';
 import { InputRouter } from './InputRouter';
 import type { SimLogLevel } from './protocol';
@@ -90,6 +91,12 @@ export class GameLoop {
     const opts = this._opts;
     const registry = new AssetRegistry(opts.assets);
     await registry.load();
+    try {
+      await registry.loadSounds();
+    } catch (e) {
+      // the simulation runs without sounds (AntG.sounds then has no catalog and plays nothing)
+      opts.host.log('warn', 'sounds.json: ' + String(e));
+    }
 
     const cache = new CachedGameSaveStorage(opts.save, (e) => opts.host.log('error', 'save failed: ' + String(e)));
     await cache.preload([GameData.SAVE_KEY]);
@@ -222,7 +229,8 @@ export class GameLoop {
     }
     const reset = this._sceneReset;
     this._sceneReset = false;
-    // TODO(T1.9e): paused / audio / debugLines of the real GameState (G.gamePause, AntG.sounds, G.physics).
+    // TODO(T1.9e): paused / debugLines of the real GameState (G.gamePause, G.physics).
+    // STUB(T2.7): the music is not listed (MusicManager.manager does not exist yet): collectFrameAudio(sounds, G.music.manager, G.music.mute).
     this._frame = (this._writer as FrameWriter).write({
       root: state.defGroup,
       camera,
@@ -230,6 +238,7 @@ export class GameLoop {
       levelGroup: this.levelGroup,
       tickCost: this._tickCost,
       sceneReset: reset,
+      audio: collectFrameAudio(AntG.sounds),
     });
   }
 }
