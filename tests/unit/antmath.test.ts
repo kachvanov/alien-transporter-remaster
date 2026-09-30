@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AntG } from '../../src/engine/core/AntGStub';
+import { AntG } from '../../src/engine/core/AntG';
 import { AntMath } from '../../src/engine/utils/AntMath';
 import { AntPoint } from '../../src/engine/utils/AntPoint';
 

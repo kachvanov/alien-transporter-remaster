@@ -1,6 +1,6 @@
 // Port of ru/antkarlov/anthill/plugins/IPlugin.as
 
-import type { AntCamera } from '../core/AntGStub'; // STUB(T1.2): becomes ../core/AntCamera
+import type { AntCamera } from '../core/AntCamera';
 
 export interface IPlugin {
   update(): void;

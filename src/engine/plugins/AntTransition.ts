@@ -1,5 +1,7 @@
 // Port of ru/antkarlov/anthill/plugins/AntTransition.as
 
+import { AntStorage } from '../utils/AntStorage';
+
 /** AS3 `Function` taking the ratio 0..1 and returning the eased value. */
 export type TransitionFunc = (aRatio: number) => number;
 
@@ -29,10 +31,7 @@ export class AntTransition {
   static readonly EASE_IN_OUT_BOUNCE = 'easeInOutBounce';
   static readonly EASE_OUT_IN_BOUNCE = 'easeOutInBounce';
 
-  // DEVIATION: AS3 keeps the transitions in an AntStorage (Dictionary); AntStorage is ported in T1.2,
-  // a Map has the same get/set semantics for string keys (a missing key gives null here, undefined in AS3;
-  // both are `== null` in the only consumer, AntTween.transition).
-  private static _transitions: Map<string, TransitionFunc> | null = null;
+  private static _transitions: AntStorage<TransitionFunc> | null = null;
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -51,7 +50,7 @@ export class AntTransition {
       AntTransition.registerDefaults();
     }
 
-    return (AntTransition._transitions as Map<string, TransitionFunc>).get(aName) ?? null;
+    return (AntTransition._transitions as AntStorage<TransitionFunc>).get(aName) ?? null;
   }
 
   static register(aName: string, aFunc: TransitionFunc): void {
@@ -59,11 +58,11 @@ export class AntTransition {
       AntTransition.registerDefaults();
     }
 
-    (AntTransition._transitions as Map<string, TransitionFunc>).set(aName, aFunc);
+    (AntTransition._transitions as AntStorage<TransitionFunc>).set(aName, aFunc);
   }
 
   private static registerDefaults(): void {
-    AntTransition._transitions = new Map<string, TransitionFunc>();
+    AntTransition._transitions = new AntStorage<TransitionFunc>();
 
     AntTransition.register(AntTransition.LINEAR, AntTransition.linear);
     AntTransition.register(AntTransition.EASE_IN, AntTransition.easeIn);

@@ -1,6 +1,12 @@
 // Port of ru/antkarlov/anthill/AntPoint.as
 
-import { AntMath } from './AntMath';
+// DEVIATION: AntPoint.equal calls AntMath.equal in the original. The import is replaced by the identical
+// inline formula (AntMath.equal = Math.abs(a - b) <= diff) to break the module cycle
+// AntPoint -> AntMath -> AntG -> AntMouse -> AntPoint (AntMouse extends AntPoint, so evaluating AntPoint
+// first would hit an uninitialised base class).
+function mathEqual(aValueA: number, aValueB: number, aDiff: number): boolean {
+  return Math.abs(aValueA - aValueB) <= aDiff;
+}
 
 export class AntPoint {
   //---------------------------------------
@@ -86,11 +92,11 @@ export class AntPoint {
   }
 
   equal(aX: number, aY: number, aDiff = 0.000001): boolean {
-    return AntMath.equal(this.x, aX, aDiff) && AntMath.equal(this.y, aY, aDiff);
+    return mathEqual(this.x, aX, aDiff) && mathEqual(this.y, aY, aDiff);
   }
 
   equalPoint(aPoint: AntPoint, aDiff = 0.000001): boolean {
-    return AntMath.equal(this.x, aPoint.x, aDiff) && AntMath.equal(this.y, aPoint.y, aDiff);
+    return mathEqual(this.x, aPoint.x, aDiff) && mathEqual(this.y, aPoint.y, aDiff);
   }
 
   toString(): string {
