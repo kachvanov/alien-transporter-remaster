@@ -104,9 +104,9 @@ module.exports = tseslint.config(
       'no-restricted-properties': ['error', ...restrictedProperties],
     },
   },
-  // The game loop and the worker entry may read performance.now.
+  // The game loop and the worker entries may read performance.now (testWorker.ts: temporary, T1.7).
   {
-    files: ['src/sim/GameLoop.ts', 'src/sim/worker.ts'],
+    files: ['src/sim/GameLoop.ts', 'src/sim/worker.ts', 'src/sim/testWorker.ts'],
     rules: {
       'no-restricted-properties': [
         'error',
