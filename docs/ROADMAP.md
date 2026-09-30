@@ -12,7 +12,7 @@
 | [x] | T0.2 | JPEXS + декомпиляция → `reference/` `05e22c1` | T0.1 | S |
 | [x] | T0.3 | `SymbolInfo.java` в пайплайне → `symbols.json`, `placements.json` `aec4b79` | T0.2 | S |
 | [x] | T0.4 | Растеризация спрайтов, whitelist/blacklist, trim/dedupe, атласы, `manifest.json`, альфа-маски `9c63578` | T0.3 | L |
-| [ ] | T0.5 | Звуки → OGG + `sounds.json`, проверка лупов | T0.3 | S |
+| [x] | T0.5 | Звуки → OGG + `sounds.json`, проверка лупов `91f3ce0` | T0.3 | S |
 | [ ] | T0.6 | Шрифты, миссии, тексты, эффекты → JSON + zod | T0.2 | M |
 | [x] | T0.7 | Уровни и модели → JSON + оверлей-проверка `51b5de0` | T0.4 | M |
 | [ ] | T0.8 | Dev Asset Viewer | T0.4, T0.7 | M |

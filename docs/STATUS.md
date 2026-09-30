@@ -1,12 +1,11 @@
 # STATUS — состояние работ (ведёт только оркестратор `/orchestrate`)
 
-Обновлено: 2026-09-29 · Последний merge: T0.7 51b5de0
+Обновлено: 2026-09-29 · Последний merge: T0.5 91f3ce0
 
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T1.2 | 1 (возобновлена после лимита) | worktree-agent-a2da9cb8a7d3ef93e | .claude/worktrees/agent-a2da9cb8a7d3ef93e | 2026-09-30 13:30 |
-| T0.5 | 1 | (worktree porter) | .claude/worktrees/… | 2026-09-30 13:32 |
 
 ## Ворота
 | Милстоун | статус |
@@ -17,6 +16,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
+- (не блокирует) T0.5: послушай лупы `ffplay -loop 5 assets/sfx/SndPortalIdle.flac`, то же для SndFuelRefill (пауза 0.29 с в конце — авторская) и музыки: нет ли щелчка на стыке. Автопроверка скачка на стыке пройдена (0.001–0.003).
 - Пользователь: завершить работу после мержа T1.2 и T0.5 (`until`). После них новых задач не запускать. Следующие в очереди: T1.3, T0.6, T0.8, T1.4, T1.5.
 
 ## Заблокировано
@@ -31,6 +31,7 @@
 - 2026-09-30 T1.1 merged 8189ffe (попытка 1)
 - 2026-09-30 T0.7 merged 51b5de0 (попытка 1)
 - 2026-09-30 T1.2 прервана лимитом сессии (до коммита, правки остались в worktree) — возобновляю того же агента
+- 2026-09-30 T0.5 merged 91f3ce0 (попытка 1)
 
 ## Заметки оркестратора
 - В окружении агентов задан `ELECTRON_RUN_AS_NODE=1`: для `npm run dev`/ручного запуска Electron нужен `unset ELECTRON_RUN_AS_NODE` (в e2e уже вычищается).
@@ -39,3 +40,4 @@
 - T0.4: FadeEffectShow/Hide_mc имеют maxTier 1x (бюджет атласов на 2x недостижим) — обоснованное отклонение от docs/02. Порядок битов альфа-маски: MSB слева.
 - T1.1: `sortAS3`/`sortOnAS3` (порт avmplus ArraySort, проверен golden-тестом на 418 кейсах) обязательны для AntCore.updatePriority, AntEntity.sort и Vector.sort. Заглушка `STUB(T1.2)`: src/engine/core/AntGStub.ts — T1.2 заменяет её на настоящий AntG в 4 файлах. Решить в T1.2, нужен ли flash.geom.ColorTransform (AntActor, AntMask). Проверить, что AntEntity реализует IBubbleEventHandler.
 - T0.7: 406 объектов уровней имеют skew матрицы (размер считается по scaleX/scaleY) — при расхождении физики в T1.9b сверять с Ruffle. Level13 шире 800×600 (x от −102 до 2516) — решение за LevelCore. Ожидают очереди M0: T0.5, T0.6, T0.8.
+- T0.5: в ffmpeg нет libvorbis → звуки сохранены как FLAC (assets/sfx/*.flac, 16 МБ), а не OGG; поле `file` в sounds.json хранит реальное имя, Chromium decodeAudioData читает FLAC. Если нужен OGG (~3 МБ) — поставить ffmpeg с libvorbis, шаг пересоберётся сам. SndEngineGas и SndLowFuelAlarm НЕ лупы (по коду: 999 попадает в Boolean `unique`) — docs/02 §5 неточен; зацикливание решает порт ShuttleSystem. Алиасы `EngineGas_snd` и др. → SndEngineGas и т.д. (Sounds.as initEmbedded) — нужна таблица в аудио-слое (T1.8). Половина звуков стерео, вся музыка.
