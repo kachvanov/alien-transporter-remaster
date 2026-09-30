@@ -5,6 +5,8 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
+| T1.6 | 1 | (worktree agent) | .claude/worktrees/… | 2026-09-30 |
+| T1.9b | 1 | (worktree agent) | .claude/worktrees/… | 2026-09-30 |
 
 ## Ворота
 | Милстоун | статус |
