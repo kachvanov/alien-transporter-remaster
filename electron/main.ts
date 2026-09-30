@@ -24,6 +24,9 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+// Web Audio may start without a user gesture (the AudioEngine also resumes on the first input). Before ready.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 const argv = process.argv.slice(1);
 const flags = parseDevFlags(argv);
 

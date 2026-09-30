@@ -2,7 +2,8 @@
 // The frame source is the sim worker (SimClient, T1.6).
 
 import { FetchAssetSource } from '../engine/assets/AssetSource';
-import { parseManifest } from '../engine/assets/schemas';
+import { parseManifest, SoundsSchema } from '../engine/assets/schemas';
+import { AudioEngine } from '../audio/AudioEngine';
 import { availableTiers, selectTier } from '../render/atlasMath';
 import { AtlasLoader } from '../render/AtlasLoader';
 import { FramePlayer } from '../render/FramePlayer';
@@ -32,6 +33,21 @@ async function bootstrap(): Promise<void> {
   const renderer = await PixiRenderer.create(document.body, atlas);
   const player = new FramePlayer({ classic: flags.classic });
   const perf = new PerfOverlay(document.body);
+
+  // --- sound (T1.8): decoded in the background; the frames play through it ---
+  const audio = new AudioEngine();
+  audio.attachUserGesture(window);
+  {
+    const assets = new FetchAssetSource(ASSETS_URL);
+    void assets
+      .readText('sounds.json')
+      .then((text) =>
+        audio.init(SoundsSchema.parse(JSON.parse(text)), assets, (name, e) =>
+          console.warn('[audio] cannot load ' + name + ':', e),
+        ),
+      )
+      .catch((e: unknown) => console.warn('[audio] init failed:', e));
+  }
   let frameBytes = 0;
   let tickCostMs = 0;
 
@@ -46,6 +62,7 @@ async function bootstrap(): Promise<void> {
       player.push(buffer, performance.now());
       const cur = player.current;
       if (cur !== null) {
+        audio.apply(cur);
         tickCostMs = cur.tickCost / 100;
         // Test hook for the Playwright smoke test: the tick number of the last frame.
         root.dataset['ticks'] = String(cur.tick + 1);

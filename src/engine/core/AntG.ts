@@ -21,7 +21,7 @@ import { AntBasic } from './AntBasic';
 import type { AntCamera } from './AntCamera';
 import type { AntState } from './AntState';
 import type { Anthill } from './Anthill';
-import { AntSoundManagerStub } from './AntSoundManagerStub'; // STUB(T1.8)
+import { AntSoundManager } from '../sound/AntSoundManager';
 
 const noop: AnyFunction = () => undefined;
 
@@ -86,7 +86,7 @@ export class AntG {
   private static _plugins: AntPluginManager | null = null;
   private static _mouse: AntMouse | null = null;
   private static _keys: AntKeyboard | null = null;
-  private static _sounds: AntSoundManagerStub | null = null; // STUB(T1.8): AntSoundManager
+  private static _sounds: AntSoundManager | null = null;
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -115,7 +115,7 @@ export class AntG {
     AntG._mouse = new AntMouse();
     AntG._mouse.init();
     AntG._keys = new AntKeyboard();
-    AntG._sounds = new AntSoundManagerStub();
+    AntG._sounds = new AntSoundManager();
     AntG.debugDraw = false;
     AntG.lockExternalLinks = false;
     AntG.eventTakeFocus = new AntSignal();
@@ -268,14 +268,13 @@ export class AntG {
     AntG._keys = value;
   }
 
-  /** STUB(T1.8): becomes AntSoundManager. */
-  static get sounds(): AntSoundManagerStub {
+  static get sounds(): AntSoundManager {
     if (AntG._sounds == null) {
-      AntG._sounds = new AntSoundManagerStub();
+      AntG._sounds = new AntSoundManager();
     }
     return AntG._sounds;
   }
-  static set sounds(value: AntSoundManagerStub) {
+  static set sounds(value: AntSoundManager) {
     AntG._sounds = value;
   }
 
