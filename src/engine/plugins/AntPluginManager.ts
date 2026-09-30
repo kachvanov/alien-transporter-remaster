@@ -1,6 +1,6 @@
 // Port of ru/antkarlov/anthill/AntPluginManager.as
 
-import type { AntCamera } from '../core/AntGStub'; // STUB(T1.2): becomes ../core/AntCamera
+import type { AntCamera } from '../core/AntCamera';
 import { sortAS3 } from '../utils/as3array';
 import type { AnyArgs } from '../utils/types';
 import { isIPlugin } from './IPlugin';

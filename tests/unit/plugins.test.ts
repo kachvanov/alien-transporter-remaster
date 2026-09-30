@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import cases from '../golden/as3array/cases.json';
-import { AntG } from '../../src/engine/core/AntGStub';
+import { AntG } from '../../src/engine/core/AntG';
+import type { AntCamera } from '../../src/engine/core/AntCamera';
 import { AntPluginManager } from '../../src/engine/plugins/AntPluginManager';
 import { AntTaskManager } from '../../src/engine/plugins/AntTaskManager';
 import { AntTransition } from '../../src/engine/plugins/AntTransition';
@@ -49,7 +50,7 @@ describe('AntPluginManager', () => {
     expect(pm.contains(p)).toBe(true);
     expect(pm.isActive(p)).toBe(true);
     pm.update();
-    pm.draw({});
+    pm.draw({} as AntCamera);
     expect(p.updates).toBe(1);
     expect(p.draws).toBe(1);
   });

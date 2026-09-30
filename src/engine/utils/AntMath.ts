@@ -1,6 +1,6 @@
 // Port of ru/antkarlov/anthill/AntMath.as
 
-import { AntG } from '../core/AntGStub';
+import { AntG } from '../core/AntG';
 // Cyclic import with AntPoint (AntPoint.equal uses AntMath.equal); both are only used inside
 // function bodies, so module evaluation order does not matter.
 import { AntPoint } from './AntPoint';

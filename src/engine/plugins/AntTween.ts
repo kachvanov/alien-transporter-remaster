@@ -1,7 +1,7 @@
 // Port of ru/antkarlov/anthill/plugins/AntTween.as
 
-import type { AntCamera } from '../core/AntGStub'; // STUB(T1.2): becomes ../core/AntCamera
-import { AntG } from '../core/AntGStub'; // STUB(T1.2): becomes ../core/AntG
+import type { AntCamera } from '../core/AntCamera';
+import { AntG } from '../core/AntG';
 import { AntSignal } from '../signals/AntSignal';
 import type { AnyArgs, AnyObject } from '../utils/types';
 import { AntTransition } from './AntTransition';
