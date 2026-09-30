@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { dataInputs, dataOutputsOk, runData } from './data';
 import {
   decompileInputs,
   makePaths,
@@ -70,6 +71,12 @@ const STEPS: Step[] = [
     inputs: ({ paths, swfSource }) => levelsInputs(paths, prepareSwf(paths, swfSource)),
     outputsOk: ({ paths }) => levelsOutputsOk(paths),
     run: ({ paths }) => runLevels(paths),
+  },
+  {
+    name: 'data',
+    inputs: ({ paths, swfSource }) => dataInputs(paths, prepareSwf(paths, swfSource)),
+    outputsOk: ({ paths }) => dataOutputsOk(paths),
+    run: ({ paths }) => runData(paths),
   },
 ];
 
