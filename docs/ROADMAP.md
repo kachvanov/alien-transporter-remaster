@@ -22,7 +22,7 @@
 | | ID | Задача | Зависит от | Размер |
 |---|---|---|---|---|
 | [x] | T1.1 | Утилиты Anthill: AntMath/PRNG, geom, сигналы, плагины (Task/Tween), AS3-хелперы, int-report `8189ffe` | T0.1 | M |
-| [ ] | T1.2 | Сцена: AntBasic/Entity/Actor/Animation/Camera/TileMap/State, AntG, ввод, AssetRegistry | T1.1, T0.4 | L |
+| [x] | T1.2 | Сцена: AntBasic/Entity/Actor/Animation/Camera/TileMap/State, AntG, ввод, AssetRegistry `1ef4970` | T1.1, T0.4 | L |
 | [ ] | T1.3 | ECS «ants» | T1.1 | M |
 | [ ] | T1.4 | Физика: box2dweb + порт Box2D-for-Anthill + ModelManager | T1.2, T0.7 | L |
 | [ ] | T1.5 | Формат `Frame`: writer/reader/uid/teleport | T1.2 | M |
