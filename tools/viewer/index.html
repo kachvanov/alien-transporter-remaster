@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alien Transporter - Dev Asset Viewer</title>
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #16181d;
+        --panel: #1e2128;
+        --line: #343944;
+        --text: #d7dbe3;
+        --dim: #8a92a3;
+        --accent: #4aa3ff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      header h1 {
+        font-size: 13px;
+        margin: 0 12px 0 0;
+        color: var(--dim);
+        font-weight: 600;
+      }
+      header .spacer {
+        flex: 1;
+      }
+      button,
+      select,
+      input[type='text'] {
+        background: #2a2e38;
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 3px 8px;
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button.tab.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #06121f;
+        font-weight: 600;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      aside {
+        width: 290px;
+        flex: none;
+        background: var(--panel);
+        border-right: 1px solid var(--line);
+        padding: 8px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      aside .row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      aside label {
+        color: var(--dim);
+      }
+      aside input[type='text'] {
+        flex: 1;
+        min-width: 0;
+      }
+      #symbolList {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        flex: 1;
+        min-height: 120px;
+        overflow-y: auto;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      #symbolList li {
+        padding: 2px 8px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      #symbolList li:hover {
+        background: #2a2e38;
+      }
+      #symbolList li.sel {
+        background: var(--accent);
+        color: #06121f;
+      }
+      #symbolList li small {
+        color: var(--dim);
+        margin-left: 6px;
+      }
+      #symbolList li.sel small {
+        color: #06121f;
+      }
+      pre {
+        margin: 0;
+        padding: 6px;
+        background: #12141a;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        font: 11.5px/1.45 ui-monospace, Menlo, Consolas, monospace;
+        white-space: pre-wrap;
+      }
+      #classList {
+        max-height: 340px;
+        overflow-y: auto;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 4px 6px;
+      }
+      #classList label {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        color: var(--text);
+      }
+      #classList .sw {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        flex: none;
+      }
+      #classList .n {
+        color: var(--dim);
+        margin-left: auto;
+      }
+      #area {
+        flex: 1;
+        min-width: 0;
+        position: relative;
+      }
+      #stage,
+      #sheet {
+        position: absolute;
+        inset: 0;
+      }
+      #stage {
+        overflow: hidden;
+        background-color: #20232b;
+        background-image:
+          linear-gradient(45deg, #2a2e38 25%, transparent 25%, transparent 75%, #2a2e38 75%),
+          linear-gradient(45deg, #2a2e38 25%, transparent 25%, transparent 75%, #2a2e38 75%);
+        background-size: 20px 20px;
+        background-position:
+          0 0,
+          10px 10px;
+      }
+      #stage canvas {
+        display: block;
+      }
+      #sheet {
+        overflow: auto;
+        padding: 8px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 116px);
+        gap: 6px;
+        align-content: start;
+      }
+      #sheet .cell {
+        width: 116px;
+        background: #20232b;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        cursor: pointer;
+        text-align: center;
+      }
+      #sheet .cell:hover {
+        border-color: var(--accent);
+      }
+      #sheet .cell.empty {
+        border-color: #ff3030;
+      }
+      #sheet .cell canvas {
+        display: block;
+        margin: 2px auto 0;
+      }
+      #sheet .cell div {
+        font-size: 10px;
+        padding: 0 3px 2px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--dim);
+      }
+      #tip {
+        position: fixed;
+        z-index: 10;
+        pointer-events: none;
+        max-width: 380px;
+        display: none;
+      }
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Alien Transporter / Dev Asset Viewer</h1>
+      <button class="tab" data-tab="symbols">Symbols</button>
+      <button class="tab" data-tab="sheet">Contact sheet</button>
+      <button class="tab" data-tab="level">Level</button>
+      <span class="spacer"></span>
+      <label for="tier">Tier</label>
+      <select id="tier">
+        <option value="1x">1x</option>
+        <option value="2x">2x</option>
+        <option value="3x">3x</option>
+      </select>
+      <label><input type="checkbox" id="pixelated" /> pixelated</label>
+      <span id="status" style="color: var(--dim)"></span>
+    </header>
+    <main>
+      <aside id="panel-symbols">
+        <div class="row">
+          <input type="text" id="search" placeholder="search symbol..." />
+          <select id="symGroup"></select>
+        </div>
+        <ul id="symbolList"></ul>
+        <div class="row">
+          <button id="play">Pause</button>
+          <button id="prev">&lt;</button>
+          <button id="next">&gt;</button>
+          <span style="color: var(--dim)">35 fps</span>
+        </div>
+        <div class="row">
+          <input type="range" id="frameSlider" min="0" max="0" value="0" style="flex: 1" />
+          <span id="frameLabel"></span>
+        </div>
+        <div class="row">
+          <label for="scale">Scale</label>
+          <select id="scale">
+            <option value="0.5">0.5x</option>
+            <option value="1">1x</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+            <option value="4">4x</option>
+          </select>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="showBox" checked /> bbox</label>
+          <label><input type="checkbox" id="showTrim" /> trim</label>
+          <label><input type="checkbox" id="showCross" checked /> origin</label>
+        </div>
+        <pre id="symInfo"></pre>
+      </aside>
+      <aside id="panel-sheet" class="hidden">
+        <div class="row">
+          <label for="sheetGroup">Group</label>
+          <select id="sheetGroup"></select>
+        </div>
+        <pre id="sheetInfo"></pre>
+        <div style="color: var(--dim)">
+          First frame of every symbol of the group (untrimmed frame box, origin cross). Red border = empty frame. Click a cell
+          to open it on the Symbols tab.
+        </div>
+      </aside>
+      <aside id="panel-level" class="hidden">
+        <div class="row">
+          <label for="levelSel">Level</label>
+          <select id="levelSel"></select>
+          <label for="levelZoom">Zoom</label>
+          <select id="levelZoom">
+            <option value="fit">fit</option>
+            <option value="1">1x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="layBack" checked /> Back</label>
+          <label><input type="checkbox" id="layBG" checked /> BG</label>
+          <label><input type="checkbox" id="layFG" checked /> FG</label>
+          <label><input type="checkbox" id="layOverlay" checked /> overlay</label>
+        </div>
+        <div class="row">
+          <button id="clsAll">all</button>
+          <button id="clsNone">none</button>
+          <span style="color: var(--dim)">object classes</span>
+        </div>
+        <div id="classList"></div>
+        <pre id="levelInfo"></pre>
+      </aside>
+      <div id="area">
+        <div id="stage"></div>
+        <div id="sheet" class="hidden"></div>
+      </div>
+    </main>
+    <pre id="tip"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
