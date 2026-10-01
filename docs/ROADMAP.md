@@ -32,7 +32,7 @@
 | [x] | T1.9a | Порт данных игры: Config/G/Assets/Models/AvailKeys, data/, components/, tags/, nodes/ `bc2150c` | T1.3, T1.4 | L |
 | [x] | T1.9b | Порт map/, levels/, models/ (ClipProxy, Factory, Ground, LevelCore) `257fb53` | T1.9a, T0.7 | L |
 | [x] | T1.9c | Системы Control/Shuttle/Health/Render/Station + ShuttleView и соседние view `8a6fd9f` | T1.9b | L |
-| [ ] | T1.9d | ai/, системы Passenger/Spawn/Trigger/Portal/Goal + PassengerView | T1.9b | L |
+| [x] | T1.9d | ai/, системы Passenger/Spawn/Trigger/Portal/Goal + PassengerView `32bb860` | T1.9b | L |
 | [ ] | T1.9e | GameState (слои), Label/шрифты, HUD (UISystem) → **Level01 играбелен** | T1.9c, T1.9d, T1.6, T1.7, T1.8, T0.6 | L |
 
 **✅ M1:** `npm run dev -- --start-level=Level01`. Шаттл летает, садится, топливо тратится и заправляется, пассажиры садятся и выходят, портал открывается, звук есть. P2 входит клавишей W. Заглушки помечены `STUB(Txx)`.
