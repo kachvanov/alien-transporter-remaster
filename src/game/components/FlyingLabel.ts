@@ -3,7 +3,7 @@
 import { AntG } from '../../engine/core/AntG';
 import { AntTransition } from '../../engine/plugins/AntTransition';
 import { AntTween } from '../../engine/plugins/AntTween';
-import { Label } from '../fonts/Label'; // STUB(T1.9e)
+import { Label } from '../fonts/Label';
 import { G } from '../G';
 
 export class FlyingLabel {

@@ -43,10 +43,10 @@ import { SpawnManagerNode } from '../../src/game/nodes/SpawnManagerNode';
 import { StationNode } from '../../src/game/nodes/StationNode';
 import { TriggerNode } from '../../src/game/nodes/TriggerNode';
 import { VisualNode } from '../../src/game/nodes/VisualNode';
-import { GameState } from '../../src/game/states/GameState';
 import { UISystem } from '../../src/game/systems/UISystem';
 import { GroundTag } from '../../src/game/tags/GroundTag';
 import { hasAssets, loadAssets } from './helpers/assets';
+import { startGame } from './helpers/game';
 
 let registry: AssetRegistry;
 
@@ -57,14 +57,11 @@ beforeAll(async () => {
 });
 
 function initGame(): void {
-  // AntBox2DBody.create() takes the first AntBox2DManager of the plugins: stop the world of the previous test.
-  if (G.physics != null) {
-    G.physics.stop();
-  }
-
+  // startGame() stops the Box2D world of the previous test (AntBox2DBody.create() takes the first AntBox2DManager of
+  // the plugins) and makes the real GameState without its systems.
   GameData.storage = new MemoryGameSaveStorage();
   AntMath.seed(12345);
-  G.init(new GameState());
+  startGame();
   G.core.addSystem(new UISystem(), 0);
 }
 

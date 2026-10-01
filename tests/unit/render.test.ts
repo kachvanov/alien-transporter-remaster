@@ -19,7 +19,11 @@ import { FramePlayer, lerpAngle, TICK_MS } from '../../src/render/FramePlayer';
 import { hotkeyOf, InputCollector } from '../../src/render/InputCollector';
 import type { InputEventLike } from '../../src/render/InputCollector';
 import { computeLetterbox, windowToLogical } from '../../src/render/Letterbox';
-import { TestScene } from '../../src/sim/TestScene';
+import { AntActor } from '../../src/engine/core/AntActor';
+import { AntCamera } from '../../src/engine/core/AntCamera';
+import { AntEntity } from '../../src/engine/core/AntEntity';
+import { AntG } from '../../src/engine/core/AntG';
+import { FrameWriter } from '../../src/frame/FrameWriter';
 
 //---------------------------------------
 // Letterbox
@@ -454,6 +458,69 @@ describe('InputCollector', () => {
 
 const assetsRoot = resolve(process.cwd(), 'assets');
 const hasAssets = existsSync(resolve(assetsRoot, 'manifest.json'));
+
+// The scene of the renderer check of T1.7 (src/sim/TestScene.ts, removed in T1.9e when GameState arrived), kept
+// here: the level background, a coin that orbits and spins, a shuttle that sweeps and turns through +-pi, a coin
+// that jumps (teleport).
+function place(a: AntEntity, x: number, y: number, angleDeg: number): void {
+  // (-180, 180]: the frame angle crosses +-pi, the interpolation must take the short way round
+  let ang = ((((angleDeg + 180) % 360) + 360) % 360) - 180;
+  if (ang === -180) ang = 180;
+  a.x = x;
+  a.y = y;
+  a.angle = ang;
+  a.globalX = x;
+  a.globalY = y;
+  a.globalAngle = ang;
+}
+
+class TestScene {
+  private readonly _writer = new FrameWriter();
+  private readonly _camera = new AntCamera(0, 0, 800, 600);
+  private readonly _root = new AntEntity();
+  private readonly _bg = new AntActor();
+  private readonly _coin = new AntActor();
+  private readonly _jumper = new AntActor();
+  private readonly _shuttle = new AntActor();
+  private _tick = 0;
+
+  constructor() {
+    AntG.timeScale = 1;
+    AntG.elapsed = 1 / 35;
+    this._bg.addAnimationFromCache('Level01BG_mc');
+    this._coin.addAnimationFromCache('Coin_mc');
+    this._coin.play();
+    this._jumper.addAnimationFromCache('Coin_mc');
+    this._jumper.play();
+    this._shuttle.addAnimationFromCache('Shuttle01Body_mc');
+    this._root.add(this._bg);
+    this._root.add(this._coin);
+    this._root.add(this._jumper);
+    this._root.add(this._shuttle);
+    place(this._bg, 0, 0, 0);
+  }
+
+  tick(tickCostHundredths = 0): ArrayBuffer {
+    const t = this._tick;
+    this._coin.update();
+    this._jumper.update();
+    this._shuttle.update();
+    const a = (t / 35) * 1.2;
+    place(this._coin, 400 + Math.cos(a) * 160, 300 + Math.sin(a) * 160, (t / 35) * 180);
+    place(this._shuttle, 400 + Math.sin((t / 35) * 0.8) * 300, 460, (t / 35) * 120);
+    place(this._jumper, Math.floor(t / 70) % 2 === 0 ? 100 : 700, 120, 0);
+    const buf = this._writer.write({
+      root: this._root,
+      camera: this._camera,
+      tick: t,
+      levelGroup: 1,
+      tickCost: tickCostHundredths,
+      sceneReset: t === 0,
+    });
+    this._tick++;
+    return buf;
+  }
+}
 
 describe.skipIf(!hasAssets)('TestScene', () => {
   it('writes frames with the four actors; the jumper teleports, the others do not', async () => {

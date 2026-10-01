@@ -9,7 +9,7 @@ import { ActionNode } from '../nodes/ActionNode';
 import { GoalManagerNode } from '../nodes/GoalManagerNode';
 import { ShuttleNode } from '../nodes/ShuttleNode';
 import { TriggerNode } from '../nodes/TriggerNode';
-import { PassengerBarUIView } from '../ui/PassengerBarUIView'; // STUB(T1.9e)
+import { PassengerBarUIView } from '../ui/PassengerBarUIView';
 
 export class GoalSystem extends AntSystem {
   static readonly className = 'GoalSystem';

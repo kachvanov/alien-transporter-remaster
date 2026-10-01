@@ -44,11 +44,11 @@ import type { PassengerNode } from '../../src/game/nodes/PassengerNode';
 import type { ShuttleNode } from '../../src/game/nodes/ShuttleNode';
 import type { SpawnPointNode } from '../../src/game/nodes/SpawnPointNode';
 import { getDefinitionByName, getDefinitionNames, hasDefinition } from '../../src/game/registry';
-import { GameState } from '../../src/game/states/GameState';
 import { TutorialView } from '../../src/game/views/TutorialView';
 import { PassengerView } from '../../src/game/views/PassengerView';
 import { ShuttleView } from '../../src/game/views/ShuttleView';
 import { hasAssets, loadAssets } from './helpers/assets';
+import { startGame } from './helpers/game';
 
 // Factory (T1.9b) is the real one: it needs the animations (manifest) and the models of the assets.
 beforeAll(async () => {
@@ -59,7 +59,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   AntMath.seed(12345);
-  G.init(new GameState());
+  startGame();
 });
 
 /** A node stand-in: the components only store nodes and read a few fields. */

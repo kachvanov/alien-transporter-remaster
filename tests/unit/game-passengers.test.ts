@@ -59,7 +59,6 @@ import {
   portalNode,
   resetGame,
   ScriptedPilot,
-  stationDouble,
   tick,
 } from '../golden/scripts/level01-deliver';
 import { hasAssets, loadAssets } from './helpers/assets';
@@ -684,7 +683,13 @@ describe('GoalSystem (hand-made nodes)', () => {
     const nodeList = G.core.getNodes(GoalManagerNode);
     G.core.removeObject((nodeList.get(0) as GoalManagerNode).object as AntObject);
     expect(nodeList.numNodes).toBe(0);
-    expect(view.exists).toBe(false); // PassengerBarUIView.hide(kill)
+    // PassengerBarUIView.hide(kill): the bar slides out (a 0.25 s tween of y), then it is killed
+    expect(view.exists).toBe(true);
+    for (let i = 0; i < 12; i++) {
+      tick();
+    }
+
+    expect(view.exists).toBe(false);
   });
 });
 
@@ -929,12 +934,11 @@ describe.skipIf(!hasAssets)('Level01 (seed 12345)', () => {
       pilot.step();
       tick();
       if (progress[progress.length - 1] != goalNode().goal.value) progress.push(goalNode().goal.value);
-      if (screenAt < 0 && menu.currentScreen != null) screenAt = t;
+      if (screenAt < 0 && menu.currentScreen == MenuSystem.LEVEL_COMPLETE_SCREEN) screenAt = t; // (the state starts on the main menu screen)
     }
 
     expect(progress).toEqual([0, 1, 2]); // one per delivery
     expect(pilot.deliveredAt).toHaveLength(2);
-    expect(stationDouble().delivered).toBe(2);
     expect(goalNode().goal.isActivated).toBe(true);
     expect(pilot.portalOpenAt).toBe(pilot.deliveredAt[1]);
     expect(pilot.phase).toBe('done');

@@ -11,8 +11,9 @@ function cleanEnv(): Record<string, string> {
   );
 }
 
+// Without a menu yet (T2.6) a level is what there is to draw: every launch starts Level01 (the dev flag).
 async function launch(extraArgs: string[] = []): Promise<{ app: ElectronApplication; page: Page; urls: string[] }> {
-  const app = await electron.launch({ args: ['.', ...extraArgs], env: cleanEnv() });
+  const app = await electron.launch({ args: ['.', '--start-level=Level01', ...extraArgs], env: cleanEnv() });
   const page = await app.firstWindow();
   const urls: string[] = [];
   page.on('request', (r) => urls.push(r.url()));
@@ -59,7 +60,7 @@ test('--tier and --classic flags reach the renderer', async () => {
     await expect.poll(() => readSprites(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(4);
     expect(await page.evaluate(() => document.documentElement.dataset['tier'])).toBe('1x');
     expect(await page.evaluate(() => document.documentElement.dataset['classic'])).toBe('true');
-    expect(await page.evaluate(() => window.at.app.flags)).toEqual({ startLevel: null, tier: '1x', classic: true });
+    expect(await page.evaluate(() => window.at.app.flags)).toEqual({ startLevel: 'Level01', tier: '1x', classic: true });
   } finally {
     await app.close();
   }

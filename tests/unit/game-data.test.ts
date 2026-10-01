@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AssetRegistry } from '../../src/engine/assets/AssetRegistry';
 import { FileAssetSource } from '../../src/engine/assets/AssetSource';
 import { AntG } from '../../src/engine/core/AntG';
@@ -18,12 +18,21 @@ import { Font } from '../../src/game/fonts/Font';
 import { G } from '../../src/game/G';
 import '../../src/game/levels/LevelManager'; // sets G.levelManagerClass (G does not import LevelManager, see G.ts)
 import { MODEL_CLIPS, Models } from '../../src/game/Models';
-import { GameState } from '../../src/game/states/GameState';
 import { ControlSystem } from '../../src/game/systems/ControlSystem';
 import { ShuttleSystem } from '../../src/game/systems/ShuttleSystem';
 
+import { GameState } from '../../src/game/states/GameState';
+import { AntActor } from '../../src/engine/core/AntActor';
+import { loadAssets } from './helpers/assets';
+import { startGame } from './helpers/game';
+
+// GameState.create() reads the fonts (Fonts.init) of the assets.
+beforeAll(async () => {
+  await loadAssets();
+});
+
 function initGame(): void {
-  G.init(new GameState());
+  startGame();
 }
 
 beforeEach(() => {
@@ -78,8 +87,10 @@ describe('Config / AvailKeys / DebugSettings / Assets', () => {
 
   it('Fonts.init caches the ten fonts', () => {
     Fonts.init();
-    expect(Font.fromCache('ImgFont01/XmlFont01')).not.toBeNull();
-    expect(Font.fromCache('ImgFont05/XmlFont05')).not.toBeNull();
+    // The cache key is the name of the font (the `name` of its XML: `font01`), as Label.fontName uses it.
+    expect(Font.fromCache('font01')).not.toBeNull();
+    expect(Font.fromCache('font04Blue')).not.toBeNull();
+    expect(Font.fromCache('font05')).not.toBeNull();
   });
 });
 
@@ -265,6 +276,9 @@ describe('GameData', () => {
     Config.keyP2Right = 'D';
     G.music.mute = false;
     AntG.sounds.mute = false;
+    const actor = new AntActor(); // GameState.setFancyQuality(false) of loadData() switches the smoothing of the layers
+    G.gameState.layerMain.add(actor);
+    expect(actor.smoothing).toBe(true);
     const fresh = new GameData();
     expect(fresh.hasSaveData).toBe(false);
     expect(fresh.getLevelData('Level02')!.unlocked).toBe(false);
@@ -288,7 +302,7 @@ describe('GameData', () => {
     expect(Config.keyP1Gas).toBe('Q');
     expect(Config.keyP2Right).toBe('K');
     expect(AntEffectManager.getInstance().lowQuality).toBe(false);
-    expect(G.gameState.fancyQuality).toBe(false);
+    expect(actor.smoothing).toBe(false);
   });
 
   it('coins and lives are NOT part of the save (the original does not store them)', () => {

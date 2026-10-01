@@ -3,7 +3,7 @@
 import { AntG } from '../../engine/core/AntG';
 import { AntTransition } from '../../engine/plugins/AntTransition';
 import { AntTween } from '../../engine/plugins/AntTween';
-import { FuelIndicatorView } from '../ui/FuelIndicatorView'; // STUB(T1.9e)
+import { FuelIndicatorView } from '../ui/FuelIndicatorView';
 
 export class FuelIndicator {
   static readonly className = 'FuelIndicator';

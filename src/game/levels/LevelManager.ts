@@ -10,7 +10,7 @@ import { Config } from '../Config';
 import { PlayerData } from '../data/PlayerData';
 import { G } from '../G';
 import { LevelCore } from '../map/LevelCore';
-import { UISystem } from '../systems/UISystem'; // STUB(T1.9e)
+import { UISystem } from '../systems/UISystem';
 import { levelClass } from './Level';
 import { TOTAL_LEVELS } from './TotalLevels';
 
@@ -144,6 +144,19 @@ export class LevelManager {
 
   get isLoading(): boolean {
     return this._isLoading;
+  }
+
+  /**
+   * Not in the original (T1.9e): the number (1..20) of the level that is loaded, 0 when there is none. The sim
+   * puts it into the Frame header, the renderer loads the atlas group of the level by it.
+   */
+  get currentLevelNumber(): number {
+    if (this._currentLevel == null) {
+      return 0;
+    }
+
+    const record = this.getLevelByKey(this._currentLevel.name as string);
+    return record != null ? record.num : 0;
   }
 
   //---------------------------------------

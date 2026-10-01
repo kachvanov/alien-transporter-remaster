@@ -8,7 +8,8 @@ test('window opens, canvas shows the scene, worker ticks grow', async () => {
       (e): e is [string, string] => e[1] !== undefined && e[0] !== 'ELECTRON_RUN_AS_NODE',
     ),
   );
-  const app = await electron.launch({ args: ['.'], env });
+  // The game without a menu yet (T2.6): the level starts by the dev flag, as the test scene of T1.7 used to be there.
+  const app = await electron.launch({ args: ['.', '--start-level=Level01'], env });
   try {
     const page = await app.firstWindow();
     await page.waitForSelector('canvas');
@@ -23,7 +24,7 @@ test('window opens, canvas shows the scene, worker ticks grow', async () => {
     expect(t1 - t0).toBeGreaterThan(20);
     expect(t1 - t0).toBeLessThan(50);
 
-    // The canvas must contain non-black pixels (the test scene: level background, coins, shuttle).
+    // The canvas must contain non-black pixels (Level01: the background, the shuttle, the HUD).
     const png = PNG.sync.read(await page.screenshot());
     let lit = 0;
     for (let i = 0; i < png.data.length; i += 4) {

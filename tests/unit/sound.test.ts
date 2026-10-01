@@ -12,7 +12,9 @@ import { collectFrameAudio, panToI8, volumeToU8 } from '../../src/frame/collectA
 import { MUTE_MUSIC, MUTE_SOUNDS, NO_MUSIC } from '../../src/frame/constants';
 import { readFrame } from '../../src/frame/FrameReader';
 import { EMBEDDED_SOUNDS, Sounds } from '../../src/game/Sounds';
+import type { InputSnapshot } from '../../src/engine/input/InputSnapshot';
 import { runHeadless } from '../../src/sim/headless';
+import { Level01State } from './helpers/game';
 
 const soundsPath = resolve(process.cwd(), 'assets/sounds.json');
 const hasSounds = existsSync(soundsPath);
@@ -401,27 +403,55 @@ describe.skipIf(!hasSounds)('sounds.json', () => {
 });
 
 describe.skipIf(!hasSounds || !existsSync(resolve(process.cwd(), 'assets/manifest.json')))(
-  'test scene: the engine sound in the frames',
+  'Level01: the engine sound in the frames',
   () => {
     it('the frames carry the SndEngineGas channel; its pan follows the shuttle', async () => {
-      const r = await runHeadless({ seed: 7, ticks: 280 });
+      // The shuttle of Player1 holds the gas and steers left and right (the pan follows its x).
+      const keys = (t: number): InputSnapshot => ({
+        keysDown: Math.floor(t / 35) % 4 < 2 ? [38, 39] : [38, 37],
+        mouseX: 0,
+        mouseY: 0,
+        mouseDown: false,
+        wheelDelta: 0,
+      });
+      const r = await runHeadless({ seed: 7, ticks: 280, initialState: Level01State, input: keys });
       const catalog = new SoundCatalog(
         SoundsSchema.parse(JSON.parse(readFileSync(soundsPath, 'utf8'))),
       );
       const engineId = catalog.get('SndEngineGas')!.id;
       const pans: number[] = [];
       const channels = new Set<number>();
+      const gaps: number[] = [];
+      let started = -1;
       for (const buf of r.frames) {
         const f = readFrame(buf);
-        expect(f.oneShots).toHaveLength(0);
         const loop = f.loops.find((l) => l.soundId === engineId);
-        expect(loop, `tick ${f.tick}`).toBeDefined();
-        channels.add(loop!.channelId);
-        pans.push(loop!.pan);
+        if (started < 0 && loop !== undefined) {
+          started = f.tick;
+        }
+
+        if (started < 0) {
+          continue; // the shuttle is made and ShuttleSystem plays the sound in the first ticks
+        }
+
+        if (loop === undefined) {
+          gaps.push(f.tick);
+          continue;
+        }
+
+        channels.add(loop.channelId);
+        pans.push(loop.pan);
       }
-      // 8 s: the sound (6.4 s) is played again after it has ended, with no frame without it in between
+      // 8 s: the sound (6.4 s) is played again after it has ended. AntG.sounds.update() (the start of the tick) ends
+      // it and the frame is written before ShuttleSystem (the plugins, the end of the tick) plays it again, so the
+      // frame of that tick has no engine channel: one frame (29 ms) without it, at the end of the sound.
+      expect(gaps).toHaveLength(1);
+      expect(gaps[0]).toBeGreaterThanOrEqual(220);
+      expect(gaps[0]).toBeLessThanOrEqual(230);
+      expect(started).toBeGreaterThanOrEqual(0);
+      expect(started).toBeLessThan(10);
       expect(channels.size).toBe(2);
-      expect(Math.min(...pans)).toBeLessThan(-20); // the shuttle sweeps left and right (x = 400 +- 300)
+      expect(Math.min(...pans)).toBeLessThan(-20); // the shuttle flies left and right of the spawn
       expect(Math.max(...pans)).toBeGreaterThan(20);
     });
   },

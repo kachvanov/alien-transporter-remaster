@@ -2,8 +2,8 @@
 
 import type { AntActor } from '../../engine/core/AntActor';
 import { asType } from '../../engine/utils/cast';
-import { PassengerView } from '../views/PassengerView'; // STUB(T1.9d)
-import { ShuttleView } from '../views/ShuttleView'; // STUB(T1.9c)
+import { PassengerView } from '../views/PassengerView';
+import { ShuttleView } from '../views/ShuttleView';
 
 export class Display {
   static readonly className = 'Display';

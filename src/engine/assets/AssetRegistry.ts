@@ -42,6 +42,8 @@ export class AssetRegistry {
   private readonly _source: AssetSource;
   private _manifest: Manifest | null = null;
   private readonly _animations = new Map<string, AnimationMeta>();
+  /** key -> texId of the frames of the manifest (built on first use; the glyph frames are not symbols). */
+  private _frameIds: Map<string, number> | null = null;
   private readonly _levels = new Map<number, AnyObject>();
   private readonly _fonts = new Map<string, AnyObject>();
   private _models: AnyObject | null = null;
@@ -62,6 +64,7 @@ export class AssetRegistry {
   async load(): Promise<void> {
     this._manifest = parseManifest(await this._source.readText('manifest.json'));
     this._animations.clear();
+    this._frameIds = null;
     AssetRegistry.current = this;
   }
 
@@ -117,6 +120,28 @@ export class AssetRegistry {
       throw new Error('AssetRegistry: no frame with texId ' + texId);
     }
     return f;
+  }
+
+  /** texId of the frame with this key (`Name#i`, `Font:font01#65`), undefined when there is none. */
+  findFrame(key: string): number | undefined {
+    if (this._frameIds === null) {
+      const ids = new Map<string, number>();
+      const frames = this.manifest.frames;
+      for (let i = 0; i < frames.length; i++) {
+        ids.set((frames[i] as Manifest['frames'][number]).key, i);
+      }
+      this._frameIds = ids;
+    }
+    return this._frameIds.get(key);
+  }
+
+  /**
+   * texId of the glyph frame of a bitmap font (`Font:<font>#<charCode>`, appended to the manifest by the
+   * `fontglyphs` extraction step; the frame of the whole bitmap is `Font:<font>#0`), undefined for a char that
+   * the font does not have.
+   */
+  glyphTexId(fontName: string, charCode: number): number | undefined {
+    return this.findFrame('Font:' + fontName + '#' + charCode);
   }
 
   //---------------------------------------

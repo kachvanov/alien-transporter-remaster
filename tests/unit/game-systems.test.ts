@@ -5,11 +5,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AntObject } from '../../src/engine/ants/AntObject';
 import { AntSystem } from '../../src/engine/ants/AntSystem';
 import { AntActor } from '../../src/engine/core/AntActor';
-import { AntCamera } from '../../src/engine/core/AntCamera';
-import { AntEntity } from '../../src/engine/core/AntEntity';
 import { AntG } from '../../src/engine/core/AntG';
 import { emptyInputSnapshot } from '../../src/engine/input/InputSnapshot';
-import { AntPluginManager } from '../../src/engine/plugins/AntPluginManager';
 import { AntMath } from '../../src/engine/utils/AntMath';
 import { GameData, MemoryGameSaveStorage } from '../../src/game/data/GameData';
 import { PlayerData } from '../../src/game/data/PlayerData';
@@ -23,7 +20,6 @@ import { PhysicRenderNode } from '../../src/game/nodes/PhysicRenderNode';
 import { ShuttleNode } from '../../src/game/nodes/ShuttleNode';
 import { StationNode } from '../../src/game/nodes/StationNode';
 import { VisualNode } from '../../src/game/nodes/VisualNode';
-import { GameState } from '../../src/game/states/GameState';
 import { ControlSystem } from '../../src/game/systems/ControlSystem';
 import { GoalSystem } from '../../src/game/systems/GoalSystem';
 import { HealthSystem } from '../../src/game/systems/HealthSystem';
@@ -36,6 +32,7 @@ import { PassengerView } from '../../src/game/views/PassengerView';
 import { ShuttleView } from '../../src/game/views/ShuttleView';
 import type { AntBox2DBody } from '../../src/physics/anthill/AntBox2DBody';
 import { hasAssets, loadAssets } from './helpers/assets';
+import { startGame } from './helpers/game';
 
 const KEY_UP = 38;
 const KEY_LEFT = 37;
@@ -87,25 +84,10 @@ beforeAll(async () => {
 });
 
 function initGame(): void {
-  if (G.physics != null) {
-    G.physics.stop();
-  }
-
-  // The plugins are global: the core, the physics, the tweens and the tasks of the previous test must not keep updating.
-  AntG.plugins = new AntPluginManager();
   GameData.storage = new MemoryGameSaveStorage();
   AntMath.seed(12345);
-  const state = new GameState();
-  // STUB(T1.9e): the stub state does not add its layers to itself; the real one does, and state.update() moves the
-  // views and the bodies (AntBox2DBody.update reads the Box2D body) before the plugins step the physics.
-  for (const [name, value] of Object.entries(state)) {
-    if (name.startsWith('layer') && value instanceof AntEntity) {
-      state.add(value);
-    }
-  }
-  G.init(state);
-  AntG.simTimeMs = 0;
-  AntG.camera = new AntCamera(0, 0, 800, 600);
+  // The real GameState (layers, the camera, fonts) without its systems: addSystems() below adds the ones of this task.
+  startGame();
 }
 
 /** The systems of this task in the order of GameState.as (the others are not ported yet); no UISystem spawn. */

@@ -5,7 +5,7 @@ import { AntTaskManager } from '../../engine/plugins/AntTaskManager';
 import { AntTransition } from '../../engine/plugins/AntTransition';
 import { AntTween } from '../../engine/plugins/AntTween';
 import { G } from '../G';
-import { PassengerView } from './PassengerView'; // STUB(T1.9d)
+import { PassengerView } from './PassengerView';
 
 export class ShuttleView extends AntActor {
   static readonly className = 'ShuttleView';
