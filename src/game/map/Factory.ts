@@ -21,8 +21,8 @@ import { sortOnAS3 } from '../../engine/utils/as3array';
 import { AntBox2DBody } from '../../physics/anthill/AntBox2DBody';
 import { AntBox2DBoxShape } from '../../physics/anthill/shapes/AntBox2DBoxShape';
 import { AntBox2DCircleShape } from '../../physics/anthill/shapes/AntBox2DCircleShape';
-import { PassengerLogic } from '../ai/passenger/PassengerLogic'; // STUB(T1.9d)
-import { PassengerSense } from '../ai/passenger/PassengerSense'; // STUB(T1.9d)
+import { PassengerLogic } from '../ai/passenger/PassengerLogic';
+import { PassengerSense } from '../ai/passenger/PassengerSense';
 import { AIBehavior } from '../components/AIBehavior';
 import { ActionBehavior } from '../components/ActionBehavior';
 import { ArrowPoint } from '../components/ArrowPoint';
@@ -87,7 +87,7 @@ import { CoinView } from '../views/CoinView'; // STUB(T2.1)
 import { HouseView } from '../views/HouseView'; // STUB(T2.1)
 import { IndicatorView } from '../views/IndicatorView'; // STUB(T2.1)
 import { MissileView } from '../views/MissileView'; // STUB(T2.1)
-import { PassengerView } from '../views/PassengerView'; // STUB(T1.9d)
+import { PassengerView } from '../views/PassengerView';
 import { RockView } from '../views/RockView'; // STUB(T2.1)
 import { SensorView } from '../views/SensorView'; // STUB(T2.1)
 import { ShuttleView } from '../views/ShuttleView'; // STUB(T1.9c)
