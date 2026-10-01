@@ -5,17 +5,17 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T1.9e | 1 (перезапуск после лимита) | (worktree-agent, ветка уточнится) | .claude/worktrees/… | 2026-10-01 15:32 |
 
 ## Ворота
 | Милстоун | статус |
 |---|---|
-| M1 | не достигнут |
+| M1 | ждёт проверки |
 | M2 | не достигнут |
 | M3 | не достигнут |
 | M4 | не достигнут |
 
 ## Нужно от тебя
+- **Ворота M1:** запусти `unset ELECTRON_RUN_AS_NODE; npm run dev -- --start-level=Level01` и полетай 2–3 минуты. Сравни с оригиналом в Ruffle: управление, падение, топливо, пассажиры, звук. Второй игрок — клавиша W. Потом снова `/orchestrate`.
 - (не блокирует) T0.8: запусти `npm run viewer` и глянь: Coin_mc (origin по центру), корабль, уровень 01 с оверлеем коллизий — совпадает ли с картинкой.
 
 ## Заблокировано
@@ -47,9 +47,11 @@
 - 2026-10-01 T1.9d merged 32bb860 (попытка 1; конфликты G.ts/GoalSystem/PassengerView разрешены; check зелёный: 626 тестов)
 - 2026-10-01 T0.8 merged 18550ca (попытка 1; check зелёный: 631 тест)
 - 2026-10-01 T1.9e: агент прерван лимитом сессии без следов (нет worktree/ветки) — перезапуск, попытка 1
+- 2026-10-01 T1.9e merged 3476088 (попытка 1 после перезапуска; check зелёный: 677 тестов, e2e 7/7)
 - 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
 
 ## Заметки оркестратора
+- T1.9e: запуск игры только с флагом `--start-level=Level01` (без него пустой экран до T2.6). Тесты/бот: tests/golden/scripts/level01-bot.ts (жмёт клавиши по настоящей физике, T4.1 переиспользует). Новый шаг extract `fontglyphs` (996 кадров `Font:<font>#<charCode>` в manifest). T2.1: добавить SensorSystem/MissileSystem в GameState.addSystems() на помеченные места (порядок update изменится из-за sortAS3); MagnetSystem нужна, чтобы всплывающие «+N» (FlyingLabel) исчезали. Не сделаны: пауза P/ESC, GameScreen (T2.5/T2.6), TextUIView (T2.5), MusicManager/Text/Mission/ContentManager (T2.7), Music.init/JointEditor/DebugSystem. Label без буфера (нет глифа → пропуск вместо TypeError). Перезапуск звука двигателя даёт 1 кадр без канала (как в оригинале) — проверить на слух, нет ли щелчка. e2e оставляет каталоги userData *-profilee2e*.
 - T0.8: `npm run viewer` (порт 5174, VIEWER_NO_OPEN=1 отключает автооткрытие); скриншоты — `CHROMIUM_PATH=… npx tsx tools/viewer/shots.ts` (Playwright 1.63 ждёт chromium_headless_shell-1243, в кэше только 1228 — для test:e2e может понадобиться `npx playwright install`). Zone-классы в оверлее — крупные полупрозрачные прямоугольники, использовать галочки по классам.
 - T1.9d: стабы для T1.9e: STUB(T1.9e) ui/PassengerBarUIView.ts (GoalSystem), STUB(T2.1) systems/MenuSystem.ts (константы экранов, switchScreen — нужны PortalSystem). Каждая система обязана иметь `static readonly className` (G.gamePause ищет по нему; T2.1 — Ragdoll/Magnet/ObjectSpawn). ContentManager-стаб (T2.7): isUnlocked=true для стартовых ключей (shuttleOrange, shuttleRed, shuttle01, passengerGreen, passengerBasic). PassengerSystem: локальный каст ShuttleViewCargo можно убрать (ShuttleView теперь настоящий). tests/golden/scripts/level01-deliver.ts — скриптовый пилот (двойники Render/Station помечены STUB(T1.9c), убрать в T1.9e/T4.1). Тесты с несколькими играми: AntG.plugins = new AntPluginManager().
 - T1.9c: при мерже T1.9d ожидаются конфликты add/add в src/game/views/PassengerView.ts и src/game/systems/GoalSystem.ts — брать версию T1.9d (в ней настоящие COLOR_*/LOVE/ATTENTION/FAIL, showNotify, track). G.ts: gamePause ищет системы по static className (импорты систем убраны ради разрыва цикла Display→ShuttleView→G→ShuttleSystem→ShuttleNode) — T1.9d/e не возвращать статические импорты систем в G. Priority.* все 0, порядок систем после sortAS3 = порядку добавления в GameState.as:165–181 (зафиксирован тестом). T1.9e: в GameState слои надо add() в state, иначе тела не обновляются. Тесты, вызывающие G.init() много раз, должны делать AntG.plugins = new AntPluginManager() (иначе недетерминизм). ShuttleSystem.removeFromCore: порядок строк изменён (баг оригинала TypeError), помечено DEVIATION. В Level01 нет топливных станций — оригинал. STUB(T2.2) fireSimulation.pour/smokeSimulation.pour2.
