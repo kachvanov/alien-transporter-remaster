@@ -5,8 +5,8 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T1.9c | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-01 14:45 |
-| T1.9d | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-01 14:45 |
+| T1.9d | 1 | worktree-agent-a7a0997037e8429a7 | .claude/worktrees/agent-a7a0997037e8429a7 | 2026-10-01 14:45 |
+| T0.8 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-01 15:00 |
 
 ## Ворота
 | Милстоун | статус |
@@ -44,9 +44,11 @@
 - 2026-09-30 FIX-1 merged 626217d (models.json 53 клипа; check зелёный: 558 тестов)
 - 2026-09-30 T0.6 merged 7437cf7 (попытка 1; check зелёный: 570 тестов)
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
+- 2026-10-01 T1.9c merged 8a6fd9f (попытка 1; check зелёный: 587 тестов)
 - 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
 
 ## Заметки оркестратора
+- T1.9c: при мерже T1.9d ожидаются конфликты add/add в src/game/views/PassengerView.ts и src/game/systems/GoalSystem.ts — брать версию T1.9d (в ней настоящие COLOR_*/LOVE/ATTENTION/FAIL, showNotify, track). G.ts: gamePause ищет системы по static className (импорты систем убраны ради разрыва цикла Display→ShuttleView→G→ShuttleSystem→ShuttleNode) — T1.9d/e не возвращать статические импорты систем в G. Priority.* все 0, порядок систем после sortAS3 = порядку добавления в GameState.as:165–181 (зафиксирован тестом). T1.9e: в GameState слои надо add() в state, иначе тела не обновляются. Тесты, вызывающие G.init() много раз, должны делать AntG.plugins = new AntPluginManager() (иначе недетерминизм). ShuttleSystem.removeFromCore: порядок строк изменён (баг оригинала TypeError), помечено DEVIATION. В Level01 нет топливных станций — оригинал. STUB(T2.2) fireSimulation.pour/smokeSimulation.pour2.
 - T0.6: assets/data/{fonts/fontXX.json, missions, texts, effects}.json; схемы FontSchema/MissionsSchema/TextsSchema/EffectsSchema в src/engine/assets/schemas.ts (типы FontData, MissionsData, TextsData, EffectsData) — T1.9e/T2.3/T2.7; AssetRegistry пока отдаёт AnyObject — типизировать там. Из CacheList в манифесте нет 7 клипов (Background_mc, PortalParticle_mc, MagicFlyGreen/Yellow_mc, MagicLeafPurpleA/YellowA_mc, SparkGreen_mc) — T2.3 должна пропускать отсутствующие при кешировании. texts_en.xml имеет lang="ru" (оставлено 1:1). Числовые атрибуты missions/effects остаются строками.
 - T1.9b: ES-цикл модулей: G больше не импортирует LevelManager (G.levelManagerClass ставит сам LevelManager при загрузке) — GameState (T1.9e) ОБЯЗАН импортировать levels/LevelManager и содержать smokeSimulation/fireSimulation/oilSimulation/lightEnvironment. Когда G.gamePause начнёт тянуть настоящие системы (T1.9c/d/e), цикл G↔системы↔узлы↔компоненты вернётся: резать ребро (регистрация pauseSystem снаружи) или сделать `components` узлов ленивыми. Заглушки views STUB(T2.1): Rock/SmallBox/BigBox/Barrel/House/Coin/Bonus/TransporterWheel/Indicator/Missile/Blinker/Sensor/Tutorial; STUB(T1.9c) ShuttleView, HealthSystem.applyExplosionDamage; STUB(T1.9d) PassengerView, PassengerLogic/PassengerSense; STUB(T1.9e) UISystem, GameState. LevelCore: слои — имена символов; Level01..20 — фабрика levelClass(n). Сохранены баги: ShuttleModel.shuttleColor читает кадр левого двигателя; dropCoins(n) создаёт n монет; progress загрузки 100+100/3. Тесты с AntBox2DBody: G.physics.stop() перед новым G.init в том же файле. Skew-объекты (406): размер из JSON при rotation 0, сверка с Ruffle в T4.2. PassengerModel.createRagdoll падает на null-модели, пока нет FIX-1. symbols.test.ts («53 clips» → 73 в общем build) править вместе с FIX-1.
 - T1.8: AntSoundManagerStub удалён, AntG.sounds настоящий. Звук в Frame: источник или повторы>1 → loops (стабильный channelId), иначе oneShots. SOUND_COMPLETE эмулируется (AntSound.TICK_MS). Sounds.init() зовёт сейчас TestState — T1.9e (GameState.create) должен звать сам; Music.as не портирован — T2.7 (MusicManager со своим AntSoundManager, затем `collectFrameAudio(AntG.sounds, G.music.manager, G.music.mute)` в GameLoop.renderFrame, STUB(T2.7)). Проверить, что порты не передают число вместо Boolean в play(..., aLoop). Ручная проверка на слух (не блокирует): `unset ELECTRON_RUN_AS_NODE; npm run dev` — звук движка, панорама, перезапуск ~6.4 с без щелчков. Prettier в check не входит.
