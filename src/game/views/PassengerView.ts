@@ -7,8 +7,21 @@ import { AntActor } from '../../engine/core/AntActor';
 export class PassengerView extends AntActor {
   static readonly className = 'PassengerView';
 
+  // The constants of the original (T1.9c needs them for ShuttleView and StationSystem; keep them when T1.9d replaces the file).
+  static readonly ATTENTION = 'attention';
+  static readonly LOVE = 'love';
+  static readonly FAIL = 'fail';
+  static readonly COLOR_GREEN = 'Green';
+  static readonly COLOR_BLUE = 'Blue';
+  static readonly COLOR_ORANGE = 'Orange';
+  static readonly COLOR_PINK = 'Pink';
+
   passengerKind = 1; // int
   passengerColor: string | null = 'Green';
+
+  /** AS3 `showNotify(aName:String)`; STUB: the notify actor is not made yet. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  showNotify(_aName: string): void {}
 
   /** STUB: the original picks a random available kind (AntMath). */
   get randomKind(): number {

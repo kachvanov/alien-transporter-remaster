@@ -12,6 +12,10 @@ export class StubElementSimulation {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   pour(_aX: number, _aY: number, _aVelocityX: number, _aVelocityY: number): void {}
 
+  /** AS3 `pour2(aX:Number, aY:Number, aAngle:Number, aSpeed:Number)` (ShuttleSystem.updateEngines needs it). */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  pour2(_aX: number, _aY: number, _aAngle: number, _aSpeed: number): void {}
+
   clear(): void {}
 }
 
