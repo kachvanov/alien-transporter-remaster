@@ -6,7 +6,7 @@
   "author": "local",
   "main": "out/main/main.js",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "tsx tools/dev/dev.ts",
     "build": "electron-vite build",
     "tool:int-report": "tsx tools/int-report.ts",
     "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && eslint . && vitest run",
