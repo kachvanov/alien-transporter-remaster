@@ -14,6 +14,7 @@ import {
   verifyReference,
   type Paths,
 } from './decompile';
+import { fontGlyphsInputs, fontGlyphsOutputsOk, runFontGlyphs } from './fontglyphs';
 import { levelsInputs, levelsOutputsOk, runLevels } from './levels';
 import { runSounds, soundsInputs, soundsOutputsOk } from './sounds';
 import { runSprites, spritesInputs, spritesOutputsOk } from './sprites';
@@ -77,6 +78,13 @@ const STEPS: Step[] = [
     inputs: ({ paths, swfSource }) => dataInputs(paths, prepareSwf(paths, swfSource)),
     outputsOk: ({ paths }) => dataOutputsOk(paths),
     run: ({ paths }) => runData(paths),
+  },
+  {
+    // After `sprites` (the manifest) and `data` (the font JSON): appends the glyph frames to the manifest.
+    name: 'fontglyphs',
+    inputs: ({ paths }) => fontGlyphsInputs(paths),
+    outputsOk: ({ paths }) => fontGlyphsOutputsOk(paths),
+    run: ({ paths }) => runFontGlyphs(paths),
   },
 ];
 

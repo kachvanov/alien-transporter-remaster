@@ -1,6 +1,6 @@
 // Port of ru/alientransporter/components/DisplayUI.as
 
-import type { ShuttleUIView } from '../ui/ShuttleUIView'; // STUB(T1.9e)
+import type { ShuttleUIView } from '../ui/ShuttleUIView';
 
 export class DisplayUI {
   static readonly className = 'DisplayUI';

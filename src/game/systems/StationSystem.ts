@@ -24,8 +24,8 @@ import { PassengerNode } from '../nodes/PassengerNode';
 import { ShuttleNode } from '../nodes/ShuttleNode';
 import { SpawnPointNode } from '../nodes/SpawnPointNode';
 import { StationNode } from '../nodes/StationNode';
-import { PassengerView } from '../views/PassengerView'; // STUB(T1.9d)
-import { GoalSystem } from './GoalSystem'; // STUB(T1.9d)
+import { PassengerView } from '../views/PassengerView';
+import { GoalSystem } from './GoalSystem';
 
 export class StationSystem extends AntSystem {
   static readonly className = 'StationSystem';

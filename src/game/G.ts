@@ -10,7 +10,7 @@ import { MusicManager } from './MusicManager'; // STUB(T2.7)
 import { ContentManager } from './missions/ContentManager'; // STUB(T2.7)
 import { MissionManager } from './missions/MissionManager'; // STUB(T2.7)
 import { Models } from './Models';
-import type { GameState } from './states/GameState'; // STUB(T1.9e)
+import type { GameState } from './states/GameState';
 import { Text } from './texts/Text'; // STUB(T2.7)
 
 export class G {

@@ -78,7 +78,7 @@ import { RockRagdoll } from '../models/RockRagdoll';
 import { ShuttleModel } from '../models/ShuttleModel';
 import { ShuttleRagdoll } from '../models/ShuttleRagdoll';
 import { ShuttleNode } from '../nodes/ShuttleNode';
-import { HealthSystem } from '../systems/HealthSystem'; // STUB(T1.9c)
+import { HealthSystem } from '../systems/HealthSystem';
 import { BarrelView } from '../views/BarrelView'; // STUB(T2.1)
 import { BigBoxView } from '../views/BigBoxView'; // STUB(T2.1)
 import { BlinkerView } from '../views/BlinkerView'; // STUB(T2.1)
@@ -90,7 +90,7 @@ import { MissileView } from '../views/MissileView'; // STUB(T2.1)
 import { PassengerView } from '../views/PassengerView';
 import { RockView } from '../views/RockView'; // STUB(T2.1)
 import { SensorView } from '../views/SensorView'; // STUB(T2.1)
-import { ShuttleView } from '../views/ShuttleView'; // STUB(T1.9c)
+import { ShuttleView } from '../views/ShuttleView';
 import { SmallBoxView } from '../views/SmallBoxView'; // STUB(T2.1)
 import { TransporterWheelView } from '../views/TransporterWheelView'; // STUB(T2.1)
 import { TutorialView } from '../views/TutorialView'; // STUB(T2.1)

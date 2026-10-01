@@ -202,7 +202,10 @@ describe('sprites manifest (needs `npm run extract`)', () => {
       for (let i = 0; i < s.frames; i++) expect(m.frames[next + i]!.key).toBe(`${name}#${i}`);
       next += s.frames;
     }
-    expect(next).toBe(m.frames.length);
+    // The `fontglyphs` step (T1.9e) appends the glyph frames `Font:<font>#<charCode>` after the symbol frames.
+    const glyphs = m.frames.slice(next);
+    for (const g of glyphs) expect(g.key, g.key).toMatch(/^Font:font\w+#[1-9]\d*$/);
+    expect(next + glyphs.length).toBe(m.frames.length);
   });
 
   dataIt('every whitelisted symbol has all its frames in every tier; blacklist is absent', () => {

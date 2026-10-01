@@ -16,6 +16,7 @@ import { SimClient } from '../../src/app/SimClient';
 import type { WorkerLike } from '../../src/app/SimClient';
 import { FileAssetSource } from '../../src/engine/assets/AssetSource';
 import { readFile } from 'node:fs/promises';
+import { Level01State } from './helpers/game';
 
 const assetsRoot = resolve(process.cwd(), 'assets');
 const hasAssets = existsSync(resolve(assetsRoot, 'manifest.json'));
@@ -198,14 +199,14 @@ describe.skipIf(!hasAssets)('headless run', () => {
   const input = (t: number): InputSnapshot => snap(t % 10 < 5 ? [38] : [37, 39], t % 7 === 0 ? 1 : 0);
 
   it('100 ticks are deterministic: two runs with one seed give identical frame buffers', async () => {
-    const a = await runHeadless({ seed: 42, ticks: 100, input });
-    const b = await runHeadless({ seed: 42, ticks: 100, input });
+    const a = await runHeadless({ seed: 42, ticks: 100, input, initialState: Level01State });
+    const b = await runHeadless({ seed: 42, ticks: 100, input, initialState: Level01State });
     expect(a.frames).toHaveLength(100);
     expect(a.hashes).toEqual(b.hashes);
     for (let i = 0; i < 100; i++) {
       expect(Buffer.from(a.frames[i]!).equals(Buffer.from(b.frames[i]!))).toBe(true);
     }
-    // the default test scene draws something and moves
+    // Level01 (the real game: the level, the HUD, the shuttle) draws something and moves
     expect(readFrame(a.frames[0]!).nodes.length).toBeGreaterThan(0);
     expect(a.hashes[0]).not.toBe(a.hashes[50]);
   });

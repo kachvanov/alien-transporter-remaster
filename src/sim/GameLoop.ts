@@ -14,14 +14,21 @@ import { Anthill } from '../engine/core/Anthill';
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import { AntMath } from '../engine/utils/AntMath';
 import type { Ctor } from '../engine/utils/types';
+import { Config } from '../game/Config';
 import { GameData } from '../game/data/GameData';
+import { FONT_DATA_NAMES } from '../game/Fonts';
+import { G } from '../game/G';
+import { Ground } from '../game/map/Ground';
+import { GameState } from '../game/states/GameState';
+import { collectDebugLines, DEBUG_LINE_STRIDE } from '../physics/anthill/debugLines';
 import { collectFrameAudio } from '../frame/collectAudio';
+import { NO_LEVEL_GROUP } from '../frame/constants';
 import { FrameWriter } from '../frame/FrameWriter';
+import type { FrameScene } from '../frame/types';
 import { InputRouter } from './InputRouter';
 import type { SimLogLevel } from './protocol';
 import type { SaveStorage } from './SaveStorage';
 import { CachedGameSaveStorage } from './SaveStorage';
-import { TestState } from './TestState';
 
 /** Simulation step, ms. */
 export const TICK_MS = 1000 / 35;
@@ -43,9 +50,12 @@ export interface GameLoopOptions {
   save: SaveStorage;
   seed: number;
   host: HostApi;
-  /** STUB(T1.9e): the initial state; the real GameState/PrepareState replaces the default TestState. */
+  /** The initial state; default `GameState` (STUB(T2.6): PrepareState and the menu screens come first there). */
   initialState?: Ctor<AntState>;
-  /** `levelGroup` of the frame header (1..20). STUB(T1.9e): the level state sets it. */
+  /**
+   * `levelGroup` of the frame header (1..20) of a loop that runs a state without a level manager (tests);
+   * the game reads it from the level that is loaded (`G.levelManager`).
+   */
   levelGroup?: number;
   /** Clock of the tick cost measurement, ms. Default `performance.now()`; headless runs pass `() => 0`. */
   clock?: () => number;
@@ -71,7 +81,7 @@ export class GameLoop {
   private _sceneReset = true;
   private _recording: Recording | null = null;
 
-  /** The 1..20 level group of the frame header. */
+  /** The 1..20 level group of the frame header (see GameLoopOptions.levelGroup). */
   levelGroup: number;
   /** The recording of the last `recordStop` (STUB(T4.1): the replay format and its files). */
   lastRecording: Recording | null = null;
@@ -79,7 +89,7 @@ export class GameLoop {
   constructor(aOpts: GameLoopOptions) {
     this._opts = aOpts;
     this._clock = aOpts.clock ?? (() => performance.now());
-    this.levelGroup = aOpts.levelGroup ?? 1;
+    this.levelGroup = aOpts.levelGroup ?? NO_LEVEL_GROUP;
   }
 
   //---------------------------------------
@@ -91,6 +101,9 @@ export class GameLoop {
     const opts = this._opts;
     const registry = new AssetRegistry(opts.assets);
     await registry.load();
+    // The data the game reads synchronously: levels, models, fonts, effects, missions, texts (files that the
+    // pipeline did not produce are skipped, the getters then throw where the game needs them).
+    await registry.loadAllData(FONT_DATA_NAMES);
     try {
       await registry.loadSounds();
     } catch (e) {
@@ -105,6 +118,10 @@ export class GameLoop {
     // Everything that makes a run reproducible is reset here (the statics live as long as the process).
     AntBasic.resetEntityIds();
     AntMath.seed(opts.seed);
+    // The ground of the level lives in statics (a body that LevelCore.clear() of the previous level of this process
+    // has not cleared when a run is cut off): a new game starts without it, as a new Flash process would.
+    Ground.body = null;
+    Ground.stopperList = null;
     this._tick = 0;
     this._tickCost = 0;
     this._acc = 0;
@@ -113,7 +130,9 @@ export class GameLoop {
     this._recording = null;
     this._writer = new FrameWriter();
 
-    this._anthill = new Anthill(opts.initialState ?? TestState, false, {
+    // AntG.log of the original writes to the debug console; here it goes to the log of the host.
+    AntG.log = (aMessage: string, aType = 'data'): void => opts.host.log(aType === 'error' ? 'error' : 'info', aMessage);
+    this._anthill = new Anthill(opts.initialState ?? GameState, false, {
       onRender: () => this.renderFrame(),
     });
     AntG.onOpenUrl = (url) => opts.host.openExternal(url);
@@ -195,10 +214,26 @@ export class GameLoop {
         }
         break;
       }
-      case 'startLevel':
-        // STUB(T1.9e): GameState / PrepareState start the level.
-        host.log('warn', 'startLevel(' + String(aArgs[0]) + '): not implemented yet');
+      case 'startLevel': {
+        // `--start-level=Level01`: the dev entry, the level without the menu (GameState.debugStartLevel).
+        const state = this._anthill?.state;
+        let name = String(aArgs[0]);
+        if (/^\d+$/.test(name)) {
+          name = 'Level' + (name.length < 2 ? '0' + name : name); // `--start-level=5` is Level05
+        }
+
+        if (!(state instanceof GameState)) {
+          host.log('warn', 'startLevel(' + name + '): the state is not the GameState');
+        } else if (!G.levelManager.hasLevel(name)) {
+          host.log('warn', 'startLevel(' + name + '): no such level');
+        } else {
+          state.debugStartLevel(name);
+          this.requestSceneReset();
+          host.log('info', 'level ' + name + ' started');
+        }
+
         break;
+      }
       case 'recordStart':
         this._recording = { seed: this._opts.seed, inputs: [] };
         host.log('info', 'recording started');
@@ -229,16 +264,43 @@ export class GameLoop {
     }
     const reset = this._sceneReset;
     this._sceneReset = false;
-    // TODO(T1.9e): paused / debugLines of the real GameState (G.gamePause, G.physics).
+    // The level that is loaded is the atlas group of the frame; tests of a loop without a level manager give it.
+    const level = G.levelManager?.currentLevelNumber ?? 0;
+    const levelGroup = level > 0 ? level : this.levelGroup;
+    let debugLines: FrameScene['debugLines'] = null;
+    if (Config.debugSettings.allowBox2DDebug && G.physics != null) {
+      debugLines = this.collectDebugLines();
+    }
+
     // STUB(T2.7): the music is not listed (MusicManager.manager does not exist yet): collectFrameAudio(sounds, G.music.manager, G.music.mute).
     this._frame = (this._writer as FrameWriter).write({
       root: state.defGroup,
       camera,
       tick: this._tick,
-      levelGroup: this.levelGroup,
+      paused: G.physics != null && G.gamePause,
+      levelGroup,
       tickCost: this._tickCost,
       sceneReset: reset,
       audio: collectFrameAudio(AntG.sounds),
+      debugLines,
     });
+  }
+
+  /** Box2D debug picture (Config.debugSettings.allowBox2DDebug) as the lines of the Frame. */
+  private collectDebugLines(): FrameScene['debugLines'] {
+    const packed = collectDebugLines(G.physics.box2dWorld as NonNullable<typeof G.physics.box2dWorld>);
+    const count = Math.floor(packed.length / DEBUG_LINE_STRIDE);
+    const lines = new Float32Array(count * 4);
+    const colors = new Uint32Array(count);
+    const bits = new Uint32Array(packed.buffer, packed.byteOffset, packed.length);
+    for (let i = 0; i < count; i++) {
+      for (let j = 0; j < 4; j++) {
+        lines[i * 4 + j] = packed[i * DEBUG_LINE_STRIDE + j] as number;
+      }
+
+      colors[i] = bits[i * DEBUG_LINE_STRIDE + 4] as number;
+    }
+
+    return { count, lines, colors };
   }
 }

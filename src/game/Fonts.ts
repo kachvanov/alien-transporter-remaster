@@ -2,9 +2,23 @@
 //
 // DEVIATION: the original keeps the embedded classes Fonts_ImgFontNN / Fonts_XmlFontNN (a bitmap and its
 // XML atlas); here they are the names of the same assets (image "ImgFont01", data "XmlFont01"), the
-// pairs in the same order. The Font class is a stub until T1.9e (STUB(T1.9e), see fonts/Font.ts).
+// pairs in the same order (the data of a font is assets/data/fonts/<font>.json, see fonts/Font.ts).
 
 import { Font } from './fonts/Font';
+
+/** `assets/data/fonts/<name>.json` of the fonts of Fonts.init(): AssetRegistry.loadAllData(FONT_DATA_NAMES) loads them. */
+export const FONT_DATA_NAMES: readonly string[] = [
+  'font01',
+  'font02',
+  'font03',
+  'font04',
+  'font04Green',
+  'font04Red',
+  'font04Blue',
+  'font04Purple',
+  'font04Pink',
+  'font05',
+];
 
 export class Fonts {
   private static readonly ImgFont01 = 'ImgFont01';
