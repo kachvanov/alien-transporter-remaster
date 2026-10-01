@@ -17,7 +17,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
-- (не блокирует) T1.7: на MBP 120 Гц запусти `unset ELECTRON_RUN_AS_NODE; npm run dev` (F3 — FPS/interp) и посмотри, плавно ли летит монета; потом `npm run dev -- --classic` — должно быть ступенчато 35 fps.
+—
 
 ## Заблокировано
 —
@@ -44,6 +44,7 @@
 - 2026-09-30 FIX-1 merged 626217d (models.json 53 клипа; check зелёный: 558 тестов)
 - 2026-09-30 T0.6 merged 7437cf7 (попытка 1; check зелёный: 570 тестов)
 - 2026-09-30 T0.5: лупы прослушаны пользователем, всё ок
+- 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
 
 ## Заметки оркестратора
 - T0.6: assets/data/{fonts/fontXX.json, missions, texts, effects}.json; схемы FontSchema/MissionsSchema/TextsSchema/EffectsSchema в src/engine/assets/schemas.ts (типы FontData, MissionsData, TextsData, EffectsData) — T1.9e/T2.3/T2.7; AssetRegistry пока отдаёт AnyObject — типизировать там. Из CacheList в манифесте нет 7 клипов (Background_mc, PortalParticle_mc, MagicFlyGreen/Yellow_mc, MagicLeafPurpleA/YellowA_mc, SparkGreen_mc) — T2.3 должна пропускать отсутствующие при кешировании. texts_en.xml имеет lang="ru" (оставлено 1:1). Числовые атрибуты missions/effects остаются строками.
