@@ -1,10 +1,10 @@
 // Port of ru/alientransporter/components/AIBehavior.as
 
 import { AntG } from '../../engine/core/AntG';
-import { ConditionList } from '../ai/ConditionList'; // STUB(T1.9d)
+import { ConditionList } from '../ai/ConditionList';
 import type { ILogic } from '../ai/ILogic';
 import type { ISense } from '../ai/ISense';
-import type { Schedule } from '../ai/Schedule'; // STUB(T1.9d)
+import type { Schedule } from '../ai/Schedule';
 import { StateName } from '../ai/StateName';
 import type { PassengerNode } from '../nodes/PassengerNode';
 

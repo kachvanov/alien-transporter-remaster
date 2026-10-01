@@ -1,7 +1,9 @@
 // Port of ru/alientransporter/G.as
 
 import { AntCore } from '../engine/ants/AntCore';
+import type { AntSystem } from '../engine/ants/AntSystem';
 import { AntG } from '../engine/core/AntG';
+import { qualifiedName } from '../engine/utils/cast';
 import { AntBox2DManager } from '../physics/anthill/AntBox2DManager';
 import { Config } from './Config';
 import { GameData } from './data/GameData';
@@ -11,16 +13,6 @@ import { ContentManager } from './missions/ContentManager'; // STUB(T2.7)
 import { MissionManager } from './missions/MissionManager'; // STUB(T2.7)
 import { Models } from './Models';
 import type { GameState } from './states/GameState'; // STUB(T1.9e)
-import { ControlSystem } from './systems/ControlSystem'; // STUB(T1.9c)
-import { HealthSystem } from './systems/HealthSystem'; // STUB(T1.9c)
-import { MagnetSystem } from './systems/MagnetSystem'; // STUB(T2.1)
-import { ObjectSpawnSystem } from './systems/ObjectSpawnSystem'; // STUB(T2.1)
-import { PassengerSystem } from './systems/PassengerSystem'; // STUB(T1.9d)
-import { PortalSystem } from './systems/PortalSystem'; // STUB(T1.9d)
-import { RagdollSystem } from './systems/RagdollSystem'; // STUB(T2.1)
-import { ShuttleSystem } from './systems/ShuttleSystem'; // STUB(T1.9c)
-import { SpawnSystem } from './systems/SpawnSystem'; // STUB(T1.9d)
-import { StationSystem } from './systems/StationSystem'; // STUB(T1.9c)
 import { Text } from './texts/Text'; // STUB(T2.7)
 
 export class G {
@@ -97,28 +89,63 @@ export class G {
     if (G.physics.pause != value) {
       G.physics.pause = value;
       if (G.physics.pause) {
-        G.core.pauseSystem(ControlSystem);
-        G.core.pauseSystem(ShuttleSystem);
-        G.core.pauseSystem(StationSystem);
-        G.core.pauseSystem(PassengerSystem);
-        G.core.pauseSystem(SpawnSystem);
-        G.core.pauseSystem(RagdollSystem);
-        G.core.pauseSystem(MagnetSystem);
-        G.core.pauseSystem(HealthSystem);
-        G.core.pauseSystem(PortalSystem);
-        G.core.pauseSystem(ObjectSpawnSystem);
+        G.pauseSystem('ControlSystem');
+        G.pauseSystem('ShuttleSystem');
+        G.pauseSystem('StationSystem');
+        G.pauseSystem('PassengerSystem');
+        G.pauseSystem('SpawnSystem');
+        G.pauseSystem('RagdollSystem');
+        G.pauseSystem('MagnetSystem');
+        G.pauseSystem('HealthSystem');
+        G.pauseSystem('PortalSystem');
+        G.pauseSystem('ObjectSpawnSystem');
       } else {
-        G.core.resumeSystem(ControlSystem);
-        G.core.resumeSystem(ShuttleSystem);
-        G.core.resumeSystem(StationSystem);
-        G.core.resumeSystem(PassengerSystem);
-        G.core.resumeSystem(SpawnSystem);
-        G.core.resumeSystem(RagdollSystem);
-        G.core.resumeSystem(MagnetSystem);
-        G.core.resumeSystem(HealthSystem);
-        G.core.resumeSystem(PortalSystem);
-        G.core.resumeSystem(ObjectSpawnSystem);
+        G.resumeSystem('ControlSystem');
+        G.resumeSystem('ShuttleSystem');
+        G.resumeSystem('StationSystem');
+        G.resumeSystem('PassengerSystem');
+        G.resumeSystem('SpawnSystem');
+        G.resumeSystem('RagdollSystem');
+        G.resumeSystem('MagnetSystem');
+        G.resumeSystem('HealthSystem');
+        G.resumeSystem('PortalSystem');
+        G.resumeSystem('ObjectSpawnSystem');
       }
+    }
+  }
+
+  /**
+   * DEVIATION (ES module cycles): the original calls `G.core.pauseSystem(PassengerSystem)` with the system classes
+   * imported by G. A system imports its node classes, the node classes `static components = {...}` read the component
+   * classes, and the components import G: G -> system -> node -> component -> G is a cycle in which a node can read a
+   * component class that is not evaluated yet (undefined). So G imports no system class and finds the system
+   * in the core by its class name (`static readonly className`, which every system class must have): the first one
+   * is paused, as AntCore.pauseSystem does for the first instance of a class.
+   */
+  private static findSystem(aName: string): AntSystem | null {
+    const systems = G.core.getSystems();
+    let i = 0; // :int
+    while (i < systems.length) {
+      const system = systems[i++]!;
+      if (qualifiedName(system) == aName) {
+        return system;
+      }
+    }
+
+    return null;
+  }
+
+  private static pauseSystem(aName: string): void {
+    const system = G.findSystem(aName);
+    if (system != null) {
+      system.pause();
+    }
+  }
+
+  private static resumeSystem(aName: string): void {
+    const system = G.findSystem(aName);
+    if (system != null) {
+      system.resume();
     }
   }
 }
