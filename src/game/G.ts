@@ -11,16 +11,6 @@ import { ContentManager } from './missions/ContentManager'; // STUB(T2.7)
 import { MissionManager } from './missions/MissionManager'; // STUB(T2.7)
 import { Models } from './Models';
 import type { GameState } from './states/GameState'; // STUB(T1.9e)
-import { ControlSystem } from './systems/ControlSystem'; // STUB(T1.9c)
-import { HealthSystem } from './systems/HealthSystem'; // STUB(T1.9c)
-import { MagnetSystem } from './systems/MagnetSystem'; // STUB(T2.1)
-import { ObjectSpawnSystem } from './systems/ObjectSpawnSystem'; // STUB(T2.1)
-import { PassengerSystem } from './systems/PassengerSystem'; // STUB(T1.9d)
-import { PortalSystem } from './systems/PortalSystem'; // STUB(T1.9d)
-import { RagdollSystem } from './systems/RagdollSystem'; // STUB(T2.1)
-import { ShuttleSystem } from './systems/ShuttleSystem'; // STUB(T1.9c)
-import { SpawnSystem } from './systems/SpawnSystem'; // STUB(T1.9d)
-import { StationSystem } from './systems/StationSystem'; // STUB(T1.9c)
 import { Text } from './texts/Text'; // STUB(T2.7)
 
 export class G {
@@ -97,28 +87,48 @@ export class G {
     if (G.physics.pause != value) {
       G.physics.pause = value;
       if (G.physics.pause) {
-        G.core.pauseSystem(ControlSystem);
-        G.core.pauseSystem(ShuttleSystem);
-        G.core.pauseSystem(StationSystem);
-        G.core.pauseSystem(PassengerSystem);
-        G.core.pauseSystem(SpawnSystem);
-        G.core.pauseSystem(RagdollSystem);
-        G.core.pauseSystem(MagnetSystem);
-        G.core.pauseSystem(HealthSystem);
-        G.core.pauseSystem(PortalSystem);
-        G.core.pauseSystem(ObjectSpawnSystem);
+        for (const name of G.PAUSABLE_SYSTEMS) {
+          G.pauseSystemByName(name, true);
+        }
       } else {
-        G.core.resumeSystem(ControlSystem);
-        G.core.resumeSystem(ShuttleSystem);
-        G.core.resumeSystem(StationSystem);
-        G.core.resumeSystem(PassengerSystem);
-        G.core.resumeSystem(SpawnSystem);
-        G.core.resumeSystem(RagdollSystem);
-        G.core.resumeSystem(MagnetSystem);
-        G.core.resumeSystem(HealthSystem);
-        G.core.resumeSystem(PortalSystem);
-        G.core.resumeSystem(ObjectSpawnSystem);
+        for (const name of G.PAUSABLE_SYSTEMS) {
+          G.pauseSystemByName(name, false);
+        }
       }
     }
   }
+
+  /**
+   * DEVIATION (ES module cycles): the original calls `G.core.pauseSystem(ControlSystem)` etc. with the classes.
+   * The systems import the node classes, whose `static components` read the component classes while the modules
+   * are evaluated, and the components import G (Display -> ShuttleView -> G -> ShuttleSystem -> ShuttleNode ->
+   * Display), so G must not import the systems. The first system of the core whose class has this `className` is
+   * paused or resumed, which is what pauseSystem(Class)/resumeSystem(Class) do (no system subclasses another one).
+   */
+  private static pauseSystemByName(aClassName: string, aPause: boolean): void {
+    for (const system of G.core.getSystems()) {
+      if ((system.constructor as { className?: string }).className == aClassName) {
+        if (aPause) {
+          system.pause();
+        } else {
+          system.resume();
+        }
+        return;
+      }
+    }
+  }
+
+  /** The systems of `G.gamePause`, in the order of the original. */
+  private static readonly PAUSABLE_SYSTEMS: readonly string[] = [
+    'ControlSystem',
+    'ShuttleSystem',
+    'StationSystem',
+    'PassengerSystem',
+    'SpawnSystem',
+    'RagdollSystem',
+    'MagnetSystem',
+    'HealthSystem',
+    'PortalSystem',
+    'ObjectSpawnSystem',
+  ];
 }

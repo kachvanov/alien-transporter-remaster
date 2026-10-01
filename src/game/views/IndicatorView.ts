@@ -1,5 +1,4 @@
-// STUB(T2.1): stand-in for ru/alientransporter/views/IndicatorView.as.
-// The owner task (T2.1) ports the real view and replaces this file. Here: the whole original (it is tiny).
+// Port of ru/alientransporter/views/IndicatorView.as
 
 import { AntActor } from '../../engine/core/AntActor';
 import { AntFormat } from '../../engine/utils/AntFormat';
