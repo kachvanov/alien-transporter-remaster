@@ -181,7 +181,11 @@ export class BasicModel {
   }
 
   clearBodies(): void {
-    const bodies = this._bodies as Record<string, AntBox2DBody | null>;
+    const bodies = this._bodies as Record<string, AntBox2DBody | null> | null;
+    if (bodies == null) {
+      return; // AS3: `for (var name in null)` does nothing (destroy() of a model that is already destroyed)
+    }
+
     for (const name of Object.keys(bodies)) {
       const body = bodies[name] as AntBox2DBody;
       body.clearAnimations();
@@ -192,7 +196,11 @@ export class BasicModel {
   }
 
   clearJoints(): void {
-    const joints = this._joints as Record<string, AntBox2DBasicJoint | null>;
+    const joints = this._joints as Record<string, AntBox2DBasicJoint | null> | null;
+    if (joints == null) {
+      return; // AS3: `for (var name in null)` does nothing
+    }
+
     for (const name of Object.keys(joints)) {
       const joint = joints[name] as AntBox2DBasicJoint;
       joint.clearAnimations();

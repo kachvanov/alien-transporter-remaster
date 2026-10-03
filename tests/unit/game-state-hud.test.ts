@@ -129,10 +129,10 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
     expect(AntG.sounds.takeOneShots()).toHaveLength(1);
   });
 
-  it('the systems are those of GameState.as that exist (SensorSystem and MissileSystem are STUB(T2.1))', () => {
+  it('the 17 systems of GameState.as', () => {
     newGame();
     const names = G.core.getSystems().map((s) => (s.constructor as { className?: string }).className);
-    expect(names).toHaveLength(15);
+    expect(names).toHaveLength(17);
     expect([...names].sort()).toEqual(
       [
         'ControlSystem',
@@ -140,11 +140,13 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
         'HealthSystem',
         'MagnetSystem',
         'MenuSystem',
+        'MissileSystem',
         'ObjectSpawnSystem',
         'PassengerSystem',
         'PortalSystem',
         'RagdollSystem',
         'RenderSystem',
+        'SensorSystem',
         'ShuttleSystem',
         'SpawnSystem',
         'StationSystem',
@@ -261,7 +263,7 @@ describe.skipIf(!hasAssets)('debugStartLevel(Level01): the shuttle, the HUD, the
     expect(glyphs.map((n) => n.texId)).toEqual([registry.glyphTexId('font04Green', 50), registry.glyphTexId('font04Green', 53)]);
     // the label is centred on its position by origin (the tween scales it about the centre)
     expect(label.origin.x).toBe(-label.width * 0.5);
-    // (the movement and the end of the life of the label are FlyingLabel.update of MagnetSystem: STUB(T2.1))
+    // (the movement and the end of the life of the label are FlyingLabel.update of MagnetSystem)
   });
 
   it('W adds Player2: its shuttle, a second HUD (706, 38, right aligned), two-player mode, one life less; the blinker goes', () => {

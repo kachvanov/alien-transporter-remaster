@@ -3,7 +3,7 @@
 import { AntNode } from '../../engine/ants/AntNode';
 import { Info } from '../components/Info';
 import { Sensor } from '../components/Sensor';
-import { SensorView } from '../views/SensorView'; // STUB(T2.1)
+import { SensorView } from '../views/SensorView';
 
 /** Component fields in the order of the `public var` declarations of the original (AntFamily reads them). */
 export class SensorNode extends AntNode {

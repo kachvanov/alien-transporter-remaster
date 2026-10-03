@@ -12,7 +12,7 @@ import { PlayerData } from '../data/PlayerData';
 import { G } from '../G';
 import { PortalNode } from '../nodes/PortalNode';
 import { ShuttleNode } from '../nodes/ShuttleNode';
-import { MenuSystem } from './MenuSystem'; // STUB(T2.1)
+import { MenuSystem } from './MenuSystem';
 
 export class PortalSystem extends AntSystem {
   static readonly className = 'PortalSystem';

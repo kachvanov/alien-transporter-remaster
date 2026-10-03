@@ -5,7 +5,6 @@
 // not added to the state. T2.2 ports `elements/*` and adds the statements marked below.
 // STUB(T2.4): AntLightEnvironment (living lights). The stand-in has only `add()` (Factory.makeShuttle) and is
 // not added to the state either.
-// STUB(T2.1): SensorSystem and MissileSystem are not ported yet; they are added at their place of the list.
 // STUB(T2.7): `Music.init()` (the music is MusicManager, a stub).
 //
 // DEVIATION: JointEditor (`open joint` command) is not ported; DebugSystem (Config.DEBUG_MODE is false) neither.
@@ -34,12 +33,14 @@ import { GoalSystem } from '../systems/GoalSystem';
 import { HealthSystem } from '../systems/HealthSystem';
 import { MagnetSystem } from '../systems/MagnetSystem';
 import { MenuSystem } from '../systems/MenuSystem';
+import { MissileSystem } from '../systems/MissileSystem';
 import { ObjectSpawnSystem } from '../systems/ObjectSpawnSystem';
 import { PassengerSystem } from '../systems/PassengerSystem';
 import { PortalSystem } from '../systems/PortalSystem';
 import { Priority } from '../systems/Priority';
 import { RagdollSystem } from '../systems/RagdollSystem';
 import { RenderSystem } from '../systems/RenderSystem';
+import { SensorSystem } from '../systems/SensorSystem';
 import { ShuttleSystem } from '../systems/ShuttleSystem';
 import { SpawnSystem } from '../systems/SpawnSystem';
 import { StationSystem } from '../systems/StationSystem';
@@ -67,6 +68,10 @@ export class StubElementSimulation {
 
 /** STUB(T2.4): stand-in for ru/antkarlov/anthill/extensions/livinglights/AntLightEnvironment.as. */
 export class StubLightEnvironment {
+  /** AS3 `addLight(aLight:AntLight)` (SensorView needs it). */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  addLight(_aLight: unknown): void {}
+
   /** AS3 `add(aChild:AntEntity):AntEntity`. */
   add(aChild: AntEntity): AntEntity {
     return aChild;
@@ -225,9 +230,9 @@ export class GameState extends AntState {
     G.core.addSystem(new ObjectSpawnSystem(), Priority.objectSpawnSystem);
     G.core.addSystem(new UISystem(), Priority.uiSystem);
     G.core.addSystem(new MenuSystem(), Priority.menuSystem);
-    // STUB(T2.1): G.core.addSystem(new SensorSystem(), Priority.sensorSystem);
+    G.core.addSystem(new SensorSystem(), Priority.sensorSystem);
     G.core.addSystem(new GoalSystem(), Priority.goalSystem);
-    // STUB(T2.1): G.core.addSystem(new MissileSystem(), Priority.missileSystem);
+    G.core.addSystem(new MissileSystem(), Priority.missileSystem);
     if (Config.DEBUG_MODE) {
       // DEVIATION: DebugSystem is a developer tool and is not ported.
     }

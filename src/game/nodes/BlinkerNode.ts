@@ -2,7 +2,7 @@
 
 import { AntNode } from '../../engine/ants/AntNode';
 import { Info } from '../components/Info';
-import { BlinkerView } from '../views/BlinkerView'; // STUB(T2.1)
+import { BlinkerView } from '../views/BlinkerView';
 
 /** Component fields in the order of the `public var` declarations of the original (AntFamily reads them). */
 export class BlinkerNode extends AntNode {

@@ -1,11 +1,12 @@
-// STUB(T2.1): stand-in for ru/alientransporter/views/TutorialView.as.
-// The owner task ports the real view and replaces this file. Declared: the animations of the constructor of the
-// original (map/Factory.makeTutorial switches them) and what components/Tutorial.ts calls.
+// Port of ru/alientransporter/views/TutorialView.as
 
 import { AntActor } from '../../engine/core/AntActor';
+import { Label } from '../fonts/Label';
 
 export class TutorialView extends AntActor {
   static readonly className = 'TutorialView';
+
+  private _labels: Label[] | null = null;
 
   constructor() {
     super();
@@ -17,7 +18,33 @@ export class TutorialView extends AntActor {
     this.addAnimationFromCache('Tutorial06_mc');
   }
 
-  /** AS3 `addLabel(aX:int, aY:int, aText:String)`. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  addLabel(_aX: number, _aY: number, _aText: string): void {}
+  addLabel(aX: number, aY: number, aText: string): void {
+    aX = aX | 0; // :int
+    aY = aY | 0; // :int
+    if (this._labels == null) {
+      this._labels = [];
+    }
+
+    // (the original never puts the label into `_labels`: kill() below frees nothing)
+    const label = this.recycle(Label) as Label;
+    label.fontName = 'font05';
+    label.text = aText;
+    label.reset(aX - label.width * 0.5, aY - label.height * 0.5);
+    label.revive();
+  }
+
+  override kill(): void {
+    super.kill();
+    if (this._labels != null) {
+      let i = 0; // :* (an int in practice)
+      const n = this._labels.length | 0;
+      while (i < n) {
+        this._labels[i]!.kill();
+        this._labels[i++] = null as unknown as Label; // AS3: _labels[i++] = null
+      }
+
+      this._labels.length = 0;
+      this._labels = null;
+    }
+  }
 }

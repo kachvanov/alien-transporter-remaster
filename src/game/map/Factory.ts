@@ -79,21 +79,21 @@ import { ShuttleModel } from '../models/ShuttleModel';
 import { ShuttleRagdoll } from '../models/ShuttleRagdoll';
 import { ShuttleNode } from '../nodes/ShuttleNode';
 import { HealthSystem } from '../systems/HealthSystem';
-import { BarrelView } from '../views/BarrelView'; // STUB(T2.1)
-import { BigBoxView } from '../views/BigBoxView'; // STUB(T2.1)
-import { BlinkerView } from '../views/BlinkerView'; // STUB(T2.1)
-import { BonusView } from '../views/BonusView'; // STUB(T2.1)
-import { CoinView } from '../views/CoinView'; // STUB(T2.1)
-import { HouseView } from '../views/HouseView'; // STUB(T2.1)
-import { IndicatorView } from '../views/IndicatorView'; // STUB(T2.1)
-import { MissileView } from '../views/MissileView'; // STUB(T2.1)
+import { BarrelView } from '../views/BarrelView';
+import { BigBoxView } from '../views/BigBoxView';
+import { BlinkerView } from '../views/BlinkerView';
+import { BonusView } from '../views/BonusView';
+import { CoinView } from '../views/CoinView';
+import { HouseView } from '../views/HouseView';
+import { IndicatorView } from '../views/IndicatorView';
+import { MissileView } from '../views/MissileView';
 import { PassengerView } from '../views/PassengerView';
-import { RockView } from '../views/RockView'; // STUB(T2.1)
-import { SensorView } from '../views/SensorView'; // STUB(T2.1)
+import { RockView } from '../views/RockView';
+import { SensorView } from '../views/SensorView';
 import { ShuttleView } from '../views/ShuttleView';
-import { SmallBoxView } from '../views/SmallBoxView'; // STUB(T2.1)
-import { TransporterWheelView } from '../views/TransporterWheelView'; // STUB(T2.1)
-import { TutorialView } from '../views/TutorialView'; // STUB(T2.1)
+import { SmallBoxView } from '../views/SmallBoxView';
+import { TransporterWheelView } from '../views/TransporterWheelView';
+import { TutorialView } from '../views/TutorialView';
 
 /** AS3 `parseFloat(value)` of a value that is already a Number (or null / undefined -> NaN). */
 function parseFloatAS3(aValue: unknown): number {
