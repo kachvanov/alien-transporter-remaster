@@ -36,7 +36,7 @@ interface BufferGlyph {
 }
 
 export class Label extends AntEntity implements IFrameWritable {
-  static readonly className = 'Label';
+  static readonly className: string = 'Label';
 
   //---------------------------------------
   // CLASS CONSTANTS

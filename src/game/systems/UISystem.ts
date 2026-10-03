@@ -1,7 +1,8 @@
 // Port of ru/alientransporter/systems/UISystem.as
 //
-// STUB(T2.5): onGameOver() should show the game over popup of the GameScreen (T2.6, GameOverPopupView of T2.5):
-// `MenuSystem.currentScreen is GameScreen` does not exist yet (the MenuSystem is a stub, T2.1), so it only logs.
+// STUB(T2.6): `menu.currentScreen is GameScreen` does not exist yet (the MenuSystem is a stub, T2.1, and the
+// GameScreen is T2.6): the game over popup and `listenFocusLost` go to the DevGameScreen of the dev entry
+// (GameState.devGameScreen, which has the pause and the popups of the GameScreen); without it onGameOver only logs.
 
 import type { AntCore } from '../../engine/ants/AntCore';
 import type { AntNodeList } from '../../engine/ants/AntNodeList';
@@ -131,9 +132,12 @@ export class UISystem extends AntSystem {
   }
 
   private onGameOver = (): void => {
-    // STUB(T2.5): `var menu:MenuSystem = G.core.getSystem(MenuSystem); if(menu != null && menu.currentScreen is
-    // GameScreen) (menu.currentScreen as GameScreen).showGameOverPopup();` (T2.6 has the GameScreen).
+    // STUB(T2.6): `var menu:MenuSystem = G.core.getSystem(MenuSystem); if(menu != null && menu.currentScreen is
+    // GameScreen) (menu.currentScreen as GameScreen).showGameOverPopup();`
     AntG.log('game over', 'data');
+    if (G.gameState.devGameScreen != null) {
+      G.gameState.devGameScreen.showGameOverPopup();
+    }
   };
 
   spawnShuttle(aPlayer = 'Player1'): void {
@@ -225,7 +229,11 @@ export class UISystem extends AntSystem {
               (this._shuttleNodes as AntNodeList<ShuttleNode>).numNodes == 0)
           ) {
             if (!this._isGameOver) {
-              // STUB(T2.5): `(menu.currentScreen as GameScreen).listenFocusLost = false` (the GameScreen, T2.6)
+              // STUB(T2.6): `(menu.currentScreen as GameScreen).listenFocusLost = false`
+              if (G.gameState.devGameScreen != null) {
+                G.gameState.devGameScreen.listenFocusLost = false;
+              }
+
               tm.addInstantTask(this.onGameOver);
               this._isGameOver = true;
             }
