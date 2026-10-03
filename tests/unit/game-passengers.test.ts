@@ -854,7 +854,9 @@ describe.skipIf(!hasAssets)('Level01 (seed 12345)', () => {
   it('a passenger walks to the key point of the station, takes the foreground and is no longer "just spawned"', () => {
     initLevel01();
     const list = nodes(PassengerNode);
-    for (let t = 1; t <= 393 + 120; t++) tick();
+    // (T2.3: the effects draw from the PRNG too, so the wait before the walk is not the same as before: the loop
+    // runs until the walk ends)
+    for (let t = 1; t <= 393 + 400 && !(t > 393 && list.numNodes > 1 && !(list.get(1) as PassengerNode).mediator.justSpawned); t++) tick();
     const newcomer = list.get(1) as PassengerNode;
     expect(newcomer.mediator.justSpawned).toBe(false);
     expect(newcomer.mediator.station).not.toBeNull();

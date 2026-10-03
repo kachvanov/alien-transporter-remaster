@@ -8,6 +8,7 @@
 
 import type { AntNode, AntNodeClass } from '../../../src/engine/ants/AntNode';
 import type { AntNodeList } from '../../../src/engine/ants/AntNodeList';
+import { AntBasic } from '../../../src/engine/core/AntBasic';
 import { AntG } from '../../../src/engine/core/AntG';
 import { emptyInputSnapshot } from '../../../src/engine/input/InputSnapshot';
 import { AntMath } from '../../../src/engine/utils/AntMath';
@@ -15,6 +16,7 @@ import { GameData, MemoryGameSaveStorage } from '../../../src/game/data/GameData
 import { G } from '../../../src/game/G';
 import { LevelCore } from '../../../src/game/map/LevelCore';
 import { Factory } from '../../../src/game/map/Factory';
+import { Ground } from '../../../src/game/map/Ground';
 import { GoalManagerNode } from '../../../src/game/nodes/GoalManagerNode';
 import { PortalNode } from '../../../src/game/nodes/PortalNode';
 import { ShuttleNode } from '../../../src/game/nodes/ShuttleNode';
@@ -22,10 +24,22 @@ import { StationNode } from '../../../src/game/nodes/StationNode';
 import { startGame } from '../../unit/helpers/game';
 
 /**
+ * What GameLoop.init() resets for a reproducible run: the ids of the entities and the ground of the level (it lives in
+ * statics; the previous game of the process, cut off before the level was cleared, leaves its body there, which changes
+ * the contacts of the next game by a hair: the same seed then gave deliveries 1-2 ticks apart).
+ */
+function resetStatics(): void {
+  AntBasic.resetEntityIds();
+  Ground.body = null;
+  Ground.stopperList = null;
+}
+
+/**
  * A fresh seeded game: a new plugin manager (the Box2D world, core, music, tweens and tasks of the previous game are
  * gone; the order of the plugins depends on how many there are), a new save, the seed.
  */
 export function resetGame(aSeed = 12345): void {
+  resetStatics();
   GameData.storage = new MemoryGameSaveStorage();
   AntMath.seed(aSeed);
   startGame(); // the real GameState without its systems; stops the world of the previous game, new Anthill = new AntG
@@ -36,6 +50,7 @@ export function resetGame(aSeed = 12345): void {
  * (not by LevelManager.loadLevel), so no shuttle is spawned: the pilot makes it.
  */
 export function initLevel01(aSeed = 12345): void {
+  resetStatics();
   GameData.storage = new MemoryGameSaveStorage();
   AntMath.seed(aSeed);
   startGame({ systems: true });
@@ -79,6 +94,7 @@ export class ScriptedPilot {
   doneAt = -1;
   private _waypoints: { x: number; y: number }[] = [];
   private _tick = 0;
+  private _target = '';
 
   /** Call once per tick, before tick(). */
   step(): void {
@@ -96,7 +112,8 @@ export class ScriptedPilot {
         break;
       case 'load':
         if (this.cargoDestination() != null) {
-          this.flyTo(this.stationPoint(this.cargoDestination() as string));
+          this._target = this.cargoDestination() as string;
+          this.flyTo(this.stationPoint(this._target));
           this.phase = 'fly';
         }
 
@@ -108,7 +125,8 @@ export class ScriptedPilot {
 
         break;
       case 'land':
-        if (this.cargoDestination() == null) {
+        // delivered: the cargo is out, or another passenger (for another station) has boarded at once
+        if (this.cargoDestination() !== this._target) {
           this.deliveredAt.push(this._tick);
           if (portalNode().portal.isActive) {
             this.portalOpenAt = this._tick;

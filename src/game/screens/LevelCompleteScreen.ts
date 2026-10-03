@@ -9,7 +9,7 @@
 import { AntActor } from '../../engine/core/AntActor';
 import type { AntButton } from '../../engine/core/AntButton';
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntTaskManager } from '../../engine/plugins/AntTaskManager';
 import { AntTransition } from '../../engine/plugins/AntTransition';
 import { AntTween } from '../../engine/plugins/AntTween';

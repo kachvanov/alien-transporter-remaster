@@ -8,7 +8,7 @@
 // DEVIATION: SAVE_KEY is "alientransporter" (T1.9a card), the original constant is "AlienTransporter".
 
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import type { AnyObject } from '../../engine/utils/types';
 import { Config } from '../Config';
 import { G } from '../G';

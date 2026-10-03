@@ -7,7 +7,7 @@ import type { AntCore } from '../../engine/ants/AntCore';
 import type { AntNodeList } from '../../engine/ants/AntNodeList';
 import { AntSystem } from '../../engine/ants/AntSystem';
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntTaskManager } from '../../engine/plugins/AntTaskManager';
 import { sortOnAS3, NUMERIC } from '../../engine/utils/as3array';
 import { AntMath } from '../../engine/utils/AntMath';

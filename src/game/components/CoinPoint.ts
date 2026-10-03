@@ -1,7 +1,7 @@
 // Port of ru/alientransporter/components/CoinPoint.as
 
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntTaskManager } from '../../engine/plugins/AntTaskManager';
 import { AntMath } from '../../engine/utils/AntMath';
 import { asType } from '../../engine/utils/cast';

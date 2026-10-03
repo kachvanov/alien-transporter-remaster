@@ -1,7 +1,7 @@
 // Port of ru/alientransporter/components/ShuttleSpawn.as
 
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { G } from '../G';
 import { Factory } from '../map/Factory';
 

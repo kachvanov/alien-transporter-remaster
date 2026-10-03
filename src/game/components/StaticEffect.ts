@@ -1,7 +1,7 @@
 // Port of ru/alientransporter/components/StaticEffect.as
 
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
-import type { AntEffectEmitter } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
+import type { AntEffectEmitter } from '../../engine/effects/AntEffectEmitter';
 import { G } from '../G';
 import type { IActionComponent } from './IActionComponent';
 

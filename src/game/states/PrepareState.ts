@@ -11,11 +11,12 @@
 // DEVIATION: `AntG.frameRate = 28` of the intro is ignored (the simulation has a fixed step, docs/04 section 4).
 // DEVIATION: the switch is made in `create()` (the original switches from the click on the Play button): the
 // camera of the game is made by GameState.create().
-// STUB(T2.3): `AntEffectManager.getInstance().loadEmbeddedXML(XmlEffects)`: the effects of assets/data/effects.json
-// are registered by the effect system.
+// DEVIATION: `loadEmbeddedXML(XmlEffects)` takes the effects of assets/data/effects.json from the AssetRegistry
+// (AntEffectManager.loadEmbeddedXML).
 
 import { AntG } from '../../engine/core/AntG';
 import { AntState } from '../../engine/core/AntState';
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntPoint } from '../../engine/utils/AntPoint';
 import { Config } from '../Config';
 import { GameState } from './GameState';
@@ -37,7 +38,7 @@ export class PrepareState extends AntState {
     AntG.timeScale = 1;
     AntG.debugMode = Config.DEBUG_MODE;
     super.create();
-    // STUB(T2.3): AntEffectManager.getInstance().loadEmbeddedXML(XmlEffects);
+    AntEffectManager.getInstance().loadEmbeddedXML();
     AntG.switchState(new GameState());
   }
 }

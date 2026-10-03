@@ -2,7 +2,7 @@
 
 import type { AntObject } from '../../engine/ants/AntObject';
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntMath } from '../../engine/utils/AntMath';
 import type { AntPoint } from '../../engine/utils/AntPoint';
 import { asType } from '../../engine/utils/cast';

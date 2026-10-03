@@ -90,7 +90,8 @@ export class Level01Bot {
     }
 
     if (this.mode === 'unload') {
-      if (cargo == null) {
+      // delivered: the cargo is out, or another passenger (for another station) has boarded at once
+      if (cargo == null || cargo !== this.target) {
         this.deliveredAt.push(aTick);
         this.mode = 'idle';
       }

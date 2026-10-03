@@ -3,7 +3,7 @@
 import type { AntCore } from '../../engine/ants/AntCore';
 import type { AntNodeList } from '../../engine/ants/AntNodeList';
 import { AntSystem } from '../../engine/ants/AntSystem';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntMath } from '../../engine/utils/AntMath';
 import type { AntBox2DBody } from '../../physics/anthill/AntBox2DBody';
 import { G } from '../G';
