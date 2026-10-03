@@ -334,7 +334,7 @@ describe.skipIf(!hasAssets)('debugStartLevel(Level01): the shuttle, the HUD, the
     expect(views(ShuttleUIView)).toHaveLength(1);
   });
 
-  it('the last life is lost: game over (STUB(T2.5): written to the log), no spawn any more, GAME OVER on the blinker is not made', () => {
+  it('the last life is lost: game over (written to the log; the popup is that of DevGameScreen, see ui-views.test.ts), no spawn any more, GAME OVER on the blinker is not made', () => {
     const logs: string[] = [];
     AntG.log = (m: string) => logs.push(m);
     const ui = G.core.getSystem(UISystem) as UISystem;

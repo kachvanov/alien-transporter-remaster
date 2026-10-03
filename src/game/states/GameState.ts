@@ -20,10 +20,9 @@ import { AntEntity } from '../../engine/core/AntEntity';
 import { AntG } from '../../engine/core/AntG';
 import { AntState } from '../../engine/core/AntState';
 import { Config } from '../Config';
-import type { LevelData } from '../data/LevelData';
 import { Fonts } from '../Fonts';
 import { G } from '../G';
-import { LevelTitleUIView } from '../ui/LevelTitleUIView';
+import { DevGameScreen } from '../screens/DevGameScreen';
 import { PassengerView } from '../views/PassengerView';
 import { ShuttleView } from '../views/ShuttleView';
 import { PassengerTag } from '../tags/PassengerTag';
@@ -106,8 +105,8 @@ export class GameState extends AntState {
   fireSimulation!: StubElementSimulation; // STUB(T2.2): ElementSimulation
   lightEnvironment!: StubLightEnvironment; // STUB(T2.4): AntLightEnvironment
 
-  /** DEVIATION (debugStartLevel): the title of the level of the GameScreen, `_levelTitle` there. */
-  private _levelTitle: LevelTitleUIView | null = null;
+  /** STUB(T2.6): the GameScreen of the dev entry (debugStartLevel): the title, the pause and the popups. */
+  devGameScreen: DevGameScreen | null = null;
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -241,31 +240,25 @@ export class GameState extends AntState {
    * the menu. `GameScreen.init()` loads the level (`G.levelManager.loadLevel(G.gameData.currentLevelName)`);
    * when it is loaded, `GameScreen.create()` makes the title of the level (`onMakeLevelTitle(786, 528, level)`)
    * and starts the game theme. LevelManager.onLevelLoaded (the original) spawns Player1 and adds the blinker of
-   * Player2. STUB(T2.5, T2.6): the buttons of the screen, the pause and the popups.
+   * Player2. STUB(T2.6): DevGameScreen is the GameScreen (the pause, the popups; the buttons of the screen are T2.6).
    */
   debugStartLevel(aName: string): void {
     G.gameData.isTwoPlayerMode = false;
     G.gameData.currentLevelName = aName;
     G.levelManager.loadLevel(G.gameData.currentLevelName);
     if (!G.levelManager.isLoading) {
-      this.onMakeLevelTitle(786, 528, (G.gameData.getLevelData(aName) as LevelData).level);
+      this.devGameScreen = new DevGameScreen();
+      this.devGameScreen.create();
       G.music.playGameTheme();
     }
   }
 
-  /** `GameScreen.onMakeLevelTitle(aX:int, aY:int, aLevel:int)`. */
-  private onMakeLevelTitle(aX: number, aY: number, aLevel: number): void {
-    aX = aX | 0;
-    aY = aY | 0;
-    aLevel = aLevel | 0;
-    if (this._levelTitle == null) {
-      this._levelTitle = this.layerInterface.recycle(LevelTitleUIView) as LevelTitleUIView;
+  /** STUB(T2.6): MenuSystem.update calls `currentScreen.update()` in the original. */
+  override update(): void {
+    super.update();
+    if (this.devGameScreen != null) {
+      this.devGameScreen.update();
     }
-
-    this._levelTitle.reset(aX, aY);
-    this._levelTitle.value = aLevel;
-    this._levelTitle.revive();
-    this._levelTitle.show();
   }
 
   private onLevel = (aName: string): void => {

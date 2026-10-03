@@ -19,6 +19,7 @@ export async function loadAssets(): Promise<AssetRegistry> {
   const registry = new AssetRegistry(new FileAssetSource(assetsRoot, (p) => readFile(p)));
   await registry.load();
   await registry.loadModels();
+  await registry.loadTexts(); // Text.init() of G.init reads texts.json
   for (let n = 1; n <= 20; n++) {
     await registry.loadLevel(n);
   }
