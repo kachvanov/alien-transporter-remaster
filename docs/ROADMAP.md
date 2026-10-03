@@ -41,7 +41,7 @@
 
 | | ID | Задача | Зависит от | Размер |
 |---|---|---|---|---|
-| [ ] | T2.1 | Системы Magnet/Missile/Ragdoll/Sensor/ObjectSpawn/Menu + оставшиеся views | M1 | L |
+| [x] | T2.1 | Системы Magnet/Missile/Ragdoll/Sensor/ObjectSpawn/Menu + оставшиеся views | M1 | L |
 | [ ] | T2.2 | elements/: PhysicalMap + ElementSimulation (дым/огонь/нефть) | M1 | M |
 | [ ] | T2.3 | Эффекты частиц (AntEffect*) + StaticEffect | M1 | M |
 | [ ] | T2.4 | Living lights: AntLight/Environment (лучи, касания, альфа-маски) + рендер | M1 | M |

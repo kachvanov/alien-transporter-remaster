@@ -5,7 +5,6 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T2.1 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 02:21 |
 
 ## Ворота
 | Милстоун | статус |
@@ -16,7 +15,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
-—
+- (не блокирует) Ручной осмотр Level08 (падение камней), Level11 (взрыв бочек), Level13 (ракетные турели) рядом с Ruffle: `npm run dev -- --start-level=Level08` и т.д. Лучи сенсоров приблизительны до T2.4.
 
 ## Заблокировано
 —
@@ -55,8 +54,10 @@
 - 2026-10-04 T2.6 проверен пользователем вручную (npm run dev без флага), всё отлично; «звук выключен сам» — пользователь сам выключал его, не баг
 - 2026-10-04 T0.8 (viewer) проверен пользователем, всё ок
 - 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
+- 2026-10-04 T2.1 merged a53a445 (попытка 1; check зелёный: 788 тестов)
 
 ## Заметки оркестратора
+- T2.1: STUB(T2.4) остался: StubAntLight, SensorView.stubUpdateLight, SensorSystem.stubUpdateLight + список ShuttleNode, StubLightEnvironment.addLight. При мерже T2.4 брать их SensorView/GameState/AntLightEnvironment, в SensorSystem удалить stubUpdateLight и ShuttleNode. Исправление вне карточки: BasicModel.clearBodies/clearJoints null-safe (двойной destroy у MissileModel). Взрыв бочки: у шаттла нет Health, урон 0.2 только объектам с Health (как в оригинале). Пересчёт level01-playthrough: доставки 1118/1601, портал 1914, экран 1998, бюджет 2300 оставлен. sound.test.ts: период руления 35→30. Golden T4.1 снимать после мержа всех задач, меняющих список систем/плагинов. Проверить двойной destroy в других местах T1.9b.
 - Правка STATUS/ROADMAP: не писать текст через bash-heredoc без кавычек (`<<EOF`) — обратные кавычки в нём выполняются как команды (в T2.6 так запустился `npm run dev` под ELECTRON_RUN_AS_NODE=1, его вывод и трасса TypeError registerSchemesAsPrivileged попали в STATUS). Использовать Edit/Write либо `<<'EOF'`.
 - T2.6: MenuSystem портирован целиком в T2.6 (заглушку T2.1 не восстанавливать — в карточке T2.1 шаг 4 MenuSystem уже сделан). Экраны регистрирует screens/registerScreens.ts. GameState.gameScreen вместо DevGameScreen. --start-level → menu.makeScreenNow(GAME_SCREEN); без флага стартует главное меню. PrepareState — начальное состояние GameLoop. Остались STUB(T2.3) (AntEffectManager.loadEmbeddedXML, makeEffect) и STUB(T2.7) (MissionManager — T2.7 берёт свои missions/MissionData.ts и MissionManager.ts; MusicManager, ContentManager). T2.1: SensorSystem/MissileSystem добавлять на помеченные места GameState.addSystems(), потом пересчитать бюджет level01-playthrough (сейчас вторая доставка на 1640, портал 1971, экран завершения 2055, бюджет 2300). Ручной осмотр экранов рядом с Ruffle (меню, выбор уровня, гараж, Credits, пауза, завершение уровня) — пока не делался. Credits: BtnWesley_mc оставлена без ссылки, надпись ARMORGAMES зашита в арт. Вне задачи: GameLoop не зовёт requestSceneReset при смене экранов (проверить на 120 Гц, T4.2/T4.4); Assets.ts и tools/extract/whitelist.ts ещё перечисляют клипы спонсорских кнопок; muteMusic/muteSounds=true в ранних прогонах — выключал пользователь, не баг.
 - T2.5: DevGameScreen (STUB(T2.6), src/game/screens) — временная замена GameScreen: пауза P/ESC и game over в Level01; GameState.debugStartLevel/update и UISystem.onGameOver помечены STUB(T2.6). AntButton портирован (нужен Button), AntLabel — адаптер на Label (шрифт «system» → font03 при <16, font02 при ≥16; сверить с Ruffle в T4.2). Text.ts уже настоящий (T2.7 берёт версию T2.5). В PausePopupView 2 переключателя (Effects, Quality), спонсорские кнопки убраны. ВАЖНО: любой AntTween/AntTaskManager — плагин, AntPluginManager.add пересортирует список → порядок/тайминги в level01-playthrough.test.ts (бюджет 2300 тиков) сдвигаются; при мерже T2.6/T2.1 бюджет пересчитывать. Кнопки музыки/звука/паузы делает T2.6. Ручная проверка: P в Level01 — положение подписей попапа паузы. docs/04 §4/§6 неточна (AntLabel/AntButton используются).
