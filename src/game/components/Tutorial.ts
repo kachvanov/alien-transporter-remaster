@@ -3,7 +3,7 @@
 import { AntTransition } from '../../engine/plugins/AntTransition';
 import { AntTween } from '../../engine/plugins/AntTween';
 import { Config } from '../Config';
-import type { TutorialView } from '../views/TutorialView'; // STUB(T2.1)
+import type { TutorialView } from '../views/TutorialView';
 import type { IActionComponent } from './IActionComponent';
 
 export class Tutorial implements IActionComponent {

@@ -23,8 +23,10 @@ const ready = hasAssets && existsSync(resolve(assetsRoot, 'sounds.json'));
 
 // T2.6: the screens (tweens of the buttons, AntTaskManager of the menu and of GameScreen) are plugins and change the
 // order of the plugins (AntPluginManager.add sorts them with the AVM2 sort, all priorities are equal), so the timing of the
-// passengers moved: the deliveries are at ticks 1117 and 1640, the portal takes the shuttle at 1971 and the level complete
-// screen comes 84 ticks later (the fade of MenuSystem), at 2055. The budget of 2300 ticks of T1.9e is enough as before.
+// passengers moved. T2.1: SensorSystem and MissileSystem are in the list of the systems now (the AVM2 sort of
+// AntCore.updatePriority gives another order): the deliveries are at ticks 1118 and 1601, the portal takes the shuttle at
+// 1914 and the level complete screen comes 84 ticks later (the fade of MenuSystem), at 1998. The budget of 2300 ticks of
+// T1.9e is enough as before.
 const TICKS = 2300;
 
 interface Run {
