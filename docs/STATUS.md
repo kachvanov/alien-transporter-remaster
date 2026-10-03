@@ -5,7 +5,6 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T2.5 | 1 | worktree-agent | .claude/worktrees | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -49,10 +48,12 @@
 - 2026-10-01 T1.9e merged 3476088 (попытка 1 после перезапуска; check зелёный: 677 тестов, e2e 7/7)
 - 2026-10-01 FIX-2 merged c9c5546 (npm run dev принимает --start-level/--profile/--tier/--classic через обёртку tools/dev/dev.ts; check зелёный: 685 тестов)
 - 2026-10-04 ворота M1 пройдены (пользователь)
+- 2026-10-04 T2.5 merged 66c2a72 (попытка 1; check зелёный: 732 теста)
 - 2026-10-04 T0.8 (viewer) проверен пользователем, всё ок
 - 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
 
 ## Заметки оркестратора
+- T2.5: DevGameScreen (STUB(T2.6), src/game/screens) — временная замена GameScreen: пауза P/ESC и game over в Level01; GameState.debugStartLevel/update и UISystem.onGameOver помечены STUB(T2.6). AntButton портирован (нужен Button), AntLabel — адаптер на Label (шрифт «system» → font03 при <16, font02 при ≥16; сверить с Ruffle в T4.2). Text.ts уже настоящий (T2.7 берёт версию T2.5). В PausePopupView 2 переключателя (Effects, Quality), спонсорские кнопки убраны. ВАЖНО: любой AntTween/AntTaskManager — плагин, AntPluginManager.add пересортирует список → порядок/тайминги в level01-playthrough.test.ts (бюджет 2300 тиков) сдвигаются; при мерже T2.6/T2.1 бюджет пересчитывать. Кнопки музыки/звука/паузы делает T2.6. Ручная проверка: P в Level01 — положение подписей попапа паузы. docs/04 §4/§6 неточна (AntLabel/AntButton используются).
 - T1.9e: запуск игры только с флагом `--start-level=Level01` (без него пустой экран до T2.6). Тесты/бот: tests/golden/scripts/level01-bot.ts (жмёт клавиши по настоящей физике, T4.1 переиспользует). Новый шаг extract `fontglyphs` (996 кадров `Font:<font>#<charCode>` в manifest). T2.1: добавить SensorSystem/MissileSystem в GameState.addSystems() на помеченные места (порядок update изменится из-за sortAS3); MagnetSystem нужна, чтобы всплывающие «+N» (FlyingLabel) исчезали. Не сделаны: пауза P/ESC, GameScreen (T2.5/T2.6), TextUIView (T2.5), MusicManager/Text/Mission/ContentManager (T2.7), Music.init/JointEditor/DebugSystem. Label без буфера (нет глифа → пропуск вместо TypeError). Перезапуск звука двигателя даёт 1 кадр без канала (как в оригинале) — проверить на слух, нет ли щелчка. e2e оставляет каталоги userData *-profilee2e*.
 - T0.8: `npm run viewer` (порт 5174, VIEWER_NO_OPEN=1 отключает автооткрытие); скриншоты — `CHROMIUM_PATH=… npx tsx tools/viewer/shots.ts` (Playwright 1.63 ждёт chromium_headless_shell-1243, в кэше только 1228 — для test:e2e может понадобиться `npx playwright install`). Zone-классы в оверлее — крупные полупрозрачные прямоугольники, использовать галочки по классам.
 - T1.9d: стабы для T1.9e: STUB(T1.9e) ui/PassengerBarUIView.ts (GoalSystem), STUB(T2.1) systems/MenuSystem.ts (константы экранов, switchScreen — нужны PortalSystem). Каждая система обязана иметь `static readonly className` (G.gamePause ищет по нему; T2.1 — Ragdoll/Magnet/ObjectSpawn). ContentManager-стаб (T2.7): isUnlocked=true для стартовых ключей (shuttleOrange, shuttleRed, shuttle01, passengerGreen, passengerBasic). PassengerSystem: локальный каст ShuttleViewCargo можно убрать (ShuttleView теперь настоящий). tests/golden/scripts/level01-deliver.ts — скриптовый пилот (двойники Render/Station помечены STUB(T1.9c), убрать в T1.9e/T4.1). Тесты с несколькими играми: AntG.plugins = new AntPluginManager().
