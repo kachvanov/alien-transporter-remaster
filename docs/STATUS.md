@@ -5,6 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
+| T2.1 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 02:21 |
 
 ## Ворота
 | Милстоун | статус |
@@ -15,41 +16,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
-
-## Нужно от тебя (не блокирует)
-- Запусти 
-> alien-transporter-remaster@0.1.0 dev
-> tsx tools/dev/dev.ts
-
-vite v7.3.6 building ssr environment for development...
-transforming...
-✓ 5 modules transformed.
-rendering chunks...
-out/main/main.js  10.48 kB
-✓ built in 38ms
-
-electron main process built successfully
-
------
-
-vite v7.3.6 building ssr environment for development...
-transforming...
-✓ 2 modules transformed.
-rendering chunks...
-out/preload/preload.js  1.42 kB
-✓ built in 5ms
-
-electron preload scripts built successfully
-
------
-
-12:51:38 AM [vite] (client) Re-optimizing dependencies because vite config has changed
-dev server running for the electron renderer process at:
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
-
-starting electron app... (без флага — откроется главное меню): пройди меню → Play → уровни, гараж (цвет корабля), Credits, пауза P, завершение уровня. Сравни с Ruffle. Если звук выключен сам — сообщи.
+—
 
 ## Заблокировано
 —
