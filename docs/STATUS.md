@@ -15,7 +15,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
-- (не блокирует) Ручной осмотр Level08 (падение камней), Level11 (взрыв бочек), Level13 (ракетные турели) рядом с Ruffle: `npm run dev -- --start-level=Level08` и т.д. Лучи сенсоров приблизительны до T2.4.
+—
 
 ## Заблокировано
 —
@@ -55,6 +55,7 @@
 - 2026-10-04 T0.8 (viewer) проверен пользователем, всё ок
 - 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
 - 2026-10-04 T2.1 merged a53a445 (попытка 1; check зелёный: 788 тестов)
+- 2026-10-04 T2.1 проверена пользователем вручную (Level08, Level11, Level13), всё хорошо
 
 ## Заметки оркестратора
 - T2.1: STUB(T2.4) остался: StubAntLight, SensorView.stubUpdateLight, SensorSystem.stubUpdateLight + список ShuttleNode, StubLightEnvironment.addLight. При мерже T2.4 брать их SensorView/GameState/AntLightEnvironment, в SensorSystem удалить stubUpdateLight и ShuttleNode. Исправление вне карточки: BasicModel.clearBodies/clearJoints null-safe (двойной destroy у MissileModel). Взрыв бочки: у шаттла нет Health, урон 0.2 только объектам с Health (как в оригинале). Пересчёт level01-playthrough: доставки 1118/1601, портал 1914, экран 1998, бюджет 2300 оставлен. sound.test.ts: период руления 35→30. Golden T4.1 снимать после мержа всех задач, меняющих список систем/плагинов. Проверить двойной destroy в других местах T1.9b.
