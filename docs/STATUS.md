@@ -5,7 +5,6 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T2.6 | 1 | worktree-agent | .claude/worktrees | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -16,6 +15,41 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
+
+## Нужно от тебя (не блокирует)
+- Запусти 
+> alien-transporter-remaster@0.1.0 dev
+> tsx tools/dev/dev.ts
+
+vite v7.3.6 building ssr environment for development...
+transforming...
+✓ 5 modules transformed.
+rendering chunks...
+out/main/main.js  10.48 kB
+✓ built in 38ms
+
+electron main process built successfully
+
+-----
+
+vite v7.3.6 building ssr environment for development...
+transforming...
+✓ 2 modules transformed.
+rendering chunks...
+out/preload/preload.js  1.42 kB
+✓ built in 5ms
+
+electron preload scripts built successfully
+
+-----
+
+12:51:38 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+dev server running for the electron renderer process at:
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+
+starting electron app... (без флага — откроется главное меню): пройди меню → Play → уровни, гараж (цвет корабля), Credits, пауза P, завершение уровня. Сравни с Ruffle. Если звук выключен сам — сообщи.
 
 ## Заблокировано
 —
@@ -50,11 +84,12 @@
 - 2026-10-01 FIX-2 merged c9c5546 (npm run dev принимает --start-level/--profile/--tier/--classic через обёртку tools/dev/dev.ts; check зелёный: 685 тестов)
 - 2026-10-04 ворота M1 пройдены (пользователь)
 - 2026-10-04 T2.5 merged 66c2a72 (попытка 1; check зелёный: 732 теста)
+- 2026-10-04 T2.6 merged 5e9688e (попытка 1; check зелёный: 751 тест, e2e 8/8)
 - 2026-10-04 T0.8 (viewer) проверен пользователем, всё ок
 - 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
 
 ## Заметки оркестратора
-- until=T2.6 (по просьбе пользователя 2026-10-04): после мержа T2.6 новых задач не запускать, T2.1 не запущена, остановиться.
+- T2.6: MenuSystem портирован целиком в T2.6 (заглушку T2.1 не восстанавливать — в карточке T2.1 шаг 4 MenuSystem уже сделан). Экраны регистрирует screens/registerScreens.ts. GameState.gameScreen вместо DevGameScreen. --start-level → menu.makeScreenNow(GAME_SCREEN); без флага стартует главное меню. PrepareState — начальное состояние GameLoop. Остались STUB(T2.3) (AntEffectManager.loadEmbeddedXML, makeEffect) и STUB(T2.7) (MissionManager — T2.7 берёт свои missions/MissionData.ts и MissionManager.ts; MusicManager, ContentManager). T2.1: SensorSystem/MissileSystem добавлять на помеченные места GameState.addSystems(), потом пересчитать бюджет level01-playthrough (сейчас вторая доставка на 1640, портал 1971, экран завершения 2055, бюджет 2300). Ручной осмотр экранов рядом с Ruffle (меню, выбор уровня, гараж, Credits, пауза, завершение уровня) — пока не делался. Credits: BtnWesley_mc оставлена без ссылки, надпись ARMORGAMES зашита в арт. Вне задачи: GameLoop не зовёт requestSceneReset при смене экранов (проверить на 120 Гц, T4.2/T4.4); Assets.ts и tools/extract/whitelist.ts ещё перечисляют клипы спонсорских кнопок; при проблеме «звук выключился сам» — в ранних прогонах e2e видели muteMusic/muteSounds=true в save.json (не выяснено).
 - T2.5: DevGameScreen (STUB(T2.6), src/game/screens) — временная замена GameScreen: пауза P/ESC и game over в Level01; GameState.debugStartLevel/update и UISystem.onGameOver помечены STUB(T2.6). AntButton портирован (нужен Button), AntLabel — адаптер на Label (шрифт «system» → font03 при <16, font02 при ≥16; сверить с Ruffle в T4.2). Text.ts уже настоящий (T2.7 берёт версию T2.5). В PausePopupView 2 переключателя (Effects, Quality), спонсорские кнопки убраны. ВАЖНО: любой AntTween/AntTaskManager — плагин, AntPluginManager.add пересортирует список → порядок/тайминги в level01-playthrough.test.ts (бюджет 2300 тиков) сдвигаются; при мерже T2.6/T2.1 бюджет пересчитывать. Кнопки музыки/звука/паузы делает T2.6. Ручная проверка: P в Level01 — положение подписей попапа паузы. docs/04 §4/§6 неточна (AntLabel/AntButton используются).
 - T1.9e: запуск игры только с флагом `--start-level=Level01` (без него пустой экран до T2.6). Тесты/бот: tests/golden/scripts/level01-bot.ts (жмёт клавиши по настоящей физике, T4.1 переиспользует). Новый шаг extract `fontglyphs` (996 кадров `Font:<font>#<charCode>` в manifest). T2.1: добавить SensorSystem/MissileSystem в GameState.addSystems() на помеченные места (порядок update изменится из-за sortAS3); MagnetSystem нужна, чтобы всплывающие «+N» (FlyingLabel) исчезали. Не сделаны: пауза P/ESC, GameScreen (T2.5/T2.6), TextUIView (T2.5), MusicManager/Text/Mission/ContentManager (T2.7), Music.init/JointEditor/DebugSystem. Label без буфера (нет глифа → пропуск вместо TypeError). Перезапуск звука двигателя даёт 1 кадр без канала (как в оригинале) — проверить на слух, нет ли щелчка. e2e оставляет каталоги userData *-profilee2e*.
 - T0.8: `npm run viewer` (порт 5174, VIEWER_NO_OPEN=1 отключает автооткрытие); скриншоты — `CHROMIUM_PATH=… npx tsx tools/viewer/shots.ts` (Playwright 1.63 ждёт chromium_headless_shell-1243, в кэше только 1228 — для test:e2e может понадобиться `npx playwright install`). Zone-классы в оверлее — крупные полупрозрачные прямоугольники, использовать галочки по классам.

@@ -46,7 +46,7 @@
 | [ ] | T2.3 | Эффекты частиц (AntEffect*) + StaticEffect | M1 | M |
 | [ ] | T2.4 | Living lights: AntLight/Environment (лучи, касания, альфа-маски) + рендер | M1 | M |
 | [x] | T2.5 | ui/ (все view) + полный Label | M1 | L |
-| [ ] | T2.6 | screens/ + PrepareState + переходы, без спонсорских элементов | T2.5 | L |
+| [x] | T2.6 | screens/ + PrepareState + переходы, без спонсорских элементов | T2.5 | L |
 | [ ] | T2.7 | Миссии, контент и анлоки, MusicManager/Sounds, пауза и настройки, Casual/Hardcore | T2.6 | M |
 | [ ] | T2.8 | Сохранения и настройки (`save.json`/`settings.json`), Classic 35 fps, тир графики | T2.7 | M |
 
