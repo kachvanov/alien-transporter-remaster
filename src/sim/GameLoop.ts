@@ -20,6 +20,8 @@ import { FONT_DATA_NAMES } from '../game/Fonts';
 import { G } from '../game/G';
 import { Ground } from '../game/map/Ground';
 import { GameState } from '../game/states/GameState';
+import { PrepareState } from '../game/states/PrepareState';
+import { MenuSystem } from '../game/systems/MenuSystem';
 import { collectDebugLines, DEBUG_LINE_STRIDE } from '../physics/anthill/debugLines';
 import { collectFrameAudio } from '../frame/collectAudio';
 import { NO_LEVEL_GROUP } from '../frame/constants';
@@ -50,7 +52,7 @@ export interface GameLoopOptions {
   save: SaveStorage;
   seed: number;
   host: HostApi;
-  /** The initial state; default `GameState` (STUB(T2.6): PrepareState and the menu screens come first there). */
+  /** The initial state; default `PrepareState` (it switches to the `GameState` at once). */
   initialState?: Ctor<AntState>;
   /**
    * `levelGroup` of the frame header (1..20) of a loop that runs a state without a level manager (tests);
@@ -80,6 +82,7 @@ export class GameLoop {
   private _last = -1;
   private _sceneReset = true;
   private _recording: Recording | null = null;
+  private _screenName: string | null = null;
 
   /** The 1..20 level group of the frame header (see GameLoopOptions.levelGroup). */
   levelGroup: number;
@@ -128,11 +131,12 @@ export class GameLoop {
     this._last = -1;
     this._sceneReset = true;
     this._recording = null;
+    this._screenName = null;
     this._writer = new FrameWriter();
 
     // AntG.log of the original writes to the debug console; here it goes to the log of the host.
     AntG.log = (aMessage: string, aType = 'data'): void => opts.host.log(aType === 'error' ? 'error' : 'info', aMessage);
-    this._anthill = new Anthill(opts.initialState ?? GameState, false, {
+    this._anthill = new Anthill(opts.initialState ?? PrepareState, false, {
       onRender: () => this.renderFrame(),
     });
     AntG.onOpenUrl = (url) => opts.host.openExternal(url);
@@ -165,6 +169,7 @@ export class GameLoop {
     anthill.tick(aInput);
     this._tickCost = Math.max(0, Math.round((this._clock() - t0) * 100));
     this._tick++;
+    this.logScreenChange();
     const frame = this._frame;
     this._frame = null;
     if (frame === null) {
@@ -253,6 +258,17 @@ export class GameLoop {
   //---------------------------------------
   // PROTECTED METHODS
   //---------------------------------------
+
+  /** `screen <name>` in the log when the screen of the MenuSystem changes (the e2e test of the flow reads it). */
+  private logScreenChange(): void {
+    const name = G.core?.getSystem(MenuSystem)?.currentScreenName ?? null;
+    if (name !== this._screenName) {
+      this._screenName = name;
+      if (name !== null) {
+        this._opts.host.log('info', 'screen ' + name);
+      }
+    }
+  }
 
   /** The render point (docs/01 §3, step 3): serialises the scene. */
   private renderFrame(): void {

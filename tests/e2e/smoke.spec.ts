@@ -8,7 +8,7 @@ test('window opens, canvas shows the scene, worker ticks grow', async () => {
       (e): e is [string, string] => e[1] !== undefined && e[0] !== 'ELECTRON_RUN_AS_NODE',
     ),
   );
-  // The game without a menu yet (T2.6): the level starts by the dev flag, as the test scene of T1.7 used to be there.
+  // The dev flag --start-level=Level01 skips the menu: the level starts at once.
   const app = await electron.launch({ args: ['.', '--start-level=Level01'], env });
   try {
     const page = await app.firstWindow();

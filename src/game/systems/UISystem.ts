@@ -1,8 +1,4 @@
 // Port of ru/alientransporter/systems/UISystem.as
-//
-// STUB(T2.6): `menu.currentScreen is GameScreen` does not exist yet (the MenuSystem is a stub, T2.1, and the
-// GameScreen is T2.6): the game over popup and `listenFocusLost` go to the DevGameScreen of the dev entry
-// (GameState.devGameScreen, which has the pause and the popups of the GameScreen); without it onGameOver only logs.
 
 import type { AntCore } from '../../engine/ants/AntCore';
 import type { AntNodeList } from '../../engine/ants/AntNodeList';
@@ -20,11 +16,13 @@ import { ShuttleUISync } from '../components/ShuttleUISync';
 import { Config } from '../Config';
 import { PlayerData } from '../data/PlayerData';
 import { G } from '../G';
+import { GameScreen } from '../screens/GameScreen';
 import { ExpelObjectNode } from '../nodes/ExpelObjectNode';
 import { RagdollNode } from '../nodes/RagdollNode';
 import { ShuttleNode } from '../nodes/ShuttleNode';
 import { ShuttleSpawnNode } from '../nodes/ShuttleSpawnNode';
 import { ShuttleUINode } from '../nodes/ShuttleUINode';
+import { MenuSystem } from './MenuSystem';
 import { FuelIndicatorView } from '../ui/FuelIndicatorView';
 import { PlayerJoinUIView } from '../ui/PlayerJoinUIView';
 import { ShuttleUIView } from '../ui/ShuttleUIView';
@@ -132,11 +130,9 @@ export class UISystem extends AntSystem {
   }
 
   private onGameOver = (): void => {
-    // STUB(T2.6): `var menu:MenuSystem = G.core.getSystem(MenuSystem); if(menu != null && menu.currentScreen is
-    // GameScreen) (menu.currentScreen as GameScreen).showGameOverPopup();`
-    AntG.log('game over', 'data');
-    if (G.gameState.devGameScreen != null) {
-      G.gameState.devGameScreen.showGameOverPopup();
+    const menu = G.core.getSystem(MenuSystem);
+    if (menu != null && menu.currentScreen instanceof GameScreen) {
+      menu.currentScreen.showGameOverPopup();
     }
   };
 
@@ -229,9 +225,9 @@ export class UISystem extends AntSystem {
               (this._shuttleNodes as AntNodeList<ShuttleNode>).numNodes == 0)
           ) {
             if (!this._isGameOver) {
-              // STUB(T2.6): `(menu.currentScreen as GameScreen).listenFocusLost = false`
-              if (G.gameState.devGameScreen != null) {
-                G.gameState.devGameScreen.listenFocusLost = false;
+              const menu = G.core.getSystem(MenuSystem);
+              if (menu != null && menu.currentScreen instanceof GameScreen) {
+                menu.currentScreen.listenFocusLost = false;
               }
 
               tm.addInstantTask(this.onGameOver);

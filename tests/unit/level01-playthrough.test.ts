@@ -11,6 +11,8 @@ import { readFrame } from '../../src/frame/FrameReader';
 import type { FrameData } from '../../src/frame/types';
 import { G } from '../../src/game/G';
 import { GoalManagerNode } from '../../src/game/nodes/GoalManagerNode';
+import { LevelCompleteScreen } from '../../src/game/screens/LevelCompleteScreen';
+import { MenuSystem } from '../../src/game/systems/MenuSystem';
 import { runHeadless } from '../../src/sim/headless';
 import type { HeadlessResult } from '../../src/sim/headless';
 import { Level01Bot, Level01State } from '../golden/scripts/level01-bot';
@@ -19,6 +21,10 @@ import { hasAssets } from './helpers/assets';
 const assetsRoot = resolve(process.cwd(), 'assets');
 const ready = hasAssets && existsSync(resolve(assetsRoot, 'sounds.json'));
 
+// T2.6: the screens (tweens of the buttons, AntTaskManager of the menu and of GameScreen) are plugins and change the
+// order of the plugins (AntPluginManager.add sorts them with the AVM2 sort, all priorities are equal), so the timing of the
+// passengers moved: the deliveries are at ticks 1117 and 1640, the portal takes the shuttle at 1971 and the level complete
+// screen comes 84 ticks later (the fade of MenuSystem), at 2055. The budget of 2300 ticks of T1.9e is enough as before.
 const TICKS = 2300;
 
 interface Run {
@@ -27,6 +33,8 @@ interface Run {
   frames: FrameData[];
   logs: string[];
   goalComplete: boolean;
+  /** The tick at which the LevelCompleteScreen is the current screen (-1: it never came). */
+  levelCompleteAt: number;
   soundNames: (id: number) => string;
   keyOf: (texId: number) => string;
 }
@@ -37,6 +45,7 @@ async function play(): Promise<Run> {
   const bot = new Level01Bot();
   const logs: string[] = [];
   let goalComplete = false;
+  let levelCompleteAt = -1;
   const result = await runHeadless({
     seed: 12345,
     ticks: TICKS,
@@ -46,6 +55,10 @@ async function play(): Promise<Run> {
       const goal = G.core.getNodes(GoalManagerNode).get(0);
       if (goal != null && goal.goal.isCompleted()) {
         goalComplete = true;
+      }
+
+      if (levelCompleteAt < 0 && G.core.getSystem(MenuSystem)?.currentScreen instanceof LevelCompleteScreen) {
+        levelCompleteAt = t;
       }
 
       return keys;
@@ -60,6 +73,7 @@ async function play(): Promise<Run> {
     frames: result.frames.map((buf) => readFrame(buf)),
     logs,
     goalComplete,
+    levelCompleteAt,
     soundNames: (id) => (sounds.find((s) => s.id === id) as { name: string }).name,
     keyOf: (texId) => (manifest.frames[texId] as { key: string }).key,
   };
@@ -78,7 +92,7 @@ describe.skipIf(!ready)('Level01 played by a pilot who presses keys', () => {
     expect(run.goalComplete).toBe(true);
     expect(bot.portalFlightAt).toBeGreaterThan(bot.deliveredAt[1] as number);
     expect(bot.portalTookAt).toBeGreaterThan(bot.portalFlightAt);
-    expect(run.logs).toContain('info: level complete'); // STUB(T2.6): the level complete screen is only logged
+    expect(run.levelCompleteAt).toBeGreaterThan(bot.portalTookAt); // the LevelCompleteScreen comes after the fade
     expect(run.logs.filter((l) => l.startsWith('error'))).toEqual([]);
     expect(run.logs.filter((l) => l.startsWith('warn'))).toEqual([]);
   });
@@ -86,7 +100,9 @@ describe.skipIf(!ready)('Level01 played by a pilot who presses keys', () => {
   it('the flight is a flight, not a crash: the hull is whole, the fuel lasts, the level is Level01', () => {
     expect(run.bot.minHull).toBeGreaterThan(0.5);
     expect(run.bot.minFuel).toBeGreaterThan(0.3);
-    expect(run.frames.every((f) => f.levelGroup === 1)).toBe(true);
+    // (until the level complete screen: it clears the level, the frames after it have no level group)
+    expect(run.levelCompleteAt).toBeGreaterThan(0);
+    expect(run.frames.slice(0, run.levelCompleteAt - 1).every((f) => f.levelGroup === 1)).toBe(true);
   });
 
   it('every frame is the level and the HUD: the glyphs of the labels are in the Frame', () => {
@@ -119,13 +135,15 @@ describe.skipIf(!ready)('Level01 played by a pilot who presses keys', () => {
       'SndPassengerComeIn',
       'SndLoadPassenger',
       'SndPassengerComeOut',
-      'SndSpawnCoin01', // the coins of the fare
       'SndPortalOpen',
       'SndPortalIdle',
       'SndPortalAction',
     ]) {
       expect(heard.has(wanted), wanted).toBe(true);
     }
+
+    // the coins of the fare: one of the three sounds (AntMath.random picks it, the pick depends on the PRNG sequence)
+    expect(['SndSpawnCoin01', 'SndSpawnCoin02', 'SndSpawnCoin03'].some((n) => heard.has(n))).toBe(true);
 
     // the shuttle flies from the left platform to the right one and back: the pan goes from left to right
     expect(Math.min(...enginePans)).toBeLessThan(-10);

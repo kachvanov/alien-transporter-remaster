@@ -238,6 +238,14 @@ export class AntMath {
     return Math.min.apply(null, aArray);
   }
 
+  static max(aValueA: number, aValueB: number): number {
+    return aValueA > aValueB ? aValueA : aValueB;
+  }
+
+  static min(aValueA: number, aValueB: number): number {
+    return aValueA < aValueB ? aValueA : aValueB;
+  }
+
   static calcVelocity(aVelocity: number, aAcceleration = 0, aDrag = 0, aMax = 10000): number {
     if (aAcceleration != 0) {
       aVelocity += aAcceleration * AntG.elapsed;
