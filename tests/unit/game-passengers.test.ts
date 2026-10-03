@@ -930,11 +930,14 @@ describe.skipIf(!hasAssets)('Level01 (seed 12345)', () => {
     const progress: number[] = [];
     let screenAt = -1;
     const menu = G.core.getSystem(MenuSystem) as MenuSystem;
+    // T2.6: the MenuSystem is the real one; the call of switchScreen() is the moment of the end of the level (the screen
+    // itself comes after the fade).
+    const switchScreen = vi.spyOn(menu, 'switchScreen');
     for (let t = 1; t <= 3000 && !(pilot.phase == 'done' && screenAt >= 0); t++) {
       pilot.step();
       tick();
       if (progress[progress.length - 1] != goalNode().goal.value) progress.push(goalNode().goal.value);
-      if (screenAt < 0 && menu.currentScreen == MenuSystem.LEVEL_COMPLETE_SCREEN) screenAt = t; // (the state starts on the main menu screen)
+      if (screenAt < 0 && switchScreen.mock.calls.some((c) => c[0] == MenuSystem.LEVEL_COMPLETE_SCREEN)) screenAt = t;
     }
 
     expect(progress).toEqual([0, 1, 2]); // one per delivery
@@ -947,7 +950,7 @@ describe.skipIf(!hasAssets)('Level01 (seed 12345)', () => {
     expect(G.gameData.nextLevelName).toBe('Level02');
     expect(G.gameData.toUnlockNextLevel).toBe(true);
     // the level-complete menu comes 2 s (more than 70 ticks) after the shuttle entered the portal
-    expect(menu.currentScreen).toBe(MenuSystem.LEVEL_COMPLETE_SCREEN);
+    expect(switchScreen).toHaveBeenCalledWith(MenuSystem.LEVEL_COMPLETE_SCREEN);
     expect(screenAt - pilot.doneAt).toBeGreaterThanOrEqual(70);
     expect(screenAt - pilot.doneAt).toBeLessThanOrEqual(75);
   });

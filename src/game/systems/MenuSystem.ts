@@ -1,12 +1,29 @@
-// STUB(T2.1): stand-in for ru/alientransporter/systems/MenuSystem.as.
-// T2.1 ports the real system and replaces this file. Declared: what PortalSystem calls (the screen-name constants
-// of the original and switchScreen); switchScreen remembers the name and logs it.
+// Port of ru/alientransporter/systems/MenuSystem.as
+//
+// DEVIATION (ES module cycles): the original constructor registers the screen classes
+// (`registerScreen(MAIN_MENU_SCREEN, MainMenuScreen)`), so MenuSystem imports every screen, and every screen imports
+// MenuSystem (the screen-name constants), which is a cycle in which `class X extends BasicScreen` may read the base
+// class before it is evaluated. The screens are registered by screens/registerScreens.ts instead (MenuSystem.screens,
+// the same pattern as G.levelManagerClass); the constructor does the `registerScreen` calls of the original with it.
+// DEVIATION: the card T2.6 ports the system because it only switches screens (the card T2.1 leaves it to T2.6).
+// DEVIATION: `makeScreenNow()` is not in the original: the dev entry (`--start-level`, GameState.debugStartLevel)
+// makes the screen at once, without the fade.
 
 import { AntSystem } from '../../engine/ants/AntSystem';
+import type { AntActor } from '../../engine/core/AntActor';
 import { AntG } from '../../engine/core/AntG';
+import type { Ctor } from '../../engine/utils/types';
+import { G } from '../G';
+import type { BasicScreen } from '../screens/BasicScreen';
+import { FadeEffectView } from '../ui/FadeEffectView';
+import { ScreenFadeView } from '../ui/ScreenFadeView';
 
 export class MenuSystem extends AntSystem {
   static readonly className = 'MenuSystem';
+
+  //---------------------------------------
+  // CLASS CONSTANTS
+  //---------------------------------------
 
   static readonly MAIN_MENU_SCREEN = 'MainScreen';
   static readonly SELECT_LEVEL_SCREEN = 'SelectScreen';
@@ -16,15 +33,138 @@ export class MenuSystem extends AntSystem {
   static readonly RESTART_LEVEL_SCREEN = 'RestartLevelScreen';
   static readonly CREDITS_SCREEN = 'CreditsScreen';
 
-  /** STUB: the name of the screen of the last switchScreen() call. */
-  currentScreen: string | null = null;
+  /** DEVIATION: the screen classes by name, filled by screens/registerScreens.ts (see the header). */
+  static screens: Record<string, Ctor<BasicScreen>> = {};
+
+  //---------------------------------------
+  // PRIVATE VARIABLES
+  //---------------------------------------
+
+  private _fade: ScreenFadeView;
+  private _transition: FadeEffectView;
+  private _transitionCallback: (() => void) | null = null;
+  private _currentScreen: BasicScreen | null;
+  private _currentScreenName: string | null = null;
+  private _nextScreenName: string | null = null;
+  private _screens: Record<string, Ctor<BasicScreen>>;
+
+  //---------------------------------------
+  // CONSTRUCTOR
+  //---------------------------------------
+
+  constructor() {
+    super();
+    this._transition = G.gameState.layerMenuFG.recycle(FadeEffectView) as FadeEffectView;
+    this._transition.reset(AntG.widthHalf, AntG.heightHalf);
+    this._transition.revive();
+    this._fade = G.gameState.layerMenuBG.recycle(ScreenFadeView) as ScreenFadeView;
+    this._fade.z = 10;
+    this._currentScreen = null;
+    this._screens = {};
+    this.registerScreen(MenuSystem.MAIN_MENU_SCREEN, MenuSystem.screens[MenuSystem.MAIN_MENU_SCREEN]);
+    this.registerScreen(MenuSystem.SELECT_LEVEL_SCREEN, MenuSystem.screens[MenuSystem.SELECT_LEVEL_SCREEN]);
+    this.registerScreen(MenuSystem.GARAGE_SCREEN, MenuSystem.screens[MenuSystem.GARAGE_SCREEN]);
+    this.registerScreen(MenuSystem.LEVEL_COMPLETE_SCREEN, MenuSystem.screens[MenuSystem.LEVEL_COMPLETE_SCREEN]);
+    this.registerScreen(MenuSystem.GAME_SCREEN, MenuSystem.screens[MenuSystem.GAME_SCREEN]);
+    this.registerScreen(MenuSystem.RESTART_LEVEL_SCREEN, MenuSystem.screens[MenuSystem.RESTART_LEVEL_SCREEN]);
+    this.registerScreen(MenuSystem.CREDITS_SCREEN, MenuSystem.screens[MenuSystem.CREDITS_SCREEN]);
+  }
+
+  //---------------------------------------
+  // PUBLIC METHODS
+  //---------------------------------------
+
+  showTransition(aCallback: (() => void) | null): void {
+    this._transitionCallback = aCallback;
+    this._transition.show();
+    (this._transition.eventComplete as NonNullable<AntActor['eventComplete']>).add(this.onTransitionEnd);
+  }
+
+  hideTransition(aCallback: (() => void) | null): void {
+    this._transitionCallback = aCallback;
+    this._transition.hide();
+    (this._transition.eventComplete as NonNullable<AntActor['eventComplete']>).add(this.onTransitionEnd);
+  }
+
+  private onTransitionEnd = (_aActor: AntActor): void => {
+    void _aActor;
+    (this._transition.eventComplete as NonNullable<AntActor['eventComplete']>).remove(this.onTransitionEnd);
+    if (this._transitionCallback != null) {
+      this._transitionCallback.apply(this);
+    }
+  };
+
+  switchScreen(aName: string): void {
+    this._nextScreenName = aName;
+    if (this._currentScreen != null) {
+      this._transition.show();
+      (this._transition.eventComplete as NonNullable<AntActor['eventComplete']>).add(this.onSwitchScreen);
+      this._currentScreen.removeListeners();
+    } else {
+      this.makeScreen(aName);
+      this._transition.hide();
+    }
+  }
 
   /**
-   * AS3 `switchScreen(aName:String)`. STUB(T2.6): there are no screens; the switch is written to the log of the
-   * simulation (`AntG.log`), the end of a level as `level complete`.
+   * Not in the original: the screen at once (the dev entry `--start-level`): the current screen is destroyed, the new
+   * one is made and the fade is hidden, as at the end of the transition of `switchScreen`.
    */
-  switchScreen(aName: string): void {
-    this.currentScreen = aName;
-    AntG.log(aName == MenuSystem.LEVEL_COMPLETE_SCREEN ? 'level complete' : 'switchScreen(' + aName + ')');
+  makeScreenNow(aName: string): void {
+    this._nextScreenName = null;
+    (this._transition.eventComplete as NonNullable<AntActor['eventComplete']>).remove(this.onSwitchScreen);
+    this.makeScreen(aName);
+    this._transition.hide();
+  }
+
+  private registerScreen(aName: string, aClass: Ctor<BasicScreen> | undefined): void {
+    if (aClass !== undefined) {
+      this._screens[aName] = aClass;
+    }
+  }
+
+  private onSwitchScreen = (_aActor: AntActor): void => {
+    void _aActor;
+    (this._transition.eventComplete as NonNullable<AntActor['eventComplete']>).remove(this.onSwitchScreen);
+    this.makeScreen(this._nextScreenName as string);
+    this._nextScreenName = null;
+  };
+
+  private makeScreen(aName: string): void {
+    if (this._currentScreen != null) {
+      this._currentScreen.destroy();
+    }
+
+    const screenClass = this._screens[aName] as Ctor<BasicScreen>;
+    this._currentScreenName = aName;
+    this._currentScreen = new screenClass();
+    this._currentScreen.eventInitialized.add(this.onScreenInitialized);
+    this._currentScreen.init();
+  }
+
+  private onScreenInitialized = (_aScreen: BasicScreen): void => {
+    void _aScreen;
+    (this._currentScreen as BasicScreen).eventInitialized.remove(this.onScreenInitialized);
+    (this._currentScreen as BasicScreen).create();
+    this._transition.hide();
+  };
+
+  override update(): void {
+    if (this._currentScreen != null) {
+      this._currentScreen.update();
+    }
+  }
+
+  //---------------------------------------
+  // GETTER / SETTERS
+  //---------------------------------------
+
+  get currentScreen(): BasicScreen | null {
+    return this._currentScreen;
+  }
+
+  /** Not in the original: the name of the current screen (MAIN_MENU_SCREEN ...), the log of the simulation reports it. */
+  get currentScreenName(): string | null {
+    return this._currentScreenName;
   }
 }

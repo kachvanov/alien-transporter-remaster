@@ -11,7 +11,7 @@ function cleanEnv(): Record<string, string> {
   );
 }
 
-// Without a menu yet (T2.6) a level is what there is to draw: every launch starts Level01 (the dev flag).
+// The dev flag --start-level=Level01 skips the menu: every launch of these tests starts Level01.
 async function launch(extraArgs: string[] = []): Promise<{ app: ElectronApplication; page: Page; urls: string[] }> {
   const app = await electron.launch({ args: ['.', '--start-level=Level01', ...extraArgs], env: cleanEnv() });
   const page = await app.firstWindow();

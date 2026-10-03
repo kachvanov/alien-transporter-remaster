@@ -19,6 +19,7 @@ import { GameState } from '../../src/game/states/GameState';
 import { Label } from '../../src/game/fonts/Label';
 import { readFrame } from '../../src/frame/FrameReader';
 import { FrameWriter } from '../../src/frame/FrameWriter';
+import { MainMenuScreen } from '../../src/game/screens/MainMenuScreen';
 import { MenuSystem } from '../../src/game/systems/MenuSystem';
 import { UISystem } from '../../src/game/systems/UISystem';
 import { LevelTitleUIView } from '../../src/game/ui/LevelTitleUIView';
@@ -123,6 +124,7 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
     expect(AntG.sounds.mute).toBe(G.gameData.muteSounds);
     expect(G.music.mute).toBe(G.gameData.muteMusic);
     expect(Font.fromCache('font04Pink').charInterval).toBe(-2);
+    AntG.sounds.takeOneShots(); // (the main menu screen of the state has played its sounds)
     AntG.sounds.play('SndShowButton'); // a name of Sounds.initEmbedded
     expect(AntG.sounds.takeOneShots()).toHaveLength(1);
   });
@@ -150,7 +152,7 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
         'UISystem',
       ],
     );
-    expect(G.core.getSystem(MenuSystem)?.currentScreen).toBe(MenuSystem.MAIN_MENU_SCREEN);
+    expect(G.core.getSystem(MenuSystem)?.currentScreen).toBeInstanceOf(MainMenuScreen); // T2.6: the first screen
   });
 });
 
@@ -208,6 +210,7 @@ describe.skipIf(!hasAssets)('debugStartLevel(Level01): the shuttle, the HUD, the
   });
 
   it('the title of the level (786, 528) shows the number of the level; the passenger bar of the goal is made', () => {
+    tick(); // GameScreen.create(): the title is the first task of the AntTaskManager (one task per tick)
     const title = views(LevelTitleUIView);
     expect(title).toHaveLength(1);
     expect(title[0]?.value).toBe(1);
@@ -334,9 +337,7 @@ describe.skipIf(!hasAssets)('debugStartLevel(Level01): the shuttle, the HUD, the
     expect(views(ShuttleUIView)).toHaveLength(1);
   });
 
-  it('the last life is lost: game over (written to the log; the popup is that of DevGameScreen, see ui-views.test.ts), no spawn any more, GAME OVER on the blinker is not made', () => {
-    const logs: string[] = [];
-    AntG.log = (m: string) => logs.push(m);
+  it('the last life is lost: game over (the popup of GameScreen, see ui-views.test.ts), no spawn any more, GAME OVER on the blinker is not made', () => {
     const ui = G.core.getSystem(UISystem) as UISystem;
     G.gameData.resetLives('Player1', 0);
     const first = shuttles()[0] as ShuttleNode;
@@ -344,7 +345,7 @@ describe.skipIf(!hasAssets)('debugStartLevel(Level01): the shuttle, the HUD, the
     first.model.hasHit = true;
     ticks(80);
     expect(ui.isGameOver).toBe(true);
-    expect(logs).toContain('game over');
+    expect(state.gameScreen?.gameoverPopup).not.toBeNull();
     ui.spawnShuttle('Player1');
     expect(shuttles()).toHaveLength(0);
   });

@@ -14,6 +14,8 @@ import { Config } from '../../src/game/Config';
 import { Font } from '../../src/game/fonts/Font';
 import { G } from '../../src/game/G';
 import { Ground } from '../../src/game/map/Ground';
+import { MainMenuScreen } from '../../src/game/screens/MainMenuScreen';
+import { MenuSystem } from '../../src/game/systems/MenuSystem';
 import { GameLoop } from '../../src/sim/GameLoop';
 import { MemorySaveStorage } from '../../src/sim/SaveStorage';
 import { hasAssets } from './helpers/assets';
@@ -43,8 +45,9 @@ describe.skipIf(!hasAssets)('GameLoop with GameState', () => {
     expect(Font.fromCache('font01')).toBeDefined();
     const frame = readFrame(loop.tick(emptyInputSnapshot()));
     expect(frame.levelGroup).toBe(NO_LEVEL_GROUP);
-    expect(frame.nodes).toHaveLength(0); // STUB(T2.6): the main menu screen is not made yet
-    expect(logs).toContain('info: switchScreen(MainScreen)');
+    expect(frame.nodes.length).toBeGreaterThan(0); // T2.6: the main menu (PrepareState -> GameState -> MainMenuScreen)
+    expect(G.core.getSystem(MenuSystem)?.currentScreen).toBeInstanceOf(MainMenuScreen);
+    expect(logs.filter((l) => l.startsWith('error') || l.startsWith('warn'))).toEqual([]);
   });
 
   it('startLevel (the --start-level flag): the level, the HUD and the group of the level atlases; a scene reset', async () => {

@@ -22,7 +22,8 @@ import { AntState } from '../../engine/core/AntState';
 import { Config } from '../Config';
 import { Fonts } from '../Fonts';
 import { G } from '../G';
-import { DevGameScreen } from '../screens/DevGameScreen';
+import { GameScreen } from '../screens/GameScreen';
+import '../screens/registerScreens';
 import { PassengerView } from '../views/PassengerView';
 import { ShuttleView } from '../views/ShuttleView';
 import { PassengerTag } from '../tags/PassengerTag';
@@ -104,9 +105,6 @@ export class GameState extends AntState {
   smokeSimulation!: StubElementSimulation; // STUB(T2.2): ElementSimulation
   fireSimulation!: StubElementSimulation; // STUB(T2.2): ElementSimulation
   lightEnvironment!: StubLightEnvironment; // STUB(T2.4): AntLightEnvironment
-
-  /** STUB(T2.6): the GameScreen of the dev entry (debugStartLevel): the title, the pause and the popups. */
-  devGameScreen: DevGameScreen | null = null;
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -236,29 +234,21 @@ export class GameState extends AntState {
   }
 
   /**
-   * DEVIATION: the dev entry (`--start-level=Level01`): what MainMenu -> GameScreen does for a solo game, without
-   * the menu. `GameScreen.init()` loads the level (`G.levelManager.loadLevel(G.gameData.currentLevelName)`);
-   * when it is loaded, `GameScreen.create()` makes the title of the level (`onMakeLevelTitle(786, 528, level)`)
-   * and starts the game theme. LevelManager.onLevelLoaded (the original) spawns Player1 and adds the blinker of
-   * Player2. STUB(T2.6): DevGameScreen is the GameScreen (the pause, the popups; the buttons of the screen are T2.6).
+   * DEVIATION: the dev entry (`--start-level=Level01`): what MainMenu -> SelectLevel -> GameScreen does for a solo game,
+   * without the menu: the screen of the game is made at once (MenuSystem.makeScreenNow, no fade), it loads the level
+   * (`GameScreen.init`) and makes the HUD, the buttons and the pause (`GameScreen.create`).
    */
   debugStartLevel(aName: string): void {
     G.gameData.isTwoPlayerMode = false;
     G.gameData.currentLevelName = aName;
-    G.levelManager.loadLevel(G.gameData.currentLevelName);
-    if (!G.levelManager.isLoading) {
-      this.devGameScreen = new DevGameScreen();
-      this.devGameScreen.create();
-      G.music.playGameTheme();
-    }
+    const menu = G.core.getSystem(MenuSystem) as MenuSystem;
+    menu.makeScreenNow(MenuSystem.GAME_SCREEN);
   }
 
-  /** STUB(T2.6): MenuSystem.update calls `currentScreen.update()` in the original. */
-  override update(): void {
-    super.update();
-    if (this.devGameScreen != null) {
-      this.devGameScreen.update();
-    }
+  /** The screen of the game that is on the screen, null when the current screen is another one (not in the original). */
+  get gameScreen(): GameScreen | null {
+    const screen = G.core.getSystem(MenuSystem)?.currentScreen ?? null;
+    return screen instanceof GameScreen ? screen : null;
   }
 
   private onLevel = (aName: string): void => {

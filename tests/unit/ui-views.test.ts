@@ -1,9 +1,9 @@
 // T2.5: Text, AntButton / Button / ButtonController / ButtonSwitch, AntLabel, TextUIView, the popups (pause, game over,
-// confirm, key input, mission), the other views of ui/, and the pause / game over of Level01 (DevGameScreen).
+// confirm, key input, mission), the other views of ui/, and the pause / game over of Level01 (GameScreen).
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AntActor } from '../../src/engine/core/AntActor';
 import { AntButton } from '../../src/engine/core/AntButton';
 import { AntEntity } from '../../src/engine/core/AntEntity';
@@ -544,7 +544,7 @@ describe.skipIf(!hasAssets)('PausePopupView', () => {
   });
 });
 
-describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', () => {
+describe.skipIf(!hasAssets)('Pause and game over in Level01 (GameScreen)', () => {
   let state: GameState;
 
   beforeEach(() => {
@@ -557,7 +557,7 @@ describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', ()
     expect(G.gamePause).toBe(false);
     tick({ keysDown: [KEY_P] });
     expect(G.gamePause).toBe(true);
-    const screen = state.devGameScreen as NonNullable<GameState['devGameScreen']>;
+    const screen = state.gameScreen as NonNullable<GameState['gameScreen']>;
     expect(screen.pausePopup).not.toBeNull();
     const popups = (state.layerPopups.children ?? []).filter((c) => c != null && c.exists);
     const fade = popups.findIndex((c) => c instanceof PopupFadeView);
@@ -575,8 +575,9 @@ describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', ()
     expect([shuttle.x, shuttle.y]).toEqual(before);
   });
 
-  it('P again resumes; "Restart" and "Main menu" call the MenuSystem (STUB(T2.6): it remembers the screen)', () => {
+  it('P again resumes; "Restart" and "Main menu" call the MenuSystem (switchScreen is a spy here: the screen stays)', () => {
     const menu = G.core.getSystem(MenuSystem) as MenuSystem;
+    const switchScreen = vi.spyOn(menu, 'switchScreen').mockImplementation(() => undefined);
     tick({ keysDown: [KEY_P] });
     tick({});
     tick({ keysDown: [KEY_P] });
@@ -588,22 +589,22 @@ describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', ()
       [2, MenuSystem.RESTART_LEVEL_SCREEN],
       [0, MenuSystem.SELECT_LEVEL_SCREEN],
     ] as const) {
-      state.devGameScreen!.listenFocusLost = false;
+      state.gameScreen!.listenFocusLost = false;
       tick({});
       tick({ keysDown: [KEY_P] });
       tick({});
       ticks(40);
-      const popup = state.devGameScreen!.pausePopup as PausePopupView;
+      const popup = state.gameScreen!.pausePopup as PausePopupView;
       const button = childrenOf(popup, Button)[index] as Button;
       click(...center(antButtonOf(button)));
-      expect(menu.currentScreen).toBe(screenName);
+      expect(switchScreen).toHaveBeenLastCalledWith(screenName);
       expect(G.gamePause).toBe(false);
       ticks(60);
       // the hotkeys are off after Restart / Main menu (the screen is left)
       tick({ keysDown: [KEY_P] });
       expect(G.gamePause).toBe(false);
       tick({});
-      (state.devGameScreen as unknown as { _listenHotkeys: boolean })._listenHotkeys = true;
+      (state.gameScreen as unknown as { _listenHotkeys: boolean })._listenHotkeys = true;
     }
   });
 
@@ -611,10 +612,10 @@ describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', ()
     tick({ keysDown: [KEY_P] });
     tick({});
     ticks(40);
-    const popup = state.devGameScreen!.pausePopup as PausePopupView;
+    const popup = state.gameScreen!.pausePopup as PausePopupView;
     click(...center(antButtonOf(childrenOf(popup, Button)[1] as Button)));
     expect(G.gamePause).toBe(false);
-    expect(state.devGameScreen!.pausePopup).toBeNull();
+    expect(state.gameScreen!.pausePopup).toBeNull();
   });
 
   it('SPACE on the selected button of the popup (Play) resumes the game', () => {
@@ -627,15 +628,13 @@ describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', ()
   });
 
   it('the last life is lost: the popup of the original appears (GAME OVER, Main menu and Restart); Restart calls the MenuSystem', () => {
-    const logs: string[] = [];
-    AntG.log = (m: string) => logs.push(m);
     G.gameData.resetLives('Player1', 0);
     const first = shuttles()[0] as ShuttleNode;
     first.stats.hull = 0.1;
     first.model.hasHit = true;
     ticks(80);
     expect((G.core.getSystem(UISystem) as UISystem).isGameOver).toBe(true);
-    const screen = state.devGameScreen as NonNullable<GameState['devGameScreen']>;
+    const screen = state.gameScreen as NonNullable<GameState['gameScreen']>;
     const popup = screen.gameoverPopup as GameOverPopupView;
     expect(popup).not.toBeNull();
     ticks(40);
@@ -654,8 +653,9 @@ describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', ()
     expect(screen.listenFocusLost).toBe(false);
     // Restart
     const menu = G.core.getSystem(MenuSystem) as MenuSystem;
+    const switchScreen = vi.spyOn(menu, 'switchScreen').mockImplementation(() => undefined);
     click(...center(antButtonOf(buttons[1] as Button)));
-    expect(menu.currentScreen).toBe(MenuSystem.RESTART_LEVEL_SCREEN);
+    expect(switchScreen).toHaveBeenLastCalledWith(MenuSystem.RESTART_LEVEL_SCREEN);
   });
 
   it('the frame of the paused game carries the nodes of the popup (the background, the title, the buttons)', () => {
@@ -664,7 +664,7 @@ describe.skipIf(!hasAssets)('Pause and game over in Level01 (DevGameScreen)', ()
     ticks(40);
     const writer = new FrameWriter();
     const frame = readFrame(writer.write({ root: state.defGroup, camera: AntG.camera as NonNullable<typeof AntG.camera>, tick: 1 }));
-    const popup = (state.devGameScreen as NonNullable<GameState['devGameScreen']>).pausePopup as PausePopupView;
+    const popup = (state.gameScreen as NonNullable<GameState['gameScreen']>).pausePopup as PausePopupView;
     const uid = (e: AntEntity): number => (e.entityId << 8) >>> 0;
     const uids = new Set(frame.nodes.map((n) => n.uid));
     expect(uids.has(uid(popup))).toBe(true);

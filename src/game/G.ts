@@ -41,9 +41,7 @@ export class G {
   // CLASS CONSTANTS
   //---------------------------------------
 
-  static readonly MORE_GAMES_URL = 'http://armorgames.com';
-  static readonly TWITTER_URL = 'http://twitter.com/armorgames';
-  static readonly FACEBOOK_URL = 'http://www.facebook.com/pages/Armor-Games/19522089061';
+  // DEVIATION: sponsor removed (T2.6): MORE_GAMES_URL, TWITTER_URL and FACEBOOK_URL (the pages of Armor Games).
 
   constructor() {
     // super();
