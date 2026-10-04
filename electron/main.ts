@@ -4,7 +4,8 @@ import { extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, Menu, MessageChannelMain, net, protocol, screen, shell, type MessagePortMain } from 'electron';
 import { resolveAssetFile } from './assetPath';
-import { encodeFlagsArg, parseDevFlags, parseProfile } from './flags';
+import { diskTiersOf } from './diskTiers';
+import { encodeFlagsArg, encodeTiersArg, parseDevFlags, parseProfile } from './flags';
 import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
 import { selfTest } from './net/selfTest';
 import { PerfLog } from './perfLog';
@@ -61,6 +62,12 @@ const MIME: Record<string, string> = {
 /** dev and unpacked production: the project root; packaged: process.resourcesPath (extraResources). */
 function assetsRoot(): string {
   return app.isPackaged ? join(process.resourcesPath, 'assets') : join(app.getAppPath(), 'assets');
+}
+
+/** `--at-tiers=` for the preload: the tiers that the assets folder really has (T4.4); nothing when it cannot be told. */
+function tiersArgs(): string[] {
+  const tiers = diskTiersOf(assetsRoot());
+  return tiers === null ? [] : [encodeTiersArg(tiers)];
 }
 
 function registerAssetProtocol(): void {
@@ -132,7 +139,7 @@ async function createWindow(): Promise<void> {
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false,
-      additionalArguments: [encodeFlagsArg(flags)],
+      additionalArguments: [encodeFlagsArg(flags), ...tiersArgs()],
     },
   });
   mainWindow = win;

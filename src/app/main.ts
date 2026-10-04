@@ -37,11 +37,13 @@ async function bootstrap(): Promise<void> {
   // settings.json (T2.8): the command line flags win over it (dev), the overlay of F2 changes it.
   const settings = new SettingsStore(window.at.settings, (e) => console.warn('[settings]', e));
   await settings.load();
+  const tiersAvailable = availableTiers(manifest, window.at.app.tiersOnDisk);
   const tier = selectTier({
     override: flags.tier ?? (settings.value.tier === 'auto' ? null : settings.value.tier),
     innerHeight: window.innerHeight,
     devicePixelRatio: window.devicePixelRatio,
-    available: availableTiers(manifest),
+    // (T4.4: only the tiers whose files are in the build; main looked at the disk)
+    available: tiersAvailable,
   });
   root.dataset['tier'] = tier;
   const classic = flags.classic || settings.value.classic35;
@@ -109,12 +111,17 @@ async function bootstrap(): Promise<void> {
             ...sample,
             frameBytesMean: perfWindow.bytesSum / frames,
             frameBytesMax: perfWindow.bytesMax,
+            vramMB: atlas.vramBytes / 1048576,
           };
           perfWindow.start = now;
           perfWindow.renderFrames = 0;
           perfWindow.simFrames = 0;
           perfWindow.bytesSum = 0;
           perfWindow.bytesMax = 0;
+          // (test hooks of tools/perf/measure.ts: the atlas memory and the pages whose CPU copy is not closed yet)
+          root.dataset['vramMB'] = (atlas.vramBytes / 1048576).toFixed(1);
+          root.dataset['atlasPages'] = String(atlas.pageCount);
+          root.dataset['bitmapPages'] = String(atlas.pagesWithBitmap);
           window.at.dev.perfLog(entry).catch((e: unknown) => console.warn('[perf-log] not written:', e));
         }
       : undefined,
@@ -157,6 +164,13 @@ async function bootstrap(): Promise<void> {
   });
   if (sim !== null) online.bind(sim);
   sim?.start();
+  // dev, only with `--perf-log`: lets tools/perf/measure.ts change the level (the unload of the previous level atlas)
+  if (perfLog && sim !== null) {
+    const s = sim;
+    (window as unknown as { __atDev: { startLevel(level: string): void } }).__atDev = {
+      startLevel: (level) => s.command('startLevel', [level]),
+    };
+  }
   // The port of the network bridge (electron/preload.ts): main -> the page -> the sim worker.
   window.addEventListener('message', (e) => {
     if (e.source !== window || e.data !== 'sim-port') return;
@@ -195,6 +209,7 @@ async function bootstrap(): Promise<void> {
       }
     },
     activeTier: () => tier,
+    availableTiers: () => tiersAvailable,
     isFullscreen: () => fullscreen,
     toggleFullscreen,
   });
@@ -414,6 +429,8 @@ async function bootstrap(): Promise<void> {
         sprites: renderer.stats.sprites,
         skipped: renderer.stats.skipped,
         tier,
+        vramMB: atlas.vramBytes / 1048576,
+        atlasPages: atlas.pageCount,
         alpha: sample.alpha,
       });
     } else {

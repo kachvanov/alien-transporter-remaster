@@ -18,9 +18,17 @@ export interface TierChoice {
   available: readonly TierName[];
 }
 
-/** Tiers that have atlases in the manifest. */
-export function availableTiers(manifest: Pick<Manifest, 'atlases'>): TierName[] {
-  return TIER_NAMES.filter((t) => Object.keys(manifest.atlases[t]).length > 0);
+/**
+ * Tiers that have atlases in the manifest and, when `onDisk` is given (T4.4: the main process looked at the files of the
+ * build), whose files are really there. A Windows build has no `gfx/3x`, but the manifest still lists it.
+ */
+export function availableTiers(manifest: Pick<Manifest, 'atlases'>, onDisk: readonly TierName[] | null = null): TierName[] {
+  return TIER_NAMES.filter((t) => Object.keys(manifest.atlases[t]).length > 0 && (onDisk === null || onDisk.includes(t)));
+}
+
+/** Bytes of a decoded atlas page in video memory (RGBA8, no mipmaps: `autoGenerateMipmaps` is off). */
+export function pageVramBytes(width: number, height: number): number {
+  return width * height * 4;
 }
 
 /**

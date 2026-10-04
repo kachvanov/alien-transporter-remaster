@@ -2,12 +2,13 @@
 // contextIsolation. The net.* and discovery.* parts are M3.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { AtApi, DiscoveredGame, HostEvent, SelfTestResult } from '../src/app/at';
-import { decodeFlagsArg } from './flags';
+import { decodeFlagsArg, decodeTiersArg } from './flags';
 
 const api: AtApi = {
   platform: process.platform,
   app: {
     flags: decodeFlagsArg(process.argv),
+    tiersOnDisk: decodeTiersArg(process.argv),
     toggleFullscreen: () => ipcRenderer.invoke('app:toggle-fullscreen') as Promise<void>,
     isFullscreen: () => ipcRenderer.invoke('app:is-fullscreen') as Promise<boolean>,
     openExternal: (url) => ipcRenderer.invoke('app:open-external', url) as Promise<boolean>,

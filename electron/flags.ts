@@ -63,3 +63,17 @@ export function decodeFlagsArg(argv: readonly string[]): DevFlags {
   }
   return { startLevel: null, tier: null, classic: false };
 }
+
+/** main -> preload: `additionalArguments` entry with the tiers that the build has on disk (T4.4), e.g. `--at-tiers=1x,2x`. */
+export const TIERS_ARG_PREFIX = '--at-tiers=';
+
+export function encodeTiersArg(tiers: readonly TierName[]): string {
+  return TIERS_ARG_PREFIX + tiers.join(',');
+}
+
+/** The tiers from the process arguments of the preload; null when the argument is absent (then the manifest is trusted). */
+export function decodeTiersArg(argv: readonly string[]): TierName[] | null {
+  const raw = valueOf(argv, 'at-tiers');
+  if (raw === null) return null;
+  return raw.split(',').filter((t): t is TierName => t === '1x' || t === '2x' || t === '3x');
+}

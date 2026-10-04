@@ -81,6 +81,11 @@ export class PixiRenderer {
       app.stage.addChild(bar);
     }
     atlas.onUnload = () => r.dropSprites();
+    // T4.4: an atlas page goes to the GPU as soon as it is decoded and its CPU copy is closed; if the WebGL context is lost
+    // the pages are decoded and uploaded again when it is back.
+    atlas.attachUploader((source) => app.renderer.texture.initSource(source));
+    app.canvas.addEventListener('webglcontextlost', () => atlas.contextLost());
+    app.canvas.addEventListener('webglcontextrestored', () => void atlas.contextRestored());
     app.renderer.on('resize', () => r.layout());
     r.watchDpr();
     r.layout();

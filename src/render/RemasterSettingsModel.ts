@@ -24,6 +24,8 @@ export interface SettingsMenuHost {
   update(aPatch: Partial<RemasterSettings>): void;
   /** The tier the atlases are loaded for now. */
   activeTier(): TierName;
+  /** T4.4: the tiers that the build has (the Graphics row offers only these); all of them when absent. */
+  availableTiers?(): readonly TierName[];
   isFullscreen(): boolean;
   toggleFullscreen(): void;
 }
@@ -103,8 +105,11 @@ export class SettingsMenuModel {
         this._host.update({ classic35: !s.classic35 });
         break;
       case 'graphics': {
-        const i = TIER_SETTINGS.indexOf(s.tier);
-        const next = TIER_SETTINGS[(i + aDirection + TIER_SETTINGS.length) % TIER_SETTINGS.length] as TierSetting;
+        const have = this._host.availableTiers?.();
+        const choices = TIER_SETTINGS.filter((t) => t === 'auto' || have === undefined || have.includes(t));
+        // (a saved tier that this build does not have, e.g. 3x on Windows: the first arrow press goes to the nearest end)
+        const i = Math.max(0, choices.indexOf(s.tier));
+        const next = choices[(i + aDirection + choices.length) % choices.length] as TierSetting;
         this._host.update({ tier: next });
         break;
       }
