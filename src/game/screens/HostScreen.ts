@@ -1,6 +1,6 @@
 // Not a port (T3.4, DEVIATION: online): "Host game". On entering the screen the renderer starts the WebSocket server and
 // the UDP beacon (OnlineBridge.send({k:'hostOpen'}), docs/03 §2, §7); the screen shows the IPv4 addresses of the machine
-// and the port, then who connected. START goes on to the level selection (the game then goes as usual, STUB(T3.6)),
+// and the port, then who connected. START goes on to the level selection (the game then goes as usual, the client is Player2),
 // STOP and Back stop the server and the beacon.
 
 import type { AntButton } from '../../engine/core/AntButton';
@@ -122,7 +122,7 @@ export class HostScreen extends OnlineScreenBase {
     }
 
     this._started = true;
-    OnlineBridge.send({ k: 'hostBegin' }); // STUB(T3.6): the game of two players with the remote P2
+    OnlineBridge.send({ k: 'hostBegin' }); // the game of two players: the client is Player2 (sim/GameLoop.ts)
     this.menu.switchScreen(MenuSystem.SELECT_LEVEL_SCREEN);
   };
 

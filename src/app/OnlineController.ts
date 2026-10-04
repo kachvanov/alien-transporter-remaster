@@ -84,7 +84,8 @@ export class OnlineController {
         this.closeHost();
         break;
       case 'hostBegin':
-        // STUB(T3.6): the host goes to the level selection with the server up; the remote P2 comes with T3.6.
+        // The host goes to the level selection with the server up. Nothing is to be done here: the worker follows the
+        // session itself (sim/GameLoop.ts: the remote P2, the end of the session at the main menu).
         this.log('info', 'host: begin');
         break;
       case 'scanOpen':

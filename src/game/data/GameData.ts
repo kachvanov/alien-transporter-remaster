@@ -46,6 +46,14 @@ export class MemoryGameSaveStorage implements GameSaveStorage {
   }
 }
 
+/** The look of a ship (the four uint fields of PlayerData). */
+export interface ShipLook {
+  shuttleKind: number;
+  shuttleColor: number;
+  engineKind: number;
+  engineColor: number;
+}
+
 export class GameData {
   static readonly className = 'GameData';
 
@@ -84,6 +92,8 @@ export class GameData {
   private _playerData!: PlayerData[];
   private _levelData!: LevelData[];
   private _hasSaveData: boolean;
+  /** DEVIATION: online (T3.6): the ship of a player that a network player flies for the time of the session. */
+  private _shipBackup: Map<string, ShipLook> = new Map();
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -114,6 +124,7 @@ export class GameData {
   //---------------------------------------
 
   private resetData(): void {
+    this._shipBackup.clear();
     this._playerData = [new PlayerData(PlayerData.PLAYER1), new PlayerData(PlayerData.PLAYER2)];
     this._levelData = [];
     let i = 0; // :int
@@ -224,6 +235,50 @@ export class GameData {
     this.toUnlockNextLevel = false;
   }
 
+  /**
+   * DEVIATION: online (T3.6). A network player flies the ship of `aPlayer` with its own look for the time of the session:
+   * the ship fields of the PlayerData are replaced, and `saveData()` keeps writing the real ones. Repeated calls
+   * replace the look, the real one is remembered by the first call.
+   */
+  overrideShip(aPlayer: string, aShip: ShipLook): void {
+    const data = this.getPlayerData(aPlayer);
+    if (data == null) {
+      return;
+    }
+
+    if (!this._shipBackup.has(aPlayer)) {
+      this._shipBackup.set(aPlayer, {
+        shuttleKind: data.shuttleKind,
+        shuttleColor: data.shuttleColor,
+        engineKind: data.engineKind,
+        engineColor: data.engineColor,
+      });
+    }
+
+    data.shuttleKind = aShip.shuttleKind >>> 0;
+    data.shuttleColor = aShip.shuttleColor >>> 0;
+    data.engineKind = aShip.engineKind >>> 0;
+    data.engineColor = aShip.engineColor >>> 0;
+  }
+
+  /** DEVIATION: online (T3.6). The real ship of `aPlayer` comes back (nothing happens without an override). */
+  restoreShip(aPlayer: string): void {
+    const backup = this._shipBackup.get(aPlayer);
+    const data = this.getPlayerData(aPlayer);
+    this._shipBackup.delete(aPlayer);
+    if (backup != null && data != null) {
+      data.shuttleKind = backup.shuttleKind;
+      data.shuttleColor = backup.shuttleColor;
+      data.engineKind = backup.engineKind;
+      data.engineColor = backup.engineColor;
+    }
+  }
+
+  /** DEVIATION: online (T3.6): `aPlayer` flies a ship of a network player. */
+  hasShipOverride(aPlayer: string): boolean {
+    return this._shipBackup.has(aPlayer);
+  }
+
   getPlayerData(aName: string): PlayerData | null {
     let i = 0; // :int
     const n = this._playerData.length | 0; // :int
@@ -266,7 +321,17 @@ export class GameData {
     let i = 0; // :int
     const players: AnyObject[] = [];
     while (i < this._playerData.length) {
-      players.push(this._playerData[i++]!.toObject());
+      const player = this._playerData[i++]!;
+      const object = player.toObject();
+      const real = this._shipBackup.get(player.name); // DEVIATION: online (T3.6), the override is not saved
+      if (real != null) {
+        object['shuttleKind'] = real.shuttleKind;
+        object['shuttleColor'] = real.shuttleColor;
+        object['engineKind'] = real.engineKind;
+        object['engineColor'] = real.engineColor;
+      }
+
+      players.push(object);
     }
 
     i = 0;

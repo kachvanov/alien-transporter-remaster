@@ -17,11 +17,13 @@ import { AntMath } from '../engine/utils/AntMath';
 import type { Ctor } from '../engine/utils/types';
 import { Config } from '../game/Config';
 import { GameData } from '../game/data/GameData';
+import type { ShipLook } from '../game/data/GameData';
 import { FONT_DATA_NAMES } from '../game/Fonts';
 import { G } from '../game/G';
 import { Ground } from '../game/map/Ground';
 import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
 import { OnlineBridge } from '../game/online/OnlineBridge';
+import { RemotePlayer } from '../game/online/RemotePlayer';
 import { GameState } from '../game/states/GameState';
 import { PrepareState } from '../game/states/PrepareState';
 import { MenuSystem } from '../game/systems/MenuSystem';
@@ -30,6 +32,7 @@ import { collectFrameAudio } from '../frame/collectAudio';
 import { NO_LEVEL_GROUP } from '../frame/constants';
 import { FrameWriter } from '../frame/FrameWriter';
 import type { FrameScene } from '../frame/types';
+import { keyCodeOfName } from '../net/clientInput';
 import { InputRouter } from './InputRouter';
 import type { SimLogLevel } from './protocol';
 import type { SaveStorage } from './SaveStorage';
@@ -70,6 +73,11 @@ export interface GameLoopOptions {
   clock?: () => number;
 }
 
+/** The client that plays in the host session (HostBridge.PeerInfo): only its ship matters to the game. */
+export interface RemotePeer {
+  ship: ShipLook;
+}
+
 export interface Recording {
   seed: number;
   inputs: InputSnapshot[];
@@ -91,6 +99,12 @@ export class GameLoop {
   private _recording: Recording | null = null;
   private _screenName: string | null = null;
   private _frozen = false;
+  /** T3.6: the server of the host is up (HostScreen was opened and not closed): the session is `Host`, else `Solo`. */
+  private _hostSession = false;
+  /** T3.6: START of HostScreen was pressed (the game of the session goes on); the main menu ends such a session. */
+  private _hostStarted = false;
+  /** T3.6: the joins and leaves of the client; applied at the start of the next tick (never in the middle of one). */
+  private _peerEvents: (RemotePeer | null)[] = [];
 
   /** The 1..20 level group of the frame header (see GameLoopOptions.levelGroup). */
   levelGroup: number;
@@ -150,7 +164,12 @@ export class GameLoop {
     // Before the Anthill: its first state is created at once and the main menu loads the save (the Quality switch).
     G.onQuality = (smooth) => opts.host.onQuality?.(smooth);
     OnlineBridge.reset();
-    OnlineBridge.send = (req) => opts.host.onOnline?.(req);
+    OnlineBridge.send = (req) => this.sendOnline(req);
+    this._hostSession = false;
+    this._hostStarted = false;
+    this._peerEvents.length = 0;
+    RemotePlayer.noticeText = null;
+    this.input.setHostMode(false);
     this._anthill = new Anthill(opts.initialState ?? PrepareState, false, {
       onRender: () => this.renderFrame(),
     });
@@ -180,6 +199,7 @@ export class GameLoop {
     if (this._recording !== null) {
       this._recording.inputs.push(aInput);
     }
+    this.applyPeerEvents();
     const t0 = this._clock();
     anthill.tick(aInput);
     this._tickCost = Math.max(0, Math.round((this._clock() - t0) * 100));
@@ -219,12 +239,27 @@ export class GameLoop {
     while (this._acc + EPSILON_MS >= TICK_MS && steps < MAX_TICKS_PER_PUMP) {
       this._acc -= TICK_MS;
       steps++;
+      this.refreshP2Keys();
       this._opts.host.onFrame(this.tick(this.input.compose()));
     }
     if (this._acc + EPSILON_MS >= TICK_MS) {
       this._acc = 0;
     }
     return steps;
+  }
+
+  /** T3.6: the session is `Host` (the server is up): the P2 keys come from the client, the local ones are ignored. */
+  get hostSession(): boolean {
+    return this._hostSession;
+  }
+
+  /**
+   * T3.6: a client has joined (its ship) or has left (null). The game sees it at the start of the next tick:
+   * the ship of Player2 is the one of the client (RemotePlayer.join) and the client enters the level with its gas, as the
+   * local P2 of the original; a client that leaves is taken off the level (RemotePlayer.leave).
+   */
+  remotePeer(aPeer: RemotePeer | null): void {
+    this._peerEvents.push(aPeer);
   }
 
   /**
@@ -255,6 +290,10 @@ export class GameLoop {
         }
         break;
       }
+      case 'hostSession':
+        // `--host-start` (dev): the host is up without HostScreen; the session is `Host` for the whole run.
+        this.setHostSession(aArgs[0] === true);
+        break;
       case 'freeze':
         // The settings panel of the renderer (F2, T2.8) stops the simulation while it is open: `freeze` [true|false].
         this._frozen = aArgs[0] === true;
@@ -299,6 +338,57 @@ export class GameLoop {
   // PROTECTED METHODS
   //---------------------------------------
 
+  /** A request of the screens (OnlineBridge.send): the loop follows the session, the renderer carries the request out. */
+  private sendOnline(aReq: OnlineRequest): void {
+    switch (aReq.k) {
+      case 'hostOpen':
+        this.setHostSession(true);
+        break;
+      case 'hostBegin':
+        this._hostStarted = true;
+        break;
+      case 'hostClose':
+        this.setHostSession(false);
+        break;
+    }
+
+    this._opts.host.onOnline?.(aReq);
+  }
+
+  private setHostSession(aOn: boolean): void {
+    this._hostSession = aOn;
+    if (!aOn) {
+      this._hostStarted = false;
+    }
+
+    this.input.setHostMode(aOn);
+  }
+
+  /** The client joins or leaves, between two ticks. */
+  private applyPeerEvents(): void {
+    while (this._peerEvents.length > 0) {
+      const peer = this._peerEvents.shift() as RemotePeer | null;
+      if (peer !== null) {
+        if (!this._hostSession) {
+          this.setHostSession(true); // (a client can only come while the server is up)
+        }
+
+        RemotePlayer.join(peer.ship);
+      } else {
+        // the notice is for a client that went away: not when the host itself has ended the session
+        RemotePlayer.leave(this._hostSession);
+      }
+    }
+  }
+
+  /** Config.keyP2* (a player can re-bind them in the garage) -> key codes of the router. */
+  private refreshP2Keys(): void {
+    if (this.input.hostMode) {
+      const code = (aName: string): number => keyCodeOfName(aName) ?? -1;
+      this.input.setP2Keys({ gas: code(Config.keyP2Gas), left: code(Config.keyP2Left), right: code(Config.keyP2Right) });
+    }
+  }
+
   /** `screen <name>` in the log when the screen of the MenuSystem changes (the e2e test of the flow reads it). */
   private logScreenChange(): void {
     const name = G.core?.getSystem(MenuSystem)?.currentScreenName ?? null;
@@ -306,6 +396,10 @@ export class GameLoop {
       this._screenName = name;
       if (name !== null) {
         this._opts.host.log('info', 'screen ' + name);
+        if (name == MenuSystem.MAIN_MENU_SCREEN && this._hostStarted) {
+          // the host has left its game for the main menu: the session is over (the server stops, the client gets `bye`)
+          this.sendOnline({ k: 'hostClose' });
+        }
       }
     }
   }
