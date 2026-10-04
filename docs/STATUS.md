@@ -5,7 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T3.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
+| T3.3 | 1 | worktree-agent | .claude/worktrees/… | 2026-10-04 |
 | T3.5 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
@@ -102,3 +102,4 @@
 - FIX-1 выполнена: причина — regex размещений в SymbolInfo.java (`.*Ragdoll_mc` не ловил `Ragdoll0N_mc`); теперь placements = 73 клипа (20 уровней + 53 модели), models.json = 53. Новый FragBandage_mc принят схемой. В карточках T0.7/T1.x осталось число «33 модели» (не править).
 - T1.9a: карточка неточна: PlayerData.toObject НЕ сохраняет coins/lives (только name и 4 поля корабля); расход топлива = fuelRate*AntG.elapsed, от casual/hardcore не зависит (зависят strafeForce 0.3/0.15 и steeringSpeed 10/80). SAVE_KEY="alientransporter" в GameData.SAVE_KEY (T2.8 говорит про save.json — согласовать). AvailKeys.keys: Record (KeyInputPopupView в T2.5 ходит по availKeys.keys). Фабрики T1.9b: модель в obj.add() — экземпляр точного класса ShuttleModel/MissileModel/PassengerModel; у PassengerModel не должно быть hitPoint/hitForce/hasHit. CargoHold.unloadCargo — цикл без декремента как в оригинале. Заглушки STUB(T1.6,T1.8,T1.9b/c/d/e,T2.1,T2.3,T2.7) в src/game/** — при мерже конфликты add/add: брать версию владельца задачи (AntSoundManagerStub — версию T1.8). В manifest.json нет 7 спонсорских кнопок Btn* — оставлено 1:1. Тесты нодов используют Object.create(prototype).
 - 2026-10-04 ворота M2 пройдены (пользователь). Запущены T3.1, T3.5 (параллельно).
+- 2026-10-04 T3.1 merged (попытка 1; 921 тест). T3.2 и T3.3 оба правят src/app/* — ведутся по очереди; T3.3 запущена первой (не пересекается с T3.5), T3.2 — после T3.5 (общие electron/main.ts, preload.ts).
