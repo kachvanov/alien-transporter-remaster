@@ -6,7 +6,6 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T2.7 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
-| T2.2 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -17,6 +16,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
+- (не блокирует) Ручной осмотр огня и дыма двигателей в Level01 рядом с Ruffle (и масла от топлива в Level13).
 - (не блокирует) Ручной осмотр эффектов рядом с Ruffle: снег в Level01, взрыв бочки в Level11, портал в конце уровня.
 
 ## Заблокировано
@@ -59,8 +59,10 @@
 - 2026-10-04 T2.1 merged a53a445 (попытка 1; check зелёный: 788 тестов)
 - 2026-10-04 T2.1 проверена пользователем вручную (Level08, Level11, Level13), всё хорошо
 - 2026-10-04 T2.3 merged 8e57469 (попытка 1; check зелёный: 817 тестов)
+- 2026-10-04 T2.2 merged 28186a9 (попытка 1; без конфликтов; check зелёный: 834 теста)
 
 ## Заметки оркестратора
+- T2.2: elements/ (PhysicalMap, ElementSimulation, Particle) портированы, STUB(T2.2) нет. destroy() у ElementSimulation/Particle/PhysicalMap в оригинале всегда бросает RangeError — в порте не бросает (игра не вызывает). Отладочный draw не портирован. Баги оригинала сохранены: Particle.kill() не сбрасывает _currentMapIndex; getIndexByPosition оборачивается при x<0. Масляные частицы у сенсора слегка гасят скорость ракеты (оригинальное поведение).
 - T2.3: AntEffectManager читает JSON (loadEmbeddedXML из AssetRegistry), PrepareState и GameLoop.init регистрируют эффекты. Эффекты тянут AntMath.random → тайминги level01-playthrough сдвинулись (поставки 683/969, портал 1283, экран 1367; бюджет 2300). Правки тестовой инфраструктуры: level01-bot/level01-deliver, helpers/assets.ts (возможен конфликт с T2.2). Вне задачи: Ground.body/stopperList — статики, не сбрасываются между играми (GameLoop.init сбрасывает, Anthill/startGame нет) — сбрасывать в LevelCore/GameState (T2.7/T2.8). fancyEffects=false по умолчанию → lowQuality=true, blend у частиц сброшен, как в оригинале. Golden T4.1 снимать после мержа всех задач, меняющих PRNG.
 - T2.1: STUB(T2.4) остался: StubAntLight, SensorView.stubUpdateLight, SensorSystem.stubUpdateLight + список ShuttleNode, StubLightEnvironment.addLight. При мерже T2.4 брать их SensorView/GameState/AntLightEnvironment, в SensorSystem удалить stubUpdateLight и ShuttleNode. Исправление вне карточки: BasicModel.clearBodies/clearJoints null-safe (двойной destroy у MissileModel). Взрыв бочки: у шаттла нет Health, урон 0.2 только объектам с Health (как в оригинале). Пересчёт level01-playthrough: доставки 1118/1601, портал 1914, экран 1998, бюджет 2300 оставлен. sound.test.ts: период руления 35→30. Golden T4.1 снимать после мержа всех задач, меняющих список систем/плагинов. Проверить двойной destroy в других местах T1.9b.
 - Правка STATUS/ROADMAP: не писать текст через bash-heredoc без кавычек (`<<EOF`) — обратные кавычки в нём выполняются как команды (в T2.6 так запустился `npm run dev` под ELECTRON_RUN_AS_NODE=1, его вывод и трасса TypeError registerSchemesAsPrivileged попали в STATUS). Использовать Edit/Write либо `<<'EOF'`.
