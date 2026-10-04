@@ -5,7 +5,7 @@
 
 import { AntG } from '../../engine/core/AntG';
 import { AntEffectManager } from '../../engine/effects/AntEffectManager';
-import type { AntEffectEmitter } from '../../engine/effects/AntEffectManager';
+import type { AntEffectEmitter } from '../../engine/effects/AntEffectEmitter';
 import { AntMath } from '../../engine/utils/AntMath';
 import type { AnyObject } from '../../engine/utils/types';
 import type { AntBox2DBody } from '../../physics/anthill/AntBox2DBody';

@@ -364,7 +364,7 @@ describe('small components', () => {
 
     const layer = G.gameState.layerBackEffects;
     const before = layer.numChildren;
-    const se = new StaticEffect(5, 6, 'Smoke_eff', true);
+    const se = new StaticEffect(5, 6, 'Fire_eff', true);
     expect(se.isActive).toBe(true);
     expect(layer.numChildren).toBe(before + 1);
     se.call();
@@ -451,7 +451,7 @@ describe('components that create objects, effects and tasks', () => {
       return new AntObject();
     };
     const d = new Death(creator, 'BoxSmallRagdoll_mc', 2);
-    d.effectName = 'Boom_eff';
+    d.effectName = 'BoxExplosion_eff';
     d.addSounds(['S1', 'S2']);
     const front = G.gameState.layerFrontEffects.numChildren;
     d.create(10.5, 20.5, 0.5, new AntPoint(1, 2));

@@ -25,8 +25,10 @@ const ready = hasAssets && existsSync(resolve(assetsRoot, 'sounds.json'));
 // order of the plugins (AntPluginManager.add sorts them with the AVM2 sort, all priorities are equal), so the timing of the
 // passengers moved. T2.1: SensorSystem and MissileSystem are in the list of the systems now (the AVM2 sort of
 // AntCore.updatePriority gives another order): the deliveries are at ticks 1118 and 1601, the portal takes the shuttle at
-// 1914 and the level complete screen comes 84 ticks later (the fade of MenuSystem), at 1998. The budget of 2300 ticks of
-// T1.9e is enough as before.
+// 1914 and the level complete screen comes 84 ticks later (the fade of MenuSystem), at 1998. T2.3: the effects (the snow of
+// Level01, the dust, the engines) draw from the PRNG now, so the passengers wait and walk otherwise: the deliveries are at
+// 683 and 969, the portal takes the shuttle at 1283 and the level complete screen comes at 1367 (the bot counts a delivery
+// also when the next passenger boards at once). The budget of 2300 ticks of T1.9e is enough as before.
 const TICKS = 2300;
 
 interface Run {

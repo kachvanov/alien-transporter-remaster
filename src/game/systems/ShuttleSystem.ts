@@ -11,7 +11,7 @@ import { AntSystem } from '../../engine/ants/AntSystem';
 import type { AntActor } from '../../engine/core/AntActor';
 import type { AntCamera } from '../../engine/core/AntCamera';
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntMath } from '../../engine/utils/AntMath';
 import { AntPoint } from '../../engine/utils/AntPoint';
 import { Config } from '../Config';

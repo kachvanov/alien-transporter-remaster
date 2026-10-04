@@ -11,6 +11,7 @@ import { AntBasic } from '../engine/core/AntBasic';
 import { AntG } from '../engine/core/AntG';
 import type { AntState } from '../engine/core/AntState';
 import { Anthill } from '../engine/core/Anthill';
+import { AntEffectManager } from '../engine/effects/AntEffectManager';
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import { AntMath } from '../engine/utils/AntMath';
 import type { Ctor } from '../engine/utils/types';
@@ -107,6 +108,9 @@ export class GameLoop {
     // The data the game reads synchronously: levels, models, fonts, effects, missions, texts (files that the
     // pipeline did not produce are skipped, the getters then throw where the game needs them).
     await registry.loadAllData(FONT_DATA_NAMES);
+    // The original registers the effects in PrepareState (loadEmbeddedXML); a run that starts from another initial
+    // state (tests, dev) has them too. PrepareState registers them again: addData replaces the effect of a name.
+    AntEffectManager.getInstance().loadEmbeddedXML();
     try {
       await registry.loadSounds();
     } catch (e) {

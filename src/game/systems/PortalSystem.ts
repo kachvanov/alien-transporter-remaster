@@ -5,7 +5,7 @@ import type { AntNodeList } from '../../engine/ants/AntNodeList';
 import type { AntObject } from '../../engine/ants/AntObject';
 import { AntSystem } from '../../engine/ants/AntSystem';
 import { AntG } from '../../engine/core/AntG';
-import { AntEffectManager } from '../../engine/effects/AntEffectManager'; // STUB(T2.3)
+import { AntEffectManager } from '../../engine/effects/AntEffectManager';
 import { AntTaskManager } from '../../engine/plugins/AntTaskManager';
 import { Config } from '../Config';
 import { PlayerData } from '../data/PlayerData';

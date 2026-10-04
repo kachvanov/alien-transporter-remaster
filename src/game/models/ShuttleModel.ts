@@ -7,7 +7,7 @@
 
 import { AntG } from '../../engine/core/AntG';
 import { AntEffectManager } from '../../engine/effects/AntEffectManager';
-import type { AntEffectEmitter } from '../../engine/effects/AntEffectManager';
+import type { AntEffectEmitter } from '../../engine/effects/AntEffectEmitter';
 import { AntPoint } from '../../engine/utils/AntPoint';
 import type { AntBox2DBody } from '../../physics/anthill/AntBox2DBody';
 import type { AntBox2DContact } from '../../physics/anthill/AntBox2DContact';
