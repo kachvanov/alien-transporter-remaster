@@ -1,7 +1,9 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_SWF,
   EXPECTED_FONTS,
   mapDataName,
   parseSymbolClass,
@@ -45,6 +47,19 @@ describe('decompile helpers', () => {
 
   it('prefers env ORIGINAL_SWF', () => {
     expect(resolveSwfPath(ROOT, { ORIGINAL_SWF: '/x/y.swf' })).toBe('/x/y.swf');
+  });
+
+  it('resolves ORIGINAL_SWF -> .env -> default, in that order', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'swfpath-'));
+    try {
+      expect(DEFAULT_SWF).toBe('/Applications/Flash Games/alien-transporter.swf');
+      expect(resolveSwfPath(dir, {})).toBe(DEFAULT_SWF);
+      writeFileSync(join(dir, '.env'), 'ORIGINAL_SWF="/from/dotenv.swf"\n');
+      expect(resolveSwfPath(dir, {})).toBe('/from/dotenv.swf');
+      expect(resolveSwfPath(dir, { ORIGINAL_SWF: '/from/env.swf' })).toBe('/from/env.swf');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
