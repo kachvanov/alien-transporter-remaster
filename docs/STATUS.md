@@ -5,6 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
+| T2.7 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
 | T2.2 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
