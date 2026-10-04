@@ -6,7 +6,6 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T4.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
-| T4.2 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 | T4.3 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
@@ -27,6 +26,7 @@
 - Открыть `dist/` dmg (пересобрать: `npm run build:mac`), перетащить в /Applications, запустить двойным кликом: Retina, звук, 120 FPS, save.json в `~/Library/Application Support/Alien Transporter Remaster/`, запрос Local Network при хостинге/подключении, LAN из собранной версии. Если «повреждено» после копирования с другой машины: `xattr -cr "/Applications/Alien Transporter Remaster.app"`.
 
 ## Заблокировано
+- T4.2 (сверка с Ruffle), попытка 1: инструменты готовы (`npm run shot`, `visual:compare`, `ruffle:ref`, `parity:behavior`; ветка `worktree-agent-af190853285362e42`, коммит 0d2e97b, не смержена, check зелёный 1092), но эталоны Ruffle снять нельзя: macOS ждёт разрешения «Screen & System Audio Recording» для Claude (диалог висит на экране). Нужно: разрешить (или снимать вручную Cmd+Shift+4 → Space → клик по окну Ruffle, PNG в `tests/visual/reference/<сцена>.png`), затем пройти меню в Ruffle мышью и по каждой сцене выполнить `npm run ruffle:ref -- --scene=<имя>` (main-menu, credits, select-level, garage, pause, level-complete, level01..03 реалистично). Для колонки «оригинал» в docs/05 §5 — запись Ruffle `--frame-rate 35`, сценарии 1–7. Потом попытка 2 (разбор расхождений).
 - T4.6 (сборка Windows), попытка 1: конфиг, иконка, prepack и win-unpacked готовы (ветка `worktree-agent-a98aebb9fbb485de4`, коммит 02ba823, не смержена); NSIS/portable .exe не собрались — на Маке нет Rosetta 2 (makensis x86_64). Нужно: `softwareupdate --install-rosetta --agree-to-license` (sudo) и затем `ORIGINAL_SWF="/Applications/Flash Games/alien-transporter.swf" npm run build:win`; либо решение по запасному пути Б (GitHub Actions). T4.4 ждёт (правит тот же electron-builder.yml).
 
 ## Журнал
@@ -133,3 +133,5 @@
 - T4.6 → T4.4: авто-выбор тира (src/render/atlasMath.ts availableTiers) смотрит в manifest, а не в файлы сборки: на Windows 4K (≥1500 физ. px) выберется 3x, которого в сборке нет → 404. Обход: `--tier=2x`. В T4.4 авто-выбор должен учитывать реально найденные на диске тиры.
 - 2026-10-04 T4.1 merged d6d6153 (попытка 1; 1120 тестов; конфликт package.json с T4.5 разрешён оркестратором). 23 реплея, весь набор ~11 с, детерминизм подтверждён. Запущена T4.3.
 - T4.1 отклонения: F9 перезапускает уровень с тем же seed (реплей воспроизводим с тика 0, save изолирован); в формат добавлено `ticks`; сценарии записаны ботами в JSON (`golden:record`); мышь/колесо не пишутся. Ручной F9 в Electron не проверялся. Эталоны привязаны к V8 Math.sin/cos — на Windows не проверялось. Для T4.2: p1.hull из expected можно взять как метрику урона бочки. Риск: если T4.2 исправит порт и обновит golden-эталоны — T4.3 после мержа T4.2 перепроверить на новых хэшах.
+- 2026-10-04 T4.2 BLOCKED (нет разрешения на запись экрана; эталоны Ruffle требуют человека) — ветка оставлена, worktree удалён.
+- T4.2 вне задачи: (1) AntG.elapsed init 0.02, а по замеру расход топлива соответствует ≈0.028 с/тик (fuelRate 0.025) — сверить с Ruffle в метрике «пустой бак»; (2) чёрная виньетка по краям экранов — по-видимому оригинальный кадр symbol1445/layerMenuBG, не баг рендера (подтвердит эталон); (3) tests/visual/reference/*.png содержат скриншоты оригинала, в .gitignore не внесены — внести до публикации репозитория; (4) `npm run shot` открывает окно видимым (скрытие требует правки electron/main.ts); сцены level-complete нет.
