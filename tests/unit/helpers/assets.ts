@@ -29,6 +29,7 @@ export async function loadAssets(): Promise<AssetRegistry> {
   for (const font of FONT_DATA_NAMES) {
     await registry.loadFont(font);
   }
+  await registry.loadAlphaMasks(); // AntLightEnvironment.isOpaque reads the masks of the shuttle
   try {
     await registry.loadSounds(); // the catalog of AntG.sounds (a game without sounds.json plays nothing)
   } catch {

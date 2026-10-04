@@ -1,7 +1,5 @@
 // Port of ru/alientransporter/states/GameState.as
 //
-// STUB(T2.4): AntLightEnvironment (living lights). The stand-in has only `add()` (Factory.makeShuttle) and is
-// not added to the state either.
 // STUB(T2.7): `Music.init()` (the music is MusicManager, a stub).
 //
 // DEVIATION: JointEditor (`open joint` command) is not ported; DebugSystem (Config.DEBUG_MODE is false) neither.
@@ -15,6 +13,7 @@ import { AntCamera } from '../../engine/core/AntCamera';
 import { AntEntity } from '../../engine/core/AntEntity';
 import { AntG } from '../../engine/core/AntG';
 import { AntState } from '../../engine/core/AntState';
+import { AntLightEnvironment } from '../../engine/lights/AntLightEnvironment';
 import { Config } from '../Config';
 import { Fonts } from '../Fonts';
 import { G } from '../G';
@@ -51,18 +50,6 @@ import { UISystem } from '../systems/UISystem';
 // The level manager registers itself in G (G.levelManagerClass), see G.ts: the state has to load its module.
 import '../levels/LevelManager';
 
-/** STUB(T2.4): stand-in for ru/antkarlov/anthill/extensions/livinglights/AntLightEnvironment.as. */
-export class StubLightEnvironment {
-  /** AS3 `addLight(aLight:AntLight)` (SensorView needs it). */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  addLight(_aLight: unknown): void {}
-
-  /** AS3 `add(aChild:AntEntity):AntEntity`. */
-  add(aChild: AntEntity): AntEntity {
-    return aChild;
-  }
-}
-
 export class GameState extends AntState {
   //---------------------------------------
   // PUBLIC VARIABLES
@@ -95,7 +82,7 @@ export class GameState extends AntState {
   oilSimulation!: ElementSimulation;
   smokeSimulation!: ElementSimulation;
   fireSimulation!: ElementSimulation;
-  lightEnvironment!: StubLightEnvironment; // STUB(T2.4): AntLightEnvironment
+  lightEnvironment!: AntLightEnvironment;
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -138,7 +125,7 @@ export class GameState extends AntState {
     this.layerEngineEffects = new AntEntity();
     this.layerShuttles = new AntEntity();
     this.layerBonuses = new AntEntity();
-    this.lightEnvironment = new StubLightEnvironment(); // STUB(T2.4): new AntLightEnvironment()
+    this.lightEnvironment = new AntLightEnvironment();
     this.layerMainEffects = new AntEntity();
     this.layerFG = new AntEntity();
     this.layerRocks = new AntEntity();
@@ -177,7 +164,7 @@ export class GameState extends AntState {
     this.add(this.layerFragments);
     this.add(this.layerMainEffects);
     this.add(this.layerBonuses);
-    // STUB(T2.4): add(lightEnvironment);
+    this.add(this.lightEnvironment);
     this.add(this.layerFG);
     this.add(this.layerRocks);
     this.add(this.layerFrontEffects);
@@ -284,7 +271,6 @@ export class GameState extends AntState {
   }
 
   private setQualityFor(aLayer: string, aValue: boolean): void {
-    // `hasOwnProperty(aLayer)`: lightEnvironment is not an entity here (STUB(T2.4)) and `as AntEntity` gives null.
     const layer = (this as unknown as Record<string, unknown>)[aLayer];
     if (Object.prototype.hasOwnProperty.call(this, aLayer) && layer instanceof AntEntity) {
       let i = 0; // :int
