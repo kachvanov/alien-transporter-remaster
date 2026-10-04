@@ -5,7 +5,6 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T4.4 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 | T4.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
@@ -25,6 +24,9 @@
 ## Нужно проверить руками (T4.5, T4.7)
 - README.md: пройти по шагам на Mac и Windows 10 и сказать, что не совпало (имя приложения в списке «Локальная сеть» и в брандмауэре для portable, формулировки диалогов, `--tier=2x` через ярлык). Метки «[не проверено]» в README снять после проверки.
 - Открыть `dist/` dmg (пересобрать: `npm run build:mac`), перетащить в /Applications, запустить двойным кликом: Retina, звук, 120 FPS, save.json в `~/Library/Application Support/Alien Transporter Remaster/`, запрос Local Network при хостинге/подключении, LAN из собранной версии. Если «повреждено» после копирования с другой машины: `xattr -cr "/Applications/Alien Transporter Remaster.app"`.
+
+## Нужно от тебя: замер Windows (T4.3, T4.4)
+`npx electron-vite build && npx tsx tools/perf/measure.ts --level=Level11 --seconds=60 --tier=2x`, затем Level13 (или вручную `electron . --start-level=Level11 --perf-log=perf.json`). Бюджеты `05` §9: RAM ≤ 700 МБ, VRAM ≤ 350 МБ, FPS 60, тик p95 ≤ 4 мс. Проверить установленную сборку: в логе «tier 2x», без 404 на gfx/3x. Запасные ходы, если RAM не уложится: выгружать группу `ui` на время уровня; ленивые passengers/effects; ленивое декодирование музыки (~53 МБ).
 
 ## Нужно решить (T4.3)
 Бюджет тика p95 ≤ 1 мс на M5 в самом приложении не выполняется: Node (прогретое ядро) p95 0.58/0.44 мс (Level11/13) — укладывается; в приложении по `--perf-log` p95 2.62/2.02 мс. Причина не в коде: воркер просыпается раз в 28.6 мс, ядро «остывает» (под нагрузкой ядер то же даёт p95 1.2 мс); работа тика ≈ 0.3 мс, ~40% — Box2D. Варианты: (а) считать бюджет по прогретому замеру, (б) ослабить бюджет `05` §9, (в) отдельная карточка про режим воркера (прогрев перед тиком). Windows-замер: `electron . --start-level=Level11 --perf-log=perf.json`, затем Level13, 60 с.
@@ -143,3 +145,5 @@
 - 2026-10-04 пользователь: выдал разрешение на запись экрана, поставил Rosetta 2, согласился поправить ORIGINAL_SWF (теперь `/Applications/Flash Games/alien-transporter.swf` в .claude/settings.json; DEFAULT_SWF в tools/extract/decompile.ts всё ещё старый — вне карточек). Windows-замер отложен.
 - 2026-10-04 T4.6 merged 909f596 (попытка 1, ветка влита после установки Rosetta; конфликт package.json разрешён оркестратором; 1132 теста). `npm run build:win` собрал `dist/Alien Transporter Remaster Setup 0.1.0.exe` и `Alien Transporter Remaster 0.1.0.exe` (по 233 МБ). Проверка на Windows 10 (SmartScreen, фаервол, LAN, F3-бюджеты) не выполнена — ждёт пользователя. Win-сборка без gfx/3x. Запущены T4.4 и T4.7.
 - 2026-10-04 T4.7 merged 70fa5d7 (попытка 1; 1132 теста). README.md на русском, непроверенное помечено. Ворота M4 закрывать после проверки README, T4.4 и T4.2. Вне задачи: `.env.example` содержит старый путь SWF `AlienTransporter.swf` (реально `alien-transporter.swf`).
+- 2026-10-04 T4.4 merged d5948fb (попытка 1; 1148 тестов, e2e smoke/renderer 6/6; golden не менялись). Авто-выбор тира по файлам на диске (electron/diskTiers.ts, `--at-tiers`), VRAM в F3 и perf-log, ImageBitmap закрывается после заливки на GPU (renderer 3x 1108→359–498 МБ, RAM стабилен), unloadGroup освобождает видеопамять, `tools/perf/measure.ts`. Mac: FPS ~120; RAM 3x Level11 1.05–1.13 ГБ (≤1.2 ОК), 2x Level11 1.13–1.25, Level13 1.20–1.30 (на границе; бюджет относится к 3x); VRAM 2x 316 МБ, 3x 614 МБ (ОК). Тик p95 2–3 мс — бюджет 1 мс не выполнен (см. T4.3). Windows не мерили. Вне задачи: workingSetSize на macOS не видит графическую память (GPU-процесс 700–980 МБ по footprint) — уточнить формулировку 05 §9; `measure.ts` открывает окно видимым.
+- 2026-10-04 dmg и exe после T4.4 пересобираются (прежние сборки устарели: без правок рендера/тиров).
