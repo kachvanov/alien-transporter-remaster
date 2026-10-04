@@ -182,7 +182,7 @@ export class ShuttleSystem extends AntSystem {
 
         if (Config.debugSettings.showFireParticles) {
           G.gameState.fireSimulation.pour(
-            this._enginePoint.x + AntMath.randomRangeInt(-2, 2), // STUB(T2.2)
+            this._enginePoint.x + AntMath.randomRangeInt(-2, 2),
             this._enginePoint.y + AntMath.randomRangeInt(-2, 2),
             aNode.display.view.angle + 90,
             3,

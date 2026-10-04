@@ -88,6 +88,9 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
       state.layerIndicators,
       state.layerMain,
       state.layerPhysic,
+      state.oilSimulation, // T2.2: the simulations and the map of GameState.as
+      state.smokeSimulation,
+      state.fireSimulation,
       state.layerEngineEffects,
       state.layerShuttles,
       state.layerFGPassengers,
@@ -102,8 +105,9 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
       state.layerMenuFG,
       state.layerInterface,
       state.layerPopups,
+      state.physicalMap,
     ];
-    expect(new Set(order).size).toBe(22);
+    expect(new Set(order).size).toBe(26);
     expect(state.defGroup?.children).toEqual(order);
     expect(G.gameState).toBe(state);
   });
