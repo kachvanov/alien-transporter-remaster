@@ -1,12 +1,14 @@
 // Not a port. Draws a Frame with Pixi v8 / WebGL (docs/01-architecture.md §5).
 //
 // Root container 800x600 with the letterbox scale; black bars over the margins clip everything outside the stage.
-// Sprite pool by uid; the order of `children` is changed only when the sequence of sprites changed.
+// Sprite pool by uid; the order of `children` is changed only when the sequence of sprites changed. The ext LIGHT nodes
+// (AntLight) are Graphics from the LightRenderer, in the same sequence.
 
 import 'pixi.js/advanced-blend-modes';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
 import type { BLEND_MODES } from 'pixi.js';
 import {
+  EXT_LIGHT,
   NODE_BLEND_MASK,
   NODE_BLEND_SHIFT,
   NODE_HAS_ALPHA,
@@ -17,6 +19,7 @@ import {
 import type { AtlasLoader } from './AtlasLoader';
 import type { FrameSample } from './FramePlayer';
 import { computeLetterbox, LOGICAL_HEIGHT, LOGICAL_WIDTH } from './Letterbox';
+import { LightRenderer } from './LightRenderer';
 import type { Letterbox } from './Letterbox';
 
 const BLEND_NAMES: readonly BLEND_MODES[] = ['normal', 'add', 'overlay', 'screen'];
@@ -41,8 +44,9 @@ export class PixiRenderer {
   private readonly _atlas: AtlasLoader;
   private readonly _pool = new Map<number, Sprite>();
   private readonly _free: Sprite[] = [];
-  private _sequence: Sprite[] = [];
-  private _next: Sprite[] = [];
+  private readonly _lights = new LightRenderer();
+  private _sequence: Container[] = [];
+  private _next: Container[] = [];
   private readonly _bars: Sprite[] = [];
   private _dprQuery: MediaQueryList | null = null;
   private readonly _onDprChange = (): void => this.applyResolution();
@@ -138,11 +142,17 @@ export class PixiRenderer {
     seq.length = 0;
     const used = new Set<number>();
     let skipped = 0;
+    let sprites = 0;
+    this._lights.begin();
 
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i]!;
       if (n.texId === NO_TEXTURE) {
-        skipped++; // ext only: lights and debug lines are drawn by T2.4
+        if (n.ext !== undefined && n.ext.kind === EXT_LIGHT) {
+          seq.push(this._lights.light(n.uid, (n.flags & NODE_BLEND_MASK) >> NODE_BLEND_SHIFT, n.ext));
+        } else {
+          skipped++; // the debug lines of Box2D (ext DEBUG_LINES) are not drawn yet
+        }
         continue;
       }
       const sf = this._atlas.getFrame(n.texId);
@@ -169,6 +179,7 @@ export class PixiRenderer {
       const blend = (f & NODE_BLEND_MASK) >> NODE_BLEND_SHIFT;
       sprite.blendMode = BLEND_NAMES[blend] ?? 'normal';
       seq.push(sprite);
+      sprites++;
     }
 
     // Sprites that are not in the frame go back to the pool.
@@ -195,7 +206,8 @@ export class PixiRenderer {
       this._sequence = seq;
     }
 
-    this.stats.sprites = seq.length;
+    this._lights.end();
+    this.stats.sprites = sprites;
     this.stats.skipped = skipped;
   }
 
@@ -207,6 +219,7 @@ export class PixiRenderer {
   /** Forgets every sprite (their textures are about to be destroyed). */
   private dropSprites(): void {
     this.root.removeChildren();
+    this._lights.destroy();
     for (const s of this._pool.values()) s.destroy();
     for (const s of this._free) s.destroy();
     this._pool.clear();

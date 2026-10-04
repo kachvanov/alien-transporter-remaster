@@ -51,6 +51,7 @@ export class AssetRegistry {
   private _missions: AnyObject | null = null;
   private _texts: AnyObject | null = null;
   private _sounds: unknown[] | null = null;
+  private _alphaMasks: Uint8Array | null = null;
 
   constructor(source: AssetSource) {
     this._source = source;
@@ -184,6 +185,35 @@ export class AssetRegistry {
     return this._texts;
   }
 
+  /**
+   * Loads `data/alphamasks.bin` (T0.4): the bit masks of the frames that AntLight "sees" (the shuttle and its
+   * passengers). Optional while the extraction has not produced the file: `loadAllData` skips a missing one.
+   */
+  async loadAlphaMasks(): Promise<Uint8Array> {
+    this._alphaMasks = new Uint8Array(await this._source.readBinary('data/alphamasks.bin'));
+    return this._alphaMasks;
+  }
+
+  /** The loaded `alphamasks.bin`, null while it is not loaded. */
+  get alphaMasks(): Uint8Array | null {
+    return this._alphaMasks;
+  }
+
+  /**
+   * Bit of the mask at the frame pixel (x, y): `alpha > 0` of the untrimmed 1x frame (rows are padded to whole
+   * bytes, MSB first). A pixel outside of the frame is transparent.
+   */
+  isMaskSet(aMask: MaskRef, aX: number, aY: number): boolean {
+    const bits = this.need(this._alphaMasks, 'alphamasks.bin');
+    if (aX < 0 || aY < 0 || aX >= aMask.w || aY >= aMask.h) {
+      return false;
+    }
+
+    const rowBytes = (aMask.w + 7) >> 3;
+    const byte = bits[aMask.offset + aY * rowBytes + (aX >> 3)] ?? 0;
+    return ((byte >> (7 - (aX & 7))) & 1) !== 0;
+  }
+
   async loadSounds(): Promise<unknown[]> {
     this._sounds = await this.readJson<unknown[]>('sounds.json');
     return this._sounds;
@@ -210,6 +240,7 @@ export class AssetRegistry {
     await tryLoad(this.loadMissions());
     await tryLoad(this.loadTexts());
     await tryLoad(this.loadSounds());
+    await tryLoad(this.loadAlphaMasks());
     for (const f of fonts) {
       await tryLoad(this.loadFont(f));
     }

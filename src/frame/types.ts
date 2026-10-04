@@ -167,6 +167,11 @@ export interface FrameSink {
  */
 export interface IFrameWritable {
   writeFrame(sink: FrameSink): void;
+  /**
+   * true: `writeFrame` draws the children itself (AntLightEnvironment draws them into its own buffer, not into
+   * the picture), so the FrameWriter must not walk them.
+   */
+  readonly writesOwnChildren?: boolean;
 }
 
 export function isFrameWritable(e: unknown): e is IFrameWritable {

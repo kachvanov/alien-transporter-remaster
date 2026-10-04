@@ -1,10 +1,4 @@
 // Port of ru/alientransporter/systems/SensorSystem.as
-//
-// STUB(T2.4): the touch of the ray of the light with the shuttle comes from AntLight (the pixels of the shuttle). Until
-// T2.4 the end of every node of update() runs the temporary geometric test of the view (SensorView.stubUpdateLight,
-// "the shuttle is inside the sector"). It is at the end of the node on purpose: AntLight.bake() works at the draw of
-// the frame, after the systems, so the system sees the touch of the previous frame. T2.4 deletes the test, the
-// ShuttleNode list and the method below.
 
 import type { AntCore } from '../../engine/ants/AntCore';
 import type { AntObject } from '../../engine/ants/AntObject';
@@ -14,7 +8,6 @@ import { AntG } from '../../engine/core/AntG';
 import { ActionNode } from '../nodes/ActionNode';
 import { BlinkerNode } from '../nodes/BlinkerNode';
 import { SensorNode } from '../nodes/SensorNode';
-import { ShuttleNode } from '../nodes/ShuttleNode'; // STUB(T2.4)
 import { TriggerNode } from '../nodes/TriggerNode';
 
 export class SensorSystem extends AntSystem {
@@ -24,7 +17,6 @@ export class SensorSystem extends AntSystem {
   private _triggerNodes: AntNodeList<TriggerNode> | null = null;
   private _actionNodes: AntNodeList<ActionNode> | null = null;
   private _blinkerNodes: AntNodeList<BlinkerNode> | null = null;
-  private _shuttleNodes: AntNodeList<ShuttleNode> | null = null; // STUB(T2.4)
   private _core: AntCore | null = null;
 
   constructor() {
@@ -36,7 +28,6 @@ export class SensorSystem extends AntSystem {
     this._triggerNodes = aCore.getNodes(TriggerNode);
     this._actionNodes = aCore.getNodes(ActionNode);
     this._blinkerNodes = aCore.getNodes(BlinkerNode);
-    this._shuttleNodes = aCore.getNodes(ShuttleNode); // STUB(T2.4)
     this._core = aCore;
   }
 
@@ -46,7 +37,6 @@ export class SensorSystem extends AntSystem {
     this._triggerNodes = null;
     this._actionNodes = null;
     this._blinkerNodes = null;
-    this._shuttleNodes = null; // STUB(T2.4)
     this._core = null;
   }
 
@@ -90,21 +80,7 @@ export class SensorSystem extends AntSystem {
       }
 
       node.view.update();
-      this.stubUpdateLight(node); // STUB(T2.4)
     }
-  }
-
-  /** STUB(T2.4): the geometric test of the touch of the light of the sensor with the shuttles. */
-  private stubUpdateLight(aNode: SensorNode): void {
-    const shuttleNodes = this._shuttleNodes as AntNodeList<ShuttleNode>;
-    const shuttles: { x: number; y: number }[] = [];
-    let i = 0;
-    while (i < shuttleNodes.numNodes) {
-      const shuttle = shuttleNodes.get(i++) as ShuttleNode;
-      shuttles.push({ x: shuttle.display.view.x, y: shuttle.display.view.y });
-    }
-
-    aNode.view.stubUpdateLight(shuttles);
   }
 
   private updateBlinker(aNode: SensorNode): void {

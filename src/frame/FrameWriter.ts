@@ -342,6 +342,10 @@ export class FrameWriter implements FrameSink {
   private drawEntity(aEntity: AntEntity): void {
     if (isFrameWritable(aEntity)) {
       aEntity.writeFrame(this);
+      if (aEntity.writesOwnChildren === true) {
+        aEntity.justReset = false;
+        return;
+      }
     } else if (aEntity instanceof AntActor) {
       this.writeActor(aEntity);
     } else if (aEntity instanceof AntTileMap) {

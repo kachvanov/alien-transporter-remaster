@@ -97,6 +97,7 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
       state.layerFragments,
       state.layerMainEffects,
       state.layerBonuses,
+      state.lightEnvironment, // T2.4
       state.layerFG,
       state.layerRocks,
       state.layerFrontEffects,
@@ -107,7 +108,7 @@ describe.skipIf(!hasAssets)('GameState.create', () => {
       state.layerPopups,
       state.physicalMap,
     ];
-    expect(new Set(order).size).toBe(26);
+    expect(new Set(order).size).toBe(27);
     expect(state.defGroup?.children).toEqual(order);
     expect(G.gameState).toBe(state);
   });

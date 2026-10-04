@@ -1,10 +1,12 @@
 // T2.1: MagnetSystem, MissileSystem, RagdollSystem, SensorSystem, ObjectSpawnSystem. Headless levels 08, 11, 13.
 // The reference numbers are what this port gives (T4.2 compares them with the original).
-// STUB(T2.4): the touch of the ray of the sensor with the shuttle is the temporary geometric test (SensorView).
+// T2.4: the touch of the ray of the sensor with the shuttle comes from AntLight (the alpha masks of the shuttle).
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AntObject } from '../../src/engine/ants/AntObject';
+import type { AntCamera } from '../../src/engine/core/AntCamera';
 import { AntG } from '../../src/engine/core/AntG';
+import type { AntLight } from '../../src/engine/lights/AntLight';
 import { emptyInputSnapshot } from '../../src/engine/input/InputSnapshot';
 import { AntMath } from '../../src/engine/utils/AntMath';
 import { AntPoint } from '../../src/engine/utils/AntPoint';
@@ -42,6 +44,13 @@ import { TutorialView } from '../../src/game/views/TutorialView';
 import { hasAssets, loadAssets } from './helpers/assets';
 import { startGame } from './helpers/game';
 
+/**
+ * Level13, the scripted flight into the ray (the shuttle jumps in tick 0): tick 1 draws the old place (RenderSystem moves
+ * the view after the draw), tick 2 draws the new one, the light bakes every second update (updateInterval 0.1 s,
+ * delay += 2 * elapsed): the bake of tick 4 sees the picture of tick 2 or 3.
+ */
+const REFERENCE_TOUCH_TICK = 4;
+
 beforeAll(async () => {
   if (hasAssets) {
     await loadAssets();
@@ -65,7 +74,10 @@ function addSystems(): void {
   G.core.addSystem(new MissileSystem(), Priority.missileSystem);
 }
 
-/** One tick of Anthill.tick(): the time and the input, the state, then AntG.plugins.update() (physics, then core). */
+/**
+ * One tick of Anthill.tick(): the time and the input, the state, the render (AntLightEnvironment.draw records what the
+ * lights see at the next update), then AntG.plugins.update() (physics, then core).
+ */
 function tick(): void {
   AntG.simTimeMs += 1000 / 35;
   AntG.elapsed = 1 / 35;
@@ -74,6 +86,7 @@ function tick(): void {
   G.gameState.preUpdate();
   G.gameState.update();
   G.gameState.postUpdate();
+  G.gameState.draw(AntG.camera as AntCamera);
   AntG.plugins.update();
 }
 
@@ -449,7 +462,7 @@ describe.skipIf(!hasAssets)('ObjectSpawnSystem: counted spawners and removers (L
   });
 });
 
-describe.skipIf(!hasAssets)('Level13: the missile starts after the sensor is activated (STUB(T2.4): the geometric touch)', () => {
+describe.skipIf(!hasAssets)('Level13: the missile starts after the sensor is activated (the touch of the ray of AntLight)', () => {
   beforeEach(() => {
     initGame();
     addSystems();
@@ -549,6 +562,48 @@ describe.skipIf(!hasAssets)('Level13: the missile starts after the sensor is act
     tickUntil(() => false, 5);
     expect(missile.physic.body.velocity.y).toBeCloseTo(vy, 1);
     expect(shuttle.physic.body.kind).toBe('static');
+  });
+});
+
+describe.skipIf(!hasAssets)('Level13: the light of the sensor (AntLight) sees the pixels of the shuttle', () => {
+  beforeEach(() => {
+    initGame();
+    addSystems();
+    loadLevel(13);
+  });
+
+  it('the shuttle flies into the ray: the ray ends on the hull and eventBeginTouch comes at the reference tick', () => {
+    const shuttle = makeStaticShuttle(360, 450); // below the end of the ray (the sensor is at 358, 217; the ray is 175 px)
+    const sensor = sensorOf('Sensor01');
+    const light = (sensor.view as unknown as { _light: AntLight })._light;
+    const begins: { tick: number; x: number; y: number }[] = [];
+    let n = 0;
+    light.eventBeginTouch.add((_l, x, y) => begins.push({ tick: n, x, y }));
+    tickUntil(() => sensor.sensor.isActive, 400); // the first missile switches the sensor on
+    expect(sensor.sensor.isActive).toBe(true);
+    for (let i = 0; i < 10; i++) {
+      n++;
+      tick();
+    }
+
+    expect(begins.length).toBe(0); // nothing in the ray
+    const poly = (light as unknown as { _poly: number[] })._poly;
+    const tip = (): number => Math.hypot(poly[poly.length - 2] as number, poly[poly.length - 1] as number);
+    expect(tip()).toBeGreaterThan(160); // the free ray goes to the end
+    n = 0;
+    shuttle.physic.body.applyPosition(360, 300); // scripted flight into the ray
+    while (n < 40 && begins.length == 0) {
+      n++;
+      tick();
+    }
+
+    expect(begins.length).toBe(1);
+    const touch = begins[0] as { tick: number; x: number; y: number };
+    expect(touch.tick).toBe(REFERENCE_TOUCH_TICK);
+    // the ray ended on the hull: the hull is around (360, 300), the sensor at (358, 217)
+    expect(touch.y).toBeGreaterThan(270);
+    expect(touch.y).toBeLessThan(310);
+    expect(Math.abs(touch.x - 360)).toBeLessThan(25);
   });
 });
 
