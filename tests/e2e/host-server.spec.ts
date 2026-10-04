@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { _electron as electron, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import WebSocket from 'ws';
+import { launchApp, removeProfilesAfterEach } from './profile';
 
 // ELECTRON_RUN_AS_NODE (set by some hosts/CI) would make Electron start as plain Node.
 function cleanEnv(): Record<string, string> {
@@ -13,6 +14,8 @@ function cleanEnv(): Record<string, string> {
     ),
   );
 }
+
+removeProfilesAfterEach();
 
 const PORT = 47020; // (the default port of the settings)
 
@@ -50,7 +53,7 @@ function peer(): Peer {
 }
 
 async function launchHost(profile: string): Promise<{ app: ElectronApplication; page: Page; problems: string[] }> {
-  const app = await electron.launch({ args: ['.', '--host-start', `--profile=${profile}`], env: cleanEnv() });
+  const app = await launchApp({ args: ['.', '--host-start', `--profile=${profile}`], env: cleanEnv() });
   const page = await app.firstWindow();
   const problems: string[] = [];
   page.on('console', (m) => {
@@ -132,7 +135,7 @@ test('host + the real client (--join): the client plays the frames of the host',
   try {
     await expect.poll(() => host.page.evaluate(() => Number(document.documentElement.dataset['ticks'] ?? '0')), { timeout: 30_000 }).toBeGreaterThan(5);
     await host.page.waitForTimeout(1500); // (the server is up)
-    client = await electron.launch({ args: ['.', '--join=127.0.0.1', `--profile=e2e-client${Date.now() % 1e9}`], env: cleanEnv() });
+    client = await launchApp({ args: ['.', '--join=127.0.0.1', `--profile=e2e-client${Date.now() % 1e9}`], env: cleanEnv() });
     const page = await client.firstWindow();
     const clientProblems: string[] = [];
     page.on('console', (m) => {

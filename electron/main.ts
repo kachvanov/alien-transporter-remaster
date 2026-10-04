@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, Menu, MessageChannelMain, net, protocol, screen, shell, type MessagePortMain } from 'electron';
 import { resolveAssetFile } from './assetPath';
 import { diskTiersOf } from './diskTiers';
-import { encodeFlagsArg, encodeTiersArg, parseDevFlags, parseProfile } from './flags';
+import { encodeFlagsArg, encodeTiersArg, invalidProfileArg, MAX_PROFILE_LENGTH, parseDevFlags, parseProfile } from './flags';
 import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
 import { selfTest } from './net/selfTest';
 import { PerfLog } from './perfLog';
@@ -40,7 +40,15 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 const argv = process.argv.slice(1);
 const flags = parseDevFlags(argv);
 
-// --profile=N: a separate userData directory (two instances on one machine).
+// --profile=N: a separate userData directory (two instances on one machine). A rejected value must not fall back to the
+// shared userData silently (tests would then write the player's save.json / settings.json): refuse to start.
+const badProfile = invalidProfileArg(argv);
+if (badProfile !== null) {
+  process.stderr.write(
+    `Alien Transporter Remaster: invalid --profile=${JSON.stringify(badProfile)} (1..${MAX_PROFILE_LENGTH} chars of A-Z a-z 0-9 _ -); refusing to start on the shared userData.\n`,
+  );
+  process.exit(2);
+}
 const profile = parseProfile(argv);
 if (profile !== null) {
   app.setPath('userData', `${app.getPath('userData')}-profile${profile}`);
@@ -145,7 +153,13 @@ async function createWindow(): Promise<void> {
   mainWindow = win;
   win.once('ready-to-show', () => {
     win.show();
-    if (savedWindow.fullscreen) win.setFullScreen(true);
+    // (macOS silently drops a setFullScreen(true) that comes right with show(): ~27% of the starts stayed windowed, measured
+    // over 30 starts; before show() ~33%. 250 ms later it never failed in 70 starts.)
+    if (savedWindow.fullscreen) {
+      setTimeout(() => {
+        if (!win.isDestroyed()) win.setFullScreen(true);
+      }, 250);
+    }
   });
   if (process.platform !== 'darwin') win.removeMenu();
 

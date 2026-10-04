@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { _electron as electron, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { ElectronApplication } from '@playwright/test';
 import WebSocket from 'ws';
+import { launchApp, removeProfilesAfterEach } from './profile';
 
 // ELECTRON_RUN_AS_NODE (set by some hosts/CI) would make Electron start as plain Node.
 function cleanEnv(): Record<string, string> {
@@ -13,6 +14,8 @@ function cleanEnv(): Record<string, string> {
     ),
   );
 }
+
+removeProfilesAfterEach();
 
 const PORT = 47020;
 
@@ -82,7 +85,7 @@ class Client {
 // The Frames that the client gets show the shuttle of P2 (the number of the nodes grows with it: the ship, its panel).
 test('host (Level01): the client enters with its gas, leaves, comes back', async () => {
   test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
-  const app: ElectronApplication = await electron.launch({
+  const app: ElectronApplication = await launchApp({
     args: ['.', '--host-start', '--start-level=1', `--profile=e2e-p2-${Date.now() % 1e9}`],
     env: cleanEnv(),
   });
@@ -148,7 +151,7 @@ test('host (Level01): the client enters with its gas, leaves, comes back', async
 // and the client sees its own ship appear on its screen (the sprites grow with the ship and its panel).
 test('host (Level01) + the real client: its gas key makes P2 enter', async () => {
   test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
-  const host = await electron.launch({
+  const host = await launchApp({
     args: ['.', '--host-start', '--start-level=1', `--profile=e2e-p2h-${Date.now() % 1e9}`],
     env: cleanEnv(),
   });
@@ -159,7 +162,7 @@ test('host (Level01) + the real client: its gas key makes P2 enter', async () =>
     const hostTicks = (): Promise<number> => hostPage.evaluate(() => Number(document.documentElement.dataset['ticks'] ?? '0'));
     await expect.poll(hostTicks, { timeout: 30_000 }).toBeGreaterThan(40);
     await hostPage.waitForTimeout(1500);
-    client = await electron.launch({ args: ['.', '--join=127.0.0.1', `--profile=e2e-p2c-${Date.now() % 1e9}`], env: cleanEnv() });
+    client = await launchApp({ args: ['.', '--join=127.0.0.1', `--profile=e2e-p2c-${Date.now() % 1e9}`], env: cleanEnv() });
     const page = await client.firstWindow();
     await page.waitForSelector('canvas');
     const read = (k: string): Promise<string> => page.evaluate((key) => document.documentElement.dataset[key] ?? '', k);
