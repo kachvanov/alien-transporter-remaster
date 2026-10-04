@@ -6,7 +6,6 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T4.4 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
-| T4.7 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 | T4.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
@@ -23,7 +22,8 @@
 2. Mac ↔ Windows по Wi-Fi в обе стороны — инструкция в `docs/06-lan-testing.md` §4: на Windows `tools\net\windows-check.ps1`, с другой машины `npx tsx tools/net/host-probe.ts <ip>`. Посмотри запрос macOS про локальную сеть и окно Defender Firewall. Запиши автопоиск, кадры/с, КБ/с, ping, плавность на глаз.
 3. Потом снова `/orchestrate`: отвечу на вопрос о воротах, M4 стартует после «Всё ок».
 
-## Нужно проверить руками (T4.5)
+## Нужно проверить руками (T4.5, T4.7)
+- README.md: пройти по шагам на Mac и Windows 10 и сказать, что не совпало (имя приложения в списке «Локальная сеть» и в брандмауэре для portable, формулировки диалогов, `--tier=2x` через ярлык). Метки «[не проверено]» в README снять после проверки.
 - Открыть `dist/` dmg (пересобрать: `npm run build:mac`), перетащить в /Applications, запустить двойным кликом: Retina, звук, 120 FPS, save.json в `~/Library/Application Support/Alien Transporter Remaster/`, запрос Local Network при хостинге/подключении, LAN из собранной версии. Если «повреждено» после копирования с другой машины: `xattr -cr "/Applications/Alien Transporter Remaster.app"`.
 
 ## Нужно решить (T4.3)
@@ -142,3 +142,4 @@
 - 2026-10-04 очередь пуста: T4.2 и T4.6 заблокированы (человек), T4.4 и T4.7 ждут T4.6.
 - 2026-10-04 пользователь: выдал разрешение на запись экрана, поставил Rosetta 2, согласился поправить ORIGINAL_SWF (теперь `/Applications/Flash Games/alien-transporter.swf` в .claude/settings.json; DEFAULT_SWF в tools/extract/decompile.ts всё ещё старый — вне карточек). Windows-замер отложен.
 - 2026-10-04 T4.6 merged 909f596 (попытка 1, ветка влита после установки Rosetta; конфликт package.json разрешён оркестратором; 1132 теста). `npm run build:win` собрал `dist/Alien Transporter Remaster Setup 0.1.0.exe` и `Alien Transporter Remaster 0.1.0.exe` (по 233 МБ). Проверка на Windows 10 (SmartScreen, фаервол, LAN, F3-бюджеты) не выполнена — ждёт пользователя. Win-сборка без gfx/3x. Запущены T4.4 и T4.7.
+- 2026-10-04 T4.7 merged 70fa5d7 (попытка 1; 1132 теста). README.md на русском, непроверенное помечено. Ворота M4 закрывать после проверки README, T4.4 и T4.2. Вне задачи: `.env.example` содержит старый путь SWF `AlienTransporter.swf` (реально `alien-transporter.swf`).
