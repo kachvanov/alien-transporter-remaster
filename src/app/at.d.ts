@@ -62,6 +62,11 @@ export interface AtApi {
   platform: string;
   app: {
     flags: DevFlags;
+    /**
+     * Tiers whose atlas files are really in the build (T4.4; the Windows build has no `3x`), null when main could not tell.
+     * The automatic choice of the tier takes only these.
+     */
+    tiersOnDisk: TierName[] | null;
     toggleFullscreen(): Promise<void>;
     isFullscreen(): Promise<boolean>;
     /** Only whitelisted hosts are opened; resolves to false otherwise. */

@@ -1,4 +1,4 @@
-// Not a port. F3 overlay: FPS, nodes, frame bytes, tickCost, sprites (docs/01-architecture.md §5).
+// Not a port. F3 overlay: FPS, nodes, frame bytes, tickCost, sprites, tier, VRAM estimate (docs/01-architecture.md §5).
 // Plain DOM text on top of the canvas: it costs nothing when hidden and does not touch the WebGL scene.
 
 export interface PerfInfo {
@@ -10,6 +10,10 @@ export interface PerfInfo {
   sprites: number;
   skipped: number;
   tier: string;
+  /** Estimate of the video memory of the loaded atlas pages (sum of w*h*4), MB (T4.4). */
+  vramMB: number;
+  /** Atlas pages in memory. */
+  atlasPages: number;
   /** Renderer interpolation factor of the last frame. */
   alpha: number;
 }
@@ -57,7 +61,8 @@ export class PerfOverlay {
           `frame      ${info.frameBytes} B\n` +
           `tickCost   ${info.tickCostMs.toFixed(2)} ms\n` +
           `interp     ${info.alpha.toFixed(2)}\n` +
-          `tier       ${info.tier}`;
+          `tier       ${info.tier}\n` +
+          `vram       ${info.vramMB.toFixed(0)} MB (${info.atlasPages} pages)`;
       }
     }
   }

@@ -25,6 +25,8 @@ export interface PerfEntry {
   parts: Record<string, number>;
   frameBytesMean: number;
   frameBytesMax: number;
+  /** Estimate of the video memory of the loaded atlas pages (sum of w*h*4), MB (T4.4). */
+  vramMB: number;
   /** Working set of all processes of the application, MB (added by the main process). */
   ramMB: number;
 }
@@ -41,6 +43,7 @@ const NUMBER_KEYS = [
   'tickMean',
   'frameBytesMean',
   'frameBytesMax',
+  'vramMB',
 ] as const;
 
 /** Keeps the known numeric fields of a line from the renderer (what is not a finite number becomes 0). */
@@ -98,6 +101,7 @@ export function summarizePerf(aEntries: readonly PerfEntry[]): Record<string, Ra
     tickP95: range(aEntries.map((e) => e.tickP95)),
     tickMax: range(aEntries.map((e) => e.tickMax)),
     frameBytesMax: range(aEntries.map((e) => e.frameBytesMax)),
+    vramMB: range(aEntries.map((e) => e.vramMB)),
     ramMB: range(aEntries.map((e) => e.ramMB)),
   };
 }
