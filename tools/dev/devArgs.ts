@@ -3,7 +3,7 @@
 // so the documented `npm run dev -- --start-level=Level01` needs this split. Pure: unit-tested in tests/unit/dev-args.test.ts.
 
 /** App flags that take a value: `--name=value` or `--name value`. */
-const VALUE_FLAGS: readonly string[] = ['start-level', 'profile', 'tier'];
+const VALUE_FLAGS: readonly string[] = ['start-level', 'profile', 'tier', 'join'];
 /** App flags without a value. */
 const BOOLEAN_FLAGS: readonly string[] = ['classic'];
 
