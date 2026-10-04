@@ -5,6 +5,8 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
+| T4.4 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
+| T4.7 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 | T4.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
@@ -29,7 +31,6 @@
 
 ## Заблокировано
 - T4.2 (сверка с Ruffle), попытка 1: инструменты готовы (`npm run shot`, `visual:compare`, `ruffle:ref`, `parity:behavior`; ветка `worktree-agent-af190853285362e42`, коммит 0d2e97b, не смержена, check зелёный 1092), но эталоны Ruffle снять нельзя: macOS ждёт разрешения «Screen & System Audio Recording» для Claude (диалог висит на экране). Нужно: разрешить (или снимать вручную Cmd+Shift+4 → Space → клик по окну Ruffle, PNG в `tests/visual/reference/<сцена>.png`), затем пройти меню в Ruffle мышью и по каждой сцене выполнить `npm run ruffle:ref -- --scene=<имя>` (main-menu, credits, select-level, garage, pause, level-complete, level01..03 реалистично). Для колонки «оригинал» в docs/05 §5 — запись Ruffle `--frame-rate 35`, сценарии 1–7. Потом попытка 2 (разбор расхождений).
-- T4.6 (сборка Windows), попытка 1: конфиг, иконка, prepack и win-unpacked готовы (ветка `worktree-agent-a98aebb9fbb485de4`, коммит 02ba823, не смержена); NSIS/portable .exe не собрались — на Маке нет Rosetta 2 (makensis x86_64). Нужно: `softwareupdate --install-rosetta --agree-to-license` (sudo) и затем `ORIGINAL_SWF="/Applications/Flash Games/alien-transporter.swf" npm run build:win`; либо решение по запасному пути Б (GitHub Actions). T4.4 ждёт (правит тот же electron-builder.yml).
 
 ## Журнал
 - 2026-09-29 — пакет документов и настройка оркестрации созданы (Opus). Следующая задача: T0.1.
@@ -139,3 +140,5 @@
 - T4.2 вне задачи: (1) AntG.elapsed init 0.02, а по замеру расход топлива соответствует ≈0.028 с/тик (fuelRate 0.025) — сверить с Ruffle в метрике «пустой бак»; (2) чёрная виньетка по краям экранов — по-видимому оригинальный кадр symbol1445/layerMenuBG, не баг рендера (подтвердит эталон); (3) tests/visual/reference/*.png содержат скриншоты оригинала, в .gitignore не внесены — внести до публикации репозитория; (4) `npm run shot` открывает окно видимым (скрытие требует правки electron/main.ts); сцены level-complete нет.
 - 2026-10-04 T4.3 merged 900423d (попытка 1; 1131 тест). Золотые хэши бит-в-бит, оптимизации: PhysicalCell.clearFixtures, переиспользование b2AABB, слитый буфер PositionTable, AntEntity.updateBounds; `--perf-log`, `tools/perf/profile.ts`. Node: Level11 p95 0.676→0.580 мс, Level13 0.519→0.441. Для T4.4: `ramMB` всех процессов ≈ 1.5 ГБ при бюджете M5 ≤ 1.2 ГБ. Отметка: перед T4.2 (попытка 2) — T4.2 правит те же PhysicalMap/PhysicalCell/FrameWriter при правке порта.
 - 2026-10-04 очередь пуста: T4.2 и T4.6 заблокированы (человек), T4.4 и T4.7 ждут T4.6.
+- 2026-10-04 пользователь: выдал разрешение на запись экрана, поставил Rosetta 2, согласился поправить ORIGINAL_SWF (теперь `/Applications/Flash Games/alien-transporter.swf` в .claude/settings.json; DEFAULT_SWF в tools/extract/decompile.ts всё ещё старый — вне карточек). Windows-замер отложен.
+- 2026-10-04 T4.6 merged 909f596 (попытка 1, ветка влита после установки Rosetta; конфликт package.json разрешён оркестратором; 1132 теста). `npm run build:win` собрал `dist/Alien Transporter Remaster Setup 0.1.0.exe` и `Alien Transporter Remaster 0.1.0.exe` (по 233 МБ). Проверка на Windows 10 (SmartScreen, фаервол, LAN, F3-бюджеты) не выполнена — ждёт пользователя. Win-сборка без gfx/3x. Запущены T4.4 и T4.7.
