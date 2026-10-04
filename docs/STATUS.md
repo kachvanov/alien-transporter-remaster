@@ -6,7 +6,6 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T2.8 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
-| T2.4 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -17,6 +16,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
+- (не блокирует) Свет: конусы сенсоров в Level13 и Level14 рядом с Ruffle (форма, градиент зелёный→красный, краснеет ли при касании шаттлом): `npm run dev -- --start-level=Level13`.
 - (не блокирует) В Electron (`npm run dev`): музыка в меню и в игре; переключатель Quality в паузе (nearest даёт «ретро-вид»); экран конца уровня с миссиями (кнопка получения награды).
 
 ## Заблокировано
@@ -62,8 +62,10 @@
 - 2026-10-04 T2.2 merged 28186a9 (попытка 1; без конфликтов; check зелёный: 834 теста)
 - 2026-10-04 T2.2 и T2.3 проверены пользователем вручную (огонь, дым, снег, взрыв бочки, портал совпадают с Ruffle)
 - 2026-10-04 T2.7 merged 536aa73 (попытка 1; без конфликтов; check зелёный: 857 тестов)
+- 2026-10-04 T2.4 merged 0b1615d (попытка 1; конфликт GameState.ts — только шапка с двумя STUB-комментариями, разрешён; check зелёный: 877 тестов, e2e 8/8)
 
 ## Заметки оркестратора
+- T2.4: AntLight/AntLightEnvironment в src/engine/lights/, LightRenderer в src/render/ (ext LIGHT, texId 0xFFFF), IFrameWritable.writesOwnChildren. Альфа-маски через AssetRegistry.loadAlphaMasks. bake() вызывается из AntLightEnvironment.update() по снимку прошлого draw (не «в draw», как я писал раньше) — в тестах tick() нужен шаг G.gameState.draw(camera). Блюр = 0.41×blur Flash (оценка), игра использует blur=0. Вне задачи: ext DEBUG_LINES не рисуется в PixiRenderer. STUB(T2.4) нет.
 - T2.7: MissionManager/ContentManager читают missions.json (не XML); fromObject(null) игнорируется (в оригинале TypeError); MissionData.resetIds() в конструкторе MissionManager (id — ключи сейва). ContentManager.toObject/fromObject готовы для T2.8. Music.init вызывает GameState.create. Quality в паузе: GameState.setFancyQuality → G.onQuality → воркер {t:'quality',smooth} → SimClient → AtlasLoader.setSmooth. T3: клиент должен держать локальный Quality и не принимать {t:'quality'} от хоста. game-passengers.test: spawnedAt 393→382 (меню зовёт randomRangeInt, PRNG сдвинулся). Ground.body/stopperList не сбрасываются при смене уровня внутри процесса (только GameLoop.init).
 - T2.2: elements/ (PhysicalMap, ElementSimulation, Particle) портированы, STUB(T2.2) нет. destroy() у ElementSimulation/Particle/PhysicalMap в оригинале всегда бросает RangeError — в порте не бросает (игра не вызывает). Отладочный draw не портирован. Баги оригинала сохранены: Particle.kill() не сбрасывает _currentMapIndex; getIndexByPosition оборачивается при x<0. Масляные частицы у сенсора слегка гасят скорость ракеты (оригинальное поведение).
 - T2.3: AntEffectManager читает JSON (loadEmbeddedXML из AssetRegistry), PrepareState и GameLoop.init регистрируют эффекты. Эффекты тянут AntMath.random → тайминги level01-playthrough сдвинулись (поставки 683/969, портал 1283, экран 1367; бюджет 2300). Правки тестовой инфраструктуры: level01-bot/level01-deliver, helpers/assets.ts (возможен конфликт с T2.2). Вне задачи: Ground.body/stopperList — статики, не сбрасываются между играми (GameLoop.init сбрасывает, Anthill/startGame нет) — сбрасывать в LevelCore/GameState (T2.7/T2.8). fancyEffects=false по умолчанию → lowQuality=true, blend у частиц сброшен, как в оригинале. Golden T4.1 снимать после мержа всех задач, меняющих PRNG.

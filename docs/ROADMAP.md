@@ -44,7 +44,7 @@
 | [x] | T2.1 | Системы Magnet/Missile/Ragdoll/Sensor/ObjectSpawn/Menu + оставшиеся views | M1 | L |
 | [x] | T2.2 | elements/: PhysicalMap + ElementSimulation (дым/огонь/нефть) | M1 | M |
 | [x] | T2.3 | Эффекты частиц (AntEffect*) + StaticEffect | M1 | M |
-| [ ] | T2.4 | Living lights: AntLight/Environment (лучи, касания, альфа-маски) + рендер | M1 | M |
+| [x] | T2.4 | Living lights: AntLight/Environment (лучи, касания, альфа-маски) + рендер | M1 | M |
 | [x] | T2.5 | ui/ (все view) + полный Label | M1 | L |
 | [x] | T2.6 | screens/ + PrepareState + переходы, без спонсорских элементов | T2.5 | L |
 | [x] | T2.7 | Миссии, контент и анлоки, MusicManager/Sounds, пауза и настройки, Casual/Hardcore | T2.6 | M |
