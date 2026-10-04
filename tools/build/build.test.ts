@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync, utimesSync, mkdirSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { findIconFrame, iconIsStale, iconsetEntries } from './make-icon';
+import { buildIco, findIconFrame, iconIsStale, iconsetEntries, ICO_SIZES } from './make-icon';
 import { decideExtract } from './prepack';
 
 describe('build tooling', () => {
@@ -11,6 +11,24 @@ describe('build tooling', () => {
     expect(e).toHaveLength(10);
     expect(e).toContainEqual({ name: 'icon_512x512@2x.png', px: 1024 });
     expect(e).toContainEqual({ name: 'icon_16x16.png', px: 16 });
+  });
+
+  it('buildIco writes a valid ICO directory of PNG entries', () => {
+    const png = (n: number): Buffer => Buffer.alloc(n, 7);
+    const ico = buildIco([
+      { px: 16, png: png(10) },
+      { px: 256, png: png(20) },
+    ]);
+    expect(ico.readUInt16LE(0)).toBe(0);
+    expect(ico.readUInt16LE(2)).toBe(1);
+    expect(ico.readUInt16LE(4)).toBe(2);
+    expect(ico.readUInt8(6)).toBe(16); // first width
+    expect(ico.readUInt8(6 + 16)).toBe(0); // 256 is stored as 0
+    expect(ico.readUInt32LE(6 + 8)).toBe(10); // size of image 1
+    expect(ico.readUInt32LE(6 + 12)).toBe(6 + 32); // offset of image 1
+    expect(ico.readUInt32LE(6 + 16 + 12)).toBe(6 + 32 + 10); // offset of image 2
+    expect(ico.length).toBe(6 + 32 + 10 + 20);
+    expect(ICO_SIZES).toContain(256);
   });
 
   it('findIconFrame resolves the 3x tier of the symbol', () => {

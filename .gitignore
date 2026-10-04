@@ -33,6 +33,7 @@ playwright-report/
 # OS
 .DS_Store
 
-# generated macOS icon (derived from the original art; made by tools/build/make-icon.ts)
+# generated icons (derived from the original art; made by tools/build/make-icon.ts)
 /resources/icon.icns
+/resources/icon.ico
 /resources/icon.iconset/
