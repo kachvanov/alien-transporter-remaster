@@ -5,7 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| FIX-2 (persistence F2 flaky) | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
+| FIX-4 (e2e profile длиннее 16 символов молча идёт в общую userData) | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -148,3 +148,5 @@
 - 2026-10-04 по просьбе пользователя заведена T5.1 (M5, бэклог): клиент в сети не может ничего нажимать в меню (меню ведёт хост; подтверждено docs/03 и README), кнопки должны выглядеть недоступными. Запуск — по команде пользователя.
 - 2026-10-04 после FIX(M3) 2b4167a пересобраны dmg (386 МБ) и Windows exe (Setup и portable, по 244 МБ, коммит сборки e079392). Пошаговый замер Windows (память/FPS) выдан пользователю в чате, результат — `summary` из perf-l11.json / perf-l13.json. Запущены FIX-2 (persistence F2 нестабилен) и FIX-3 (DEFAULT_SWF → alien-transporter.swf); после FIX-3 оркестратор правит пути в CLAUDE.md и docs.
 - 2026-10-04 FIX-3 merged (попытка 1; 1156 тестов): DEFAULT_SWF и .env.example → alien-transporter.swf, добавлен тест порядка поиска. Пути в CLAUDE.md и docs/00,01,02, T4.2 поправлены оркестратором. Отчёт исполнителя пришёл пустым («placeholder») — принято по проверке диффа и check.
+- 2026-10-04 FIX-2 merged (попытка 1; 1156 тестов): причина нестабильности F2-теста — `--profile=remaster<9 цифр>` = 17 символов > лимита 16 в `parseProfile`, приложение молча брало общую userData (настройки прошлых запусков и пользователя); тест переименован (`remast…`), в `launch()` добавлена защита. 10/10 прогонов. Отчёт исполнителя проверен по диффу.
+- 2026-10-04 FIX-4 запущен: те же длинные профили в net-verification (`e2e-n37h-` и др., 18 симв.), host-server (`e2e-client…`), online-p2 (`e2e-p2h-`, 17) → эти тесты шли на реальных данных пользователя (`~/Library/Application Support/Alien Transporter Remaster/`: settings.json там загрязнён — tier 3x, netPort 47020, classic35 false; save.json проверить). Девять e2e (host-server 2, net-verification 6, online-p2 1) падали в прогоне FIX-2 — сравнить после FIX-4.
