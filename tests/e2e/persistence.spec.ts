@@ -38,6 +38,13 @@ async function launch(profile: string, resize = true): Promise<Run> {
     await expect.poll(() => page.evaluate(() => [window.innerWidth, window.innerHeight]), { timeout: 10_000 }).toEqual([800, 600]);
   }
   run.userData = await app.evaluate(({ app: a }) => a.getPath('userData'));
+  // `--profile=` is accepted only up to 16 chars [A-Za-z0-9_-] (electron/flags.ts parseProfile). A longer name is ignored
+  // silently and the app uses the shared default userData: then settings.json / save.json of earlier runs (and of the
+  // user) leak into the test. A test must never run in that state.
+  if (!run.userData.endsWith(`-profile${profile}`)) {
+    await app.close();
+    throw new Error(`profile "${profile}" was not applied (max 16 chars); userData = ${run.userData}`);
+  }
   return run;
 }
 
@@ -139,7 +146,7 @@ test('the save and the settings survive kill -9 and a restart: Level02 is unlock
 });
 
 test('F2: the remaster settings panel; the keys do not reach the game; the changes are saved to settings.json', async () => {
-  const profile = `remaster${Date.now() % 1e9}`;
+  const profile = `remast${Date.now() % 1e9}`; // (<= 16 chars: see launch())
   const run = await launch(profile);
   try {
     const open = (): Promise<string | undefined> => run.page.evaluate(() => document.documentElement.dataset['settingsOpen']);
@@ -178,7 +185,7 @@ test('F2: the remaster settings panel; the keys do not reach the game; the chang
     expect(run.problems).toEqual([]);
   } finally {
     await run.app.close();
-    if (run.userData.includes('-profileremaster')) rmSync(run.userData, { recursive: true, force: true });
+    if (run.userData.includes('-profileremast')) rmSync(run.userData, { recursive: true, force: true });
   }
 });
 
