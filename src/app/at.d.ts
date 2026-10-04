@@ -19,6 +19,7 @@ export interface AtApi {
   app: {
     flags: DevFlags;
     toggleFullscreen(): Promise<void>;
+    isFullscreen(): Promise<boolean>;
     /** Only whitelisted hosts are opened; resolves to false otherwise. */
     openExternal(url: string): Promise<boolean>;
     quit(): void;
@@ -29,8 +30,9 @@ export interface AtApi {
     write(key: string, data: unknown): Promise<void>;
   };
   settings: {
+    /** The content of settings.json (src/app/settings.ts `parseSettings` reads it). */
     get(): Promise<Record<string, unknown>>;
-    /** Shallow merge of `patch` into the settings; resolves to the new settings. */
+    /** Shallow merge of the valid keys of `patch` (`sanitizeSettingsPatch`) into the settings; resolves to the new content. */
     set(patch: Record<string, unknown>): Promise<Record<string, unknown>>;
   };
 }

@@ -3,7 +3,7 @@
 // DEVIATION (docs/04-porting-guide.md section 4): AntCookie (SharedObject) is replaced by a synchronous
 // key/object store, `GameData.storage`. The object the original writes with `cookie.write("data", obj)`
 // is stored as is under SAVE_KEY. The simulation reads saves synchronously, so the real store is a cache
-// that PrepareState fills beforehand (T1.6 SaveStorage, T2.8 files); `GameData.storage` is set by the host.
+// that GameLoop.init fills beforehand (SaveStorage, the files of electron/save.ts); `GameData.storage` is set by the host.
 //
 // DEVIATION: SAVE_KEY is "alientransporter" (T1.9a card), the original constant is "AlienTransporter".
 
@@ -25,8 +25,8 @@ export interface GameSaveStorage {
 }
 
 /**
- * STUB(T1.6): the in-memory storage (the default of GameData.storage, also used by tests). T1.6 provides the
- * real SaveStorage (async, preloaded before PrepareState) and the host installs an adapter over it.
+ * The in-memory storage: the default of GameData.storage and the one the tests use. The simulation host installs
+ * CachedGameSaveStorage (src/sim/SaveStorage.ts) over the files of userData (electron/save.ts, T2.8) when the loop starts.
  * Objects are kept as a JSON round trip, like a real file would.
  */
 export class MemoryGameSaveStorage implements GameSaveStorage {

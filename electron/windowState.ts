@@ -49,3 +49,21 @@ export function sanitizeWindowState(raw: unknown): WindowState | null {
   if (width < MIN_WIDTH || height < MIN_HEIGHT || width > 16384 || height > 16384) return null;
   return { x, y, width, height };
 }
+
+/** The `window` key of settings.json: the bounds of the normal (not fullscreen) window and the fullscreen flag. */
+export interface WindowSettings {
+  bounds: Rect | null;
+  fullscreen: boolean;
+}
+
+/** Validates the `window` key of settings.json; unusable bounds give null (the default window), unusable flag false. */
+export function sanitizeWindowSettings(raw: unknown): WindowSettings {
+  const bounds = sanitizeWindowState(raw);
+  const fullscreen = typeof raw === 'object' && raw !== null && (raw as Record<string, unknown>)['fullscreen'] === true;
+  return { bounds, fullscreen };
+}
+
+/** The value of the `window` key of settings.json. */
+export function windowSettingsValue(bounds: Rect, fullscreen: boolean): Record<string, unknown> {
+  return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, fullscreen };
+}

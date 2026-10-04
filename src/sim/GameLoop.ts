@@ -86,6 +86,7 @@ export class GameLoop {
   private _sceneReset = true;
   private _recording: Recording | null = null;
   private _screenName: string | null = null;
+  private _frozen = false;
 
   /** The 1..20 level group of the frame header (see GameLoopOptions.levelGroup). */
   levelGroup: number;
@@ -195,6 +196,12 @@ export class GameLoop {
     if (this._anthill === null) {
       return 0;
     }
+    if (this._frozen) {
+      // (T2.8, the settings panel of the renderer is open) no ticks, and no catch-up burst when the time runs again
+      this._last = aNowMs;
+      this._acc = 0;
+      return 0;
+    }
     if (this._last < 0) {
       this._last = aNowMs;
       return 0;
@@ -214,7 +221,7 @@ export class GameLoop {
     return steps;
   }
 
-  /** Dev commands of the worker protocol (`{t:'cmd'}`). */
+  /** Commands of the worker protocol (`{t:'cmd'}`): `setTimeScale`, `freeze`, and the dev ones. */
   command(aName: string, aArgs: readonly unknown[] = []): void {
     const host = this._opts.host;
     switch (aName) {
@@ -227,6 +234,10 @@ export class GameLoop {
         }
         break;
       }
+      case 'freeze':
+        // The settings panel of the renderer (F2, T2.8) stops the simulation while it is open: `freeze` [true|false].
+        this._frozen = aArgs[0] === true;
+        break;
       case 'startLevel': {
         // `--start-level=Level01`: the dev entry, the level without the menu (GameState.debugStartLevel).
         const state = this._anthill?.state;
