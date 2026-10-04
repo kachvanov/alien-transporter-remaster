@@ -5,18 +5,18 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T2.8 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
 |---|---|
 | M1 | пройдено |
-| M2 | не достигнут |
+| M2 | ждёт проверки |
 | M3 | не достигнут |
 | M4 | не достигнут |
 
 ## Нужно от тебя
-—
+1. **Ворота M2:** `npm run dev` (без флага): пройди меню → уровни 1–3, загляни в гараж (цвет, клавиши), закрой и снова запусти игру — прогресс, цвет и клавиши сохранились? Сохранение только на Play (экран выбора уровня) и Back из гаража — как в оригинале.
+2. Нажми F2: панель настроек ремастера (Smooth motion 60/120 Гц, Graphics Auto/1x/2x/3x, Fullscreen, Network port) — выглядит в стиле игры, мышь и клавиатура работают?
 
 ## Заблокировано
 —
@@ -63,8 +63,10 @@
 - 2026-10-04 T2.7 merged 536aa73 (попытка 1; без конфликтов; check зелёный: 857 тестов)
 - 2026-10-04 T2.4 merged 0b1615d (попытка 1; конфликт GameState.ts — только шапка с двумя STUB-комментариями, разрешён; check зелёный: 877 тестов, e2e 8/8)
 - 2026-10-04 T2.4 проверена пользователем (конусы сенсоров Level13/14 верны); T2.7 проверена пользователем (музыка, Quality в паузе, экран конца уровня)
+- 2026-10-04 T2.8 merged c8eba01 (попытка 1; без конфликтов; check зелёный: 909 тестов, e2e 11/11). M2 — ждёт проверки пользователем
 
 ## Заметки оркестратора
+- T2.8: save.json — ОДНА карта key→объект (ключ "alientransporter" = GameData.SAVE_KEY), не <key>.json; electron/save.ts (атомарная запись, битый файл → .corrupt-<ts>.json), settings.json с debounce, window.json удалён (ключ window в settings.json). src/app/settings.ts: classic35, tier, lastJoinAddress, netPort (47020 по умолчанию, T3.x использует). Флаги --tier/--classic приоритетнее settings. F2 — панель настроек ремастера (DEVIATION), симуляция замораживается командой freeze в GameLoop. Смена tier — после перезапуска (T4.4 при желании). Прогресс сохраняется только на Play/Back из Garage — как в оригинале. Остальные STUB в src: STUB(T3.2)×2 (worker.ts, protocol.ts), STUB(T4.1)×1 (GameLoop.ts). grep STUB( не пуст из-за M3/M4 — критерий M2 трактуем как «нет STUB(T2.x)». Ручной проход всех 20 уровней не делался (headless: все 02–20 грузятся и идут 30 с).
 - T2.4: AntLight/AntLightEnvironment в src/engine/lights/, LightRenderer в src/render/ (ext LIGHT, texId 0xFFFF), IFrameWritable.writesOwnChildren. Альфа-маски через AssetRegistry.loadAlphaMasks. bake() вызывается из AntLightEnvironment.update() по снимку прошлого draw (не «в draw», как я писал раньше) — в тестах tick() нужен шаг G.gameState.draw(camera). Блюр = 0.41×blur Flash (оценка), игра использует blur=0. Вне задачи: ext DEBUG_LINES не рисуется в PixiRenderer. STUB(T2.4) нет.
 - T2.7: MissionManager/ContentManager читают missions.json (не XML); fromObject(null) игнорируется (в оригинале TypeError); MissionData.resetIds() в конструкторе MissionManager (id — ключи сейва). ContentManager.toObject/fromObject готовы для T2.8. Music.init вызывает GameState.create. Quality в паузе: GameState.setFancyQuality → G.onQuality → воркер {t:'quality',smooth} → SimClient → AtlasLoader.setSmooth. T3: клиент должен держать локальный Quality и не принимать {t:'quality'} от хоста. game-passengers.test: spawnedAt 393→382 (меню зовёт randomRangeInt, PRNG сдвинулся). Ground.body/stopperList не сбрасываются при смене уровня внутри процесса (только GameLoop.init).
 - T2.2: elements/ (PhysicalMap, ElementSimulation, Particle) портированы, STUB(T2.2) нет. destroy() у ElementSimulation/Particle/PhysicalMap в оригинале всегда бросает RangeError — в порте не бросает (игра не вызывает). Отладочный draw не портирован. Баги оригинала сохранены: Particle.kill() не сбрасывает _currentMapIndex; getIndexByPosition оборачивается при x<0. Масляные частицы у сенсора слегка гасят скорость ракеты (оригинальное поведение).

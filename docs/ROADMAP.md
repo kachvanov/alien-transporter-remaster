@@ -48,7 +48,7 @@
 | [x] | T2.5 | ui/ (все view) + полный Label | M1 | L |
 | [x] | T2.6 | screens/ + PrepareState + переходы, без спонсорских элементов | T2.5 | L |
 | [x] | T2.7 | Миссии, контент и анлоки, MusicManager/Sounds, пауза и настройки, Casual/Hardcore | T2.6 | M |
-| [ ] | T2.8 | Сохранения и настройки (`save.json`/`settings.json`), Classic 35 fps, тир графики | T2.7 | M |
+| [x] | T2.8 | Сохранения и настройки (`save.json`/`settings.json`), Classic 35 fps, тир графики | T2.7 | M |
 
 T2.1–T2.5 идут параллельно (2–3 агента). T2.1 может временно опираться на `STUB(T2.3)` для эффектов.
 
