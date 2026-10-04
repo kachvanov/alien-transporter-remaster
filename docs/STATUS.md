@@ -6,7 +6,7 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T4.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
-| T4.6 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
+| T4.2 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -26,7 +26,7 @@
 - Открыть `dist/` dmg (пересобрать: `npm run build:mac`), перетащить в /Applications, запустить двойным кликом: Retina, звук, 120 FPS, save.json в `~/Library/Application Support/Alien Transporter Remaster/`, запрос Local Network при хостинге/подключении, LAN из собранной версии. Если «повреждено» после копирования с другой машины: `xattr -cr "/Applications/Alien Transporter Remaster.app"`.
 
 ## Заблокировано
-—
+- T4.6 (сборка Windows), попытка 1: конфиг, иконка, prepack и win-unpacked готовы (ветка `worktree-agent-a98aebb9fbb485de4`, коммит 02ba823, не смержена); NSIS/portable .exe не собрались — на Маке нет Rosetta 2 (makensis x86_64). Нужно: `softwareupdate --install-rosetta --agree-to-license` (sudo) и затем `ORIGINAL_SWF="/Applications/Flash Games/alien-transporter.swf" npm run build:win`; либо решение по запасному пути Б (GitHub Actions). T4.4 ждёт (правит тот же electron-builder.yml).
 
 ## Журнал
 - 2026-09-29 — пакет документов и настройка оркестрации созданы (Opus). Следующая задача: T0.1.
@@ -128,3 +128,5 @@
 - 2026-10-04 по указанию пользователя M4 стартует без финальной приёмки M3 (ворота M3 остаются `ждёт проверки`, ручная проверка Mac ↔ Windows идёт параллельно; найденные проблемы — как FIX). Запущены T4.1 и T4.5 (T4.4/T4.6 правят тот же electron-builder.yml — после T4.5; T4.3 — после T4.1; T4.2 требует эталонов из Ruffle).
 - 2026-10-04 T4.5 merged 0b2b11d (попытка 1; 1080 тестов). Автоматическая часть выполнена (dmg 386 МБ, ad-hoc подпись, Info.plist); ручная установка/LAN — в «Нужно проверить руками». Отклонение: в package.json добавлен productName (без него userData = alien-transporter-remaster; dev-прогресс из старой папки не подхватится). Подпись через afterPack, а не afterSign. Запущена T4.6.
 - T4.5 вне задачи: путь SWF по умолчанию `/Applications/Flash Games/AlienTransporter.swf` (и в .claude/settings.json ORIGINAL_SWF, и DEFAULT_SWF в tools/extract/decompile.ts) не существует — реальный файл `alien-transporter.swf`; `npm run extract` без явной ORIGINAL_SWF падает. Требует решения пользователя (settings.json — не трогаю).
+- 2026-10-04 T4.6 BLOCKED (нет Rosetta 2 для makensis; нужен sudo пользователя) — ветка оставлена, worktree удалён. Запущена T4.2.
+- T4.6 → T4.4: авто-выбор тира (src/render/atlasMath.ts availableTiers) смотрит в manifest, а не в файлы сборки: на Windows 4K (≥1500 физ. px) выберется 3x, которого в сборке нет → 404. Обход: `--tier=2x`. В T4.4 авто-выбор должен учитывать реально найденные на диске тиры.
