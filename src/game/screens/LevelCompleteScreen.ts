@@ -3,8 +3,6 @@
 // DEVIATION: the original reads and writes the fields `firstMissionData`, `secondMissionData`, `firstMissionView` and
 // `secondMissionView` by name (`this[param1 + "Data"]`); `missionData()`/`missionView()` below do the same lookup
 // with the typed fields.
-// DEVIATION: the MissionManager is the stub of T2.7 (no missions): getNewMission() gives null and the mission rows
-// are not made, as the original does for a null mission.
 
 import { AntActor } from '../../engine/core/AntActor';
 import type { AntButton } from '../../engine/core/AntButton';

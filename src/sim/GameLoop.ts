@@ -45,6 +45,8 @@ export interface HostApi {
   /** A Frame of a tick that `pump()` made (the buffer is the callee's). */
   onFrame(buf: ArrayBuffer): void;
   openExternal(url: string): void;
+  /** The Quality switch of the pause (T2.7): the renderer sets the filter of the atlas textures (`{t:'quality'}`). */
+  onQuality?(smooth: boolean): void;
   log(level: SimLogLevel, msg: string): void;
 }
 
@@ -140,6 +142,8 @@ export class GameLoop {
 
     // AntG.log of the original writes to the debug console; here it goes to the log of the host.
     AntG.log = (aMessage: string, aType = 'data'): void => opts.host.log(aType === 'error' ? 'error' : 'info', aMessage);
+    // Before the Anthill: its first state is created at once and the main menu loads the save (the Quality switch).
+    G.onQuality = (smooth) => opts.host.onQuality?.(smooth);
     this._anthill = new Anthill(opts.initialState ?? PrepareState, false, {
       onRender: () => this.renderFrame(),
     });
@@ -292,7 +296,7 @@ export class GameLoop {
       debugLines = this.collectDebugLines();
     }
 
-    // STUB(T2.7): the music is not listed (MusicManager.manager does not exist yet): collectFrameAudio(sounds, G.music.manager, G.music.mute).
+    const music = G.music ?? null; // null until the GameState has run G.init()
     this._frame = (this._writer as FrameWriter).write({
       root: state.defGroup,
       camera,
@@ -301,7 +305,7 @@ export class GameLoop {
       levelGroup,
       tickCost: this._tickCost,
       sceneReset: reset,
-      audio: collectFrameAudio(AntG.sounds),
+      audio: collectFrameAudio(AntG.sounds, music != null ? music.manager : null, music != null ? music.mute : false),
       debugLines,
     });
   }

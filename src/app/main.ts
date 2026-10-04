@@ -74,6 +74,7 @@ async function bootstrap(): Promise<void> {
         console.info(`[sim] ${sim.framesPerSecond.toFixed(1)} frames/s, ${buffer.byteLength} bytes`);
       }
     },
+    onQuality: (smooth) => atlas.setSmooth(smooth),
     onReady: () => {
       if (flags.startLevel !== null) sim.command('startLevel', [flags.startLevel]);
     },

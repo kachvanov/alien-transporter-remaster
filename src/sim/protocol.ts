@@ -27,5 +27,7 @@ export type SimOut =
   /** DEVIATION: request of a save key (the card lists only `save`/`saveLoaded`); the answer is `saveLoaded`. */
   | { t: 'saveLoad'; key: string }
   | { t: 'openExternal'; url: string }
+  /** The Quality switch of the pause: `smooth` is `linear` (true) or `nearest` (false) filtering of the atlases. */
+  | { t: 'quality'; smooth: boolean }
   | { t: 'log'; level: SimLogLevel; msg: string }
   | { t: 'ready' };

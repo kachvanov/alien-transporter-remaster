@@ -841,7 +841,7 @@ describe.skipIf(!hasAssets)('Level01 (seed 12345)', () => {
 
     expect(spawnedAt).toBeGreaterThanOrEqual(expected - 1);
     expect(spawnedAt).toBeLessThanOrEqual(expected + 1);
-    expect(spawnedAt).toBe(393); // the reference of the seed 12345
+    expect(spawnedAt).toBe(382); // the reference of the seed 12345 (393 before T2.7: the menu theme takes a random number)
     expect(manager.availPassengers).toBe(49);
     expect(manager.currentTime).toBeGreaterThan(14); // reset again to 15 + random(5, 10), minus a little
     // the newcomer stands at a spawn point of a station and walks to the key point of it

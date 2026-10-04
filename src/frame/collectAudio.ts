@@ -19,7 +19,7 @@ export function panToI8(aPan: number): number {
 
 /**
  * Takes the oneShots of the tick out of `aSounds` and lists its live channels. `aMusic` is the
- * AntSoundManager of the MusicManager (`G.music.manager`; STUB(T2.7): null until it is ported): its
+ * AntSoundManager of the MusicManager (`G.music.manager`; null before the game state has made it): its
  * first live channel is the music track of the header. `aMusicMute` is `G.music.mute`.
  */
 export function collectFrameAudio(

@@ -25,6 +25,8 @@ export interface SimClientOptions {
   /** Default: the module worker `src/sim/worker.ts`. */
   createWorker?: () => WorkerLike;
   onReady?: () => void;
+  /** The Quality switch of the pause: `smooth` true = `linear` filtering of the atlas textures, false = `nearest`. */
+  onQuality?: (smooth: boolean) => void;
   onLog?: (level: 'info' | 'warn' | 'error', msg: string) => void;
   /** Clock for the frame counter, ms (default `performance.now()`). */
   now?: () => number;
@@ -123,6 +125,9 @@ export class SimClient {
         break;
       case 'openExternal':
         at.app.openExternal(aMsg.url).catch((e: unknown) => this.log('error', 'openExternal failed: ' + String(e)));
+        break;
+      case 'quality':
+        this._opts.onQuality?.(aMsg.smooth);
         break;
       case 'log':
         this.log(aMsg.level, aMsg.msg);

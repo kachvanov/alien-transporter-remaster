@@ -2,7 +2,6 @@
 //
 // STUB(T2.4): AntLightEnvironment (living lights). The stand-in has only `add()` (Factory.makeShuttle) and is
 // not added to the state either.
-// STUB(T2.7): `Music.init()` (the music is MusicManager, a stub).
 //
 // DEVIATION: JointEditor (`open joint` command) is not ported; DebugSystem (Config.DEBUG_MODE is false) neither.
 // DEVIATION: `debugStartLevel()` is the dev entry of the card T1.9e (`--start-level=LevelNN`): it starts a level
@@ -29,6 +28,7 @@ import { SmokeParticleView } from '../views/SmokeParticleView';
 import { ShuttleView } from '../views/ShuttleView';
 import { PassengerTag } from '../tags/PassengerTag';
 import { ShuttleTag } from '../tags/ShuttleTag';
+import { Music } from '../Music';
 import { Sounds } from '../Sounds';
 import { ControlSystem } from '../systems/ControlSystem';
 import { GoalSystem } from '../systems/GoalSystem';
@@ -123,7 +123,7 @@ export class GameState extends AntState {
     AntG.sounds.mute = G.gameData.muteSounds;
     G.music.mute = G.gameData.muteMusic;
     Sounds.init();
-    // STUB(T2.7): Music.init();
+    Music.init();
     Fonts.init();
     this.layerBack = new AntEntity();
     this.layerBackEffects = new AntEntity();
@@ -256,6 +256,11 @@ export class GameState extends AntState {
   };
 
   setFancyQuality(aValue: boolean): void {
+    // Not in the original: the texture filter of the renderer follows the switch (see G.onQuality).
+    if (G.onQuality != null) {
+      G.onQuality(aValue);
+    }
+
     const layers = [
       'layerBack',
       'layerBackEffects',
