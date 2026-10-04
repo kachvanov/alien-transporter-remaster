@@ -28,7 +28,7 @@
 - Работу ведёт оркестратор (`/orchestrate`, `.claude/skills/orchestrate/SKILL.md`). Исполнители — субагенты `porter` (`.claude/agents/porter.md`), каждый в своём git worktree в `.claude/worktrees/…`, в своей ветке.
 - **`docs/ROADMAP.md` и `docs/STATUS.md` редактирует только оркестратор.** Исполнитель не трогает их, `docs/tasks/**`, `CLAUDE.md` и `.claude/**`.
 - В worktree папки `node_modules`, `vendor`, `reference`, `assets`, `build` — симлинки на основную копию, общие для всех. Не удалять, `npm ci` не запускать.
-- Путь к SWF берётся из переменной окружения `ORIGINAL_SWF`: она задана в `.claude/settings.json`; запасные варианты — `.env`, затем путь по умолчанию `/Applications/Flash Games/AlienTransporter.swf`.
+- Путь к SWF берётся из переменной окружения `ORIGINAL_SWF`: она задана в `.claude/settings.json`; запасные варианты — `.env`, затем путь по умолчанию `/Applications/Flash Games/alien-transporter.swf`.
 - Любые инструменты (tsc, eslint, vitest, playwright, electron-builder) обязаны игнорировать `.claude/**`: там лежат worktree других агентов.
 
 ## Команды

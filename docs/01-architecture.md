@@ -37,7 +37,7 @@
 ```
 CLAUDE.md
 docs/                         спецификация и карточки задач
-.env.example                  ORIGINAL_SWF=/Applications/Flash Games/AlienTransporter.swf
+.env.example                  ORIGINAL_SWF=/Applications/Flash Games/alien-transporter.swf
 reference/                    (gitignored, генерируется) as3/ — декомпиляция; data/ — XML из binaryData
 vendor/original/              (gitignored) копия SWF
 vendor/jpexs/                 (gitignored) JPEXS 26.3.0

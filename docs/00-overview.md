@@ -4,7 +4,7 @@
 
 Ремастер Flash-игры **Alien Transporter v1.3.0 (Feb 2, 2016)**. Автор — Anton Karlov (Ant.Karlov), спонсор — Armor Games. Игрок пилотирует ракетный шаттл в пещерах: развозит инопланетян-пассажиров между станциями, заправляется, собирает монеты. Мешают падающие камни, ракетные турели и взрывающиеся бочки. Есть 20 уровней (4, 8, 12, 16 и 20 — бонусные), звёзды, 19 миссий-квестов, гараж с кораблями и цветами, режимы Casual/Hardcore и игра вдвоём на одной клавиатуре.
 
-Исходник — `AlienTransporter.swf` (6.5 МБ). У пользователя он лежит в `/Applications/Flash Games/AlienTransporter.swf`, путь задаётся в `.env` (`ORIGINAL_SWF`).
+Исходник — `AlienTransporter.swf` (6.5 МБ). У пользователя он лежит в `/Applications/Flash Games/alien-transporter.swf`, путь задаётся в `.env` (`ORIGINAL_SWF`).
 
 Целевые машины:
 - MacBook Pro M5 Pro, 24 ГБ, экран 3024×1964, 120 Гц (ProMotion);

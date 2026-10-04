@@ -5,7 +5,7 @@
 ## Предпосылки
 
 - Java 17 (`/opt/homebrew/opt/openjdk@17`), ffmpeg (`/opt/homebrew/bin/ffmpeg`), Node ≥ 22 — у пользователя уже установлены.
-- `.env`: `ORIGINAL_SWF=/Applications/Flash Games/AlienTransporter.swf`. Скрипт копирует SWF в `vendor/original/AlienTransporter.swf` и проверяет SHA-256 (фиксируется при первом запуске в `tools/extract/swf.sha256`).
+- `.env`: `ORIGINAL_SWF=/Applications/Flash Games/alien-transporter.swf`. Скрипт копирует SWF в `vendor/original/AlienTransporter.swf` и проверяет SHA-256 (фиксируется при первом запуске в `tools/extract/swf.sha256`).
 - Все java-вызовы выполняются с `-Djava.awt.headless=true`.
 
 ## Шаг 1. JPEXS (`tools/extract/get-jpexs.sh`)
