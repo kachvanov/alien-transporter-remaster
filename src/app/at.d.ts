@@ -1,5 +1,5 @@
 // Types of `window.at`: the API that electron/preload.ts exposes to the renderer (docs/01-architecture.md §9).
-// Net and discovery parts arrive with M3 (T3.x).
+// The net part arrives with M3 (T3.x); discovery is T3.5.
 
 export type TierName = '1x' | '2x' | '3x';
 
@@ -13,6 +13,27 @@ export interface DevFlags {
   classic: boolean;
 }
 
+/** What a host tells about itself in the LAN beacon (electron/net/discovery.ts; `game` and `proto` are added there). */
+export interface BeaconInfo {
+  buildHash: string;
+  hostName: string;
+  /** Port of the WebSocket server of the host. */
+  port: number;
+  status: 'waiting' | 'full';
+}
+
+/** A game found in the LAN (electron/net/discovery.ts). */
+export interface DiscoveredGame {
+  ip: string;
+  hostName: string;
+  port: number;
+  status: 'waiting' | 'full';
+  /** false: another build or protocol ("different version"). */
+  buildHashMatches: boolean;
+  /** Date.now() of the last beacon (main process clock). */
+  lastSeen: number;
+}
+
 export interface AtApi {
   /** `process.platform` of the main process: 'darwin' | 'win32' | ... */
   platform: string;
@@ -24,6 +45,16 @@ export interface AtApi {
     openExternal(url: string): Promise<boolean>;
     quit(): void;
     getLocalIPv4(): Promise<string[]>;
+  };
+  discovery: {
+    /** Host: beacon once a second; called again it only changes the info (e.g. status 'full'). */
+    startBeacon(info: BeaconInfo): Promise<void>;
+    stopBeacon(): Promise<void>;
+    /** Client: rejects with a readable message when the UDP port cannot be listened to. */
+    startScan(localBuildHash: string): Promise<void>;
+    stopScan(): Promise<void>;
+    /** The whole list on every change (at most 4 times a second). Returns the unsubscribe function. */
+    onUpdate(cb: (games: DiscoveredGame[]) => void): () => void;
   };
   save: {
     load(key: string): Promise<unknown>;

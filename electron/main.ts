@@ -1,10 +1,10 @@
 // Electron main process (docs/01-architecture.md §9): window, `app://assets/` protocol, IPC of window.at.
-import { networkInterfaces } from 'node:os';
 import { extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, Menu, net, protocol, screen, shell } from 'electron';
 import { resolveAssetFile } from './assetPath';
 import { encodeFlagsArg, parseDevFlags, parseProfile } from './flags';
+import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
 import { sanitizeSettingsPatch } from '../src/app/settings';
 import { JsonDocument } from './save';
 import {
@@ -196,14 +196,42 @@ function registerIpc(): void {
     }
   });
   ipcMain.on('app:quit', () => app.quit());
-  ipcMain.handle('app:local-ipv4', () => {
-    const list: string[] = [];
-    for (const infos of Object.values(networkInterfaces())) {
-      for (const i of infos ?? []) {
-        if (i.family === 'IPv4' && !i.internal && !i.address.startsWith('169.254.')) list.push(i.address);
-      }
+  ipcMain.handle('app:local-ipv4', () => getLocalIPv4());
+
+  // LAN discovery (T3.5). The list goes to the window that started the scan.
+  // (a beacon error repeats every second: every distinct message is logged once)
+  const seenErrors = new Set<string>();
+  const discovery = getDiscovery((e) => {
+    if (seenErrors.has(e.message)) return;
+    seenErrors.add(e.message);
+    console.warn('[discovery]', e.message);
+  });
+  let scanUnsubscribe: (() => void) | null = null;
+  ipcMain.handle('discovery:start-beacon', (_event, info: unknown) => {
+    const clean = sanitizeBeaconInfo(info);
+    if (clean === null) throw new Error('discovery: bad beacon info');
+    discovery.startBeacon(clean);
+  });
+  ipcMain.handle('discovery:stop-beacon', () => discovery.stopBeacon());
+  ipcMain.handle('discovery:start-scan', async (event, buildHash: unknown) => {
+    if (typeof buildHash !== 'string') throw new Error('discovery: bad build hash');
+    scanUnsubscribe?.();
+    const sender = event.sender;
+    scanUnsubscribe = discovery.onUpdate((games) => {
+      if (!sender.isDestroyed()) sender.send('discovery:update', games);
+    });
+    try {
+      await discovery.startScan(buildHash);
+    } catch (e) {
+      scanUnsubscribe();
+      scanUnsubscribe = null;
+      throw e;
     }
-    return list;
+  });
+  ipcMain.handle('discovery:stop-scan', () => {
+    scanUnsubscribe?.();
+    scanUnsubscribe = null;
+    discovery.stopScan();
   });
 
   ipcMain.handle('save:load', (_event, key: unknown) => (typeof key === 'string' ? saveDoc.get(key) : null));
@@ -244,6 +272,8 @@ void app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
 });
+
+app.on('will-quit', () => getDiscovery().dispose());
 
 app.on('window-all-closed', () => {
   app.quit();
