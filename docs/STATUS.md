@@ -6,7 +6,6 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T2.2 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
-| T2.3 | 1 | (worktree-agent-*) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -17,7 +16,7 @@
 | M4 | не достигнут |
 
 ## Нужно от тебя
-—
+- (не блокирует) Ручной осмотр эффектов рядом с Ruffle: снег в Level01, взрыв бочки в Level11, портал в конце уровня.
 
 ## Заблокировано
 —
@@ -58,8 +57,10 @@
 - 2026-10-01 T1.7 (плавность 120 Гц, classic 35 fps) и T1.8 (звук) проверены пользователем, всё ок
 - 2026-10-04 T2.1 merged a53a445 (попытка 1; check зелёный: 788 тестов)
 - 2026-10-04 T2.1 проверена пользователем вручную (Level08, Level11, Level13), всё хорошо
+- 2026-10-04 T2.3 merged 8e57469 (попытка 1; check зелёный: 817 тестов)
 
 ## Заметки оркестратора
+- T2.3: AntEffectManager читает JSON (loadEmbeddedXML из AssetRegistry), PrepareState и GameLoop.init регистрируют эффекты. Эффекты тянут AntMath.random → тайминги level01-playthrough сдвинулись (поставки 683/969, портал 1283, экран 1367; бюджет 2300). Правки тестовой инфраструктуры: level01-bot/level01-deliver, helpers/assets.ts (возможен конфликт с T2.2). Вне задачи: Ground.body/stopperList — статики, не сбрасываются между играми (GameLoop.init сбрасывает, Anthill/startGame нет) — сбрасывать в LevelCore/GameState (T2.7/T2.8). fancyEffects=false по умолчанию → lowQuality=true, blend у частиц сброшен, как в оригинале. Golden T4.1 снимать после мержа всех задач, меняющих PRNG.
 - T2.1: STUB(T2.4) остался: StubAntLight, SensorView.stubUpdateLight, SensorSystem.stubUpdateLight + список ShuttleNode, StubLightEnvironment.addLight. При мерже T2.4 брать их SensorView/GameState/AntLightEnvironment, в SensorSystem удалить stubUpdateLight и ShuttleNode. Исправление вне карточки: BasicModel.clearBodies/clearJoints null-safe (двойной destroy у MissileModel). Взрыв бочки: у шаттла нет Health, урон 0.2 только объектам с Health (как в оригинале). Пересчёт level01-playthrough: доставки 1118/1601, портал 1914, экран 1998, бюджет 2300 оставлен. sound.test.ts: период руления 35→30. Golden T4.1 снимать после мержа всех задач, меняющих список систем/плагинов. Проверить двойной destroy в других местах T1.9b.
 - Правка STATUS/ROADMAP: не писать текст через bash-heredoc без кавычек (`<<EOF`) — обратные кавычки в нём выполняются как команды (в T2.6 так запустился `npm run dev` под ELECTRON_RUN_AS_NODE=1, его вывод и трасса TypeError registerSchemesAsPrivileged попали в STATUS). Использовать Edit/Write либо `<<'EOF'`.
 - T2.6: MenuSystem портирован целиком в T2.6 (заглушку T2.1 не восстанавливать — в карточке T2.1 шаг 4 MenuSystem уже сделан). Экраны регистрирует screens/registerScreens.ts. GameState.gameScreen вместо DevGameScreen. --start-level → menu.makeScreenNow(GAME_SCREEN); без флага стартует главное меню. PrepareState — начальное состояние GameLoop. Остались STUB(T2.3) (AntEffectManager.loadEmbeddedXML, makeEffect) и STUB(T2.7) (MissionManager — T2.7 берёт свои missions/MissionData.ts и MissionManager.ts; MusicManager, ContentManager). T2.1: SensorSystem/MissileSystem добавлять на помеченные места GameState.addSystems(), потом пересчитать бюджет level01-playthrough (сейчас вторая доставка на 1640, портал 1971, экран завершения 2055, бюджет 2300). Ручной осмотр экранов рядом с Ruffle (меню, выбор уровня, гараж, Credits, пауза, завершение уровня) — пока не делался. Credits: BtnWesley_mc оставлена без ссылки, надпись ARMORGAMES зашита в арт. Вне задачи: GameLoop не зовёт requestSceneReset при смене экранов (проверить на 120 Гц, T4.2/T4.4); Assets.ts и tools/extract/whitelist.ts ещё перечисляют клипы спонсорских кнопок; muteMusic/muteSounds=true в ранних прогонах — выключал пользователь, не баг.
