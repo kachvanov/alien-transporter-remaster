@@ -6,7 +6,7 @@
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
 | T4.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
-| T4.5 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
+| T4.6 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -21,6 +21,9 @@
 1. Два окна на одном Mac: `npm run dev -- --host-start` + второе окно `npm run dev -- --profile=2` (или через меню Online → Host / Join). Пройди уровень вдвоём, нажми P в окне клиента (хост должен поставить паузу один раз), выйди клиентом и вернись.
 2. Mac ↔ Windows по Wi-Fi в обе стороны — инструкция в `docs/06-lan-testing.md` §4: на Windows `tools\net\windows-check.ps1`, с другой машины `npx tsx tools/net/host-probe.ts <ip>`. Посмотри запрос macOS про локальную сеть и окно Defender Firewall. Запиши автопоиск, кадры/с, КБ/с, ping, плавность на глаз.
 3. Потом снова `/orchestrate`: отвечу на вопрос о воротах, M4 стартует после «Всё ок».
+
+## Нужно проверить руками (T4.5)
+- Открыть `dist/` dmg (пересобрать: `npm run build:mac`), перетащить в /Applications, запустить двойным кликом: Retina, звук, 120 FPS, save.json в `~/Library/Application Support/Alien Transporter Remaster/`, запрос Local Network при хостинге/подключении, LAN из собранной версии. Если «повреждено» после копирования с другой машины: `xattr -cr "/Applications/Alien Transporter Remaster.app"`.
 
 ## Заблокировано
 —
@@ -123,3 +126,5 @@
 - T3.7 результаты: трафик Level11 вдвоём avg 94 / peak 127 КБ/с (худший кадр 10.8 КБ ×35 = 368 КБ/с); задержка ввода клиента медиана ~92 мс напрямую (запас до 100 мс ~8 мс), 152–177 мс через прокси 30±15 мс; автопоиск 0.3 с. Отклонение: JitterBuffer minDelay 1 вместо 1.5 (docs/03 §6) в src/app/main.ts. Если на Windows задержка хуже — снижать minDelay или смотреть тайминг отправки кадра на хосте.
 - T3.7 вне задачи: комментарии про STUB(T3.3) в tests/e2e/online-screens.spec.ts устарели; кнопка TEST проверяет лишь что сервер слушает на интерфейсах (не доступ с чужих машин); в README (T4.7) добавить шаги по фаерволу из docs/06 §4; полный e2e net-verification ~2 мин (T37_RUNS=1).
 - 2026-10-04 по указанию пользователя M4 стартует без финальной приёмки M3 (ворота M3 остаются `ждёт проверки`, ручная проверка Mac ↔ Windows идёт параллельно; найденные проблемы — как FIX). Запущены T4.1 и T4.5 (T4.4/T4.6 правят тот же electron-builder.yml — после T4.5; T4.3 — после T4.1; T4.2 требует эталонов из Ruffle).
+- 2026-10-04 T4.5 merged 0b2b11d (попытка 1; 1080 тестов). Автоматическая часть выполнена (dmg 386 МБ, ad-hoc подпись, Info.plist); ручная установка/LAN — в «Нужно проверить руками». Отклонение: в package.json добавлен productName (без него userData = alien-transporter-remaster; dev-прогресс из старой папки не подхватится). Подпись через afterPack, а не afterSign. Запущена T4.6.
+- T4.5 вне задачи: путь SWF по умолчанию `/Applications/Flash Games/AlienTransporter.swf` (и в .claude/settings.json ORIGINAL_SWF, и DEFAULT_SWF в tools/extract/decompile.ts) не существует — реальный файл `alien-transporter.swf`; `npm run extract` без явной ORIGINAL_SWF падает. Требует решения пользователя (settings.json — не трогаю).
