@@ -7,6 +7,7 @@
 |---|---|---|---|---|
 | T4.1 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 | T4.2 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
+| T4.3 | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -130,3 +131,5 @@
 - T4.5 вне задачи: путь SWF по умолчанию `/Applications/Flash Games/AlienTransporter.swf` (и в .claude/settings.json ORIGINAL_SWF, и DEFAULT_SWF в tools/extract/decompile.ts) не существует — реальный файл `alien-transporter.swf`; `npm run extract` без явной ORIGINAL_SWF падает. Требует решения пользователя (settings.json — не трогаю).
 - 2026-10-04 T4.6 BLOCKED (нет Rosetta 2 для makensis; нужен sudo пользователя) — ветка оставлена, worktree удалён. Запущена T4.2.
 - T4.6 → T4.4: авто-выбор тира (src/render/atlasMath.ts availableTiers) смотрит в manifest, а не в файлы сборки: на Windows 4K (≥1500 физ. px) выберется 3x, которого в сборке нет → 404. Обход: `--tier=2x`. В T4.4 авто-выбор должен учитывать реально найденные на диске тиры.
+- 2026-10-04 T4.1 merged d6d6153 (попытка 1; 1120 тестов; конфликт package.json с T4.5 разрешён оркестратором). 23 реплея, весь набор ~11 с, детерминизм подтверждён. Запущена T4.3.
+- T4.1 отклонения: F9 перезапускает уровень с тем же seed (реплей воспроизводим с тика 0, save изолирован); в формат добавлено `ticks`; сценарии записаны ботами в JSON (`golden:record`); мышь/колесо не пишутся. Ручной F9 в Electron не проверялся. Эталоны привязаны к V8 Math.sin/cos — на Windows не проверялось. Для T4.2: p1.hull из expected можно взять как метрику урона бочки. Риск: если T4.2 исправит порт и обновит golden-эталоны — T4.3 после мержа T4.2 перепроверить на новых хэшах.
