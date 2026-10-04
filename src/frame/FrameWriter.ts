@@ -56,12 +56,17 @@ const TABLE_MASK = TABLE_SIZE - 1;
 const HASH_SHIFT = 32 - TABLE_BITS;
 const TELEPORT_DIST2 = TELEPORT_DISTANCE * TELEPORT_DISTANCE;
 
-/** Positions of the nodes of one frame by uid. An entry is valid when `stamp[slot] === generation`. */
+/**
+ * Positions of the nodes of one frame by uid. An entry is valid when its stamp is `generation`.
+ * PERF (T4.3): the four fields of a slot (uid, stamp, x, y) are 16 bytes next to each other, so a lookup touches one cache line
+ * instead of four (the hash scatters the uids over the whole table). Same values as the four separate arrays before.
+ */
 class PositionTable {
-  readonly keys = new Uint32Array(TABLE_SIZE);
-  readonly stamp = new Uint32Array(TABLE_SIZE);
-  readonly xs = new Float32Array(TABLE_SIZE);
-  readonly ys = new Float32Array(TABLE_SIZE);
+  private readonly _buf = new ArrayBuffer(TABLE_SIZE * 16);
+  /** [slot * 4]: uid, [slot * 4 + 1]: stamp. */
+  readonly u32 = new Uint32Array(this._buf);
+  /** [slot * 4 + 2]: x, [slot * 4 + 3]: y (float32 as before). */
+  readonly f32 = new Float32Array(this._buf);
 }
 
 /** `blend` string of AntActor -> node blend code. */
@@ -485,25 +490,28 @@ export class FrameWriter implements FrameSink {
     const prevGen = (gen - 1) >>> 0;
 
     // record for the next frame
+    const curU = cur.u32;
     let slot = Math.imul(aUid, 0x9e3779b1) >>> HASH_SHIFT;
-    while (cur.stamp[slot] === gen && cur.keys[slot] !== aUid) {
+    while (curU[(slot << 2) + 1] === gen && curU[slot << 2] !== aUid) {
       slot = (slot + 1) & TABLE_MASK;
     }
 
-    cur.stamp[slot] = gen;
-    cur.keys[slot] = aUid;
-    cur.xs[slot] = aX;
-    cur.ys[slot] = aY;
+    const at = slot << 2;
+    curU[at + 1] = gen;
+    curU[at] = aUid;
+    cur.f32[at + 2] = aX;
+    cur.f32[at + 3] = aY;
 
     if (this._sceneReset) {
       return true;
     }
 
+    const prevU = prev.u32;
     slot = Math.imul(aUid, 0x9e3779b1) >>> HASH_SHIFT;
-    while (prev.stamp[slot] === prevGen) {
-      if (prev.keys[slot] === aUid) {
-        const dx = aX - prev.xs[slot]!;
-        const dy = aY - prev.ys[slot]!;
+    while (prevU[(slot << 2) + 1] === prevGen) {
+      if (prevU[slot << 2] === aUid) {
+        const dx = aX - prev.f32[(slot << 2) + 2]!;
+        const dy = aY - prev.f32[(slot << 2) + 3]!;
         return dx * dx + dy * dy > TELEPORT_DIST2;
       }
 

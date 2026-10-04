@@ -88,6 +88,11 @@ Ruffle при лагах замедляется, поэтому меряем в 
 | Сеть (хост → клиент) | ≤ 500 КБ/с | — |
 | Задержка ввода клиента (LAN) | ≤ 100 мс | — |
 
+**Как мерить (T4.3).**
+- В приложении: `electron . --start-level=Level11 --perf-log=perf.json` (путь относительно рабочей папки процесса). Раз в секунду (35 тиков) в файл идёт строка: `fps`, `simFps`, `tickP50/P95/P99/Max/Mean` (мс), доли `plugins.update`, `physics.step`, `core.systems`, `frameWriter`, `elementSimulation`, `antLight` (мс на тик, вложенные: `plugins.update` содержит физику и системы), размер Frame и `ramMB` всех процессов; в файле есть и `summary` (min/mean/max по секундам). Замер делает `src/sim/perfProbe.ts` (только читает часы, игру не меняет: тест `perf-probe.test.ts`).
+- Без окна: `npx tsx tools/perf/profile.ts --replays=level11-barrels,level13-sensor --ticks=2100` (p50/p95 и доли подсистем, по системам отдельно; `--frame-hash` печатает sha256 потока всех кадров: после оптимизации он не должен меняться; `--alloc` — аллокации; `--throttle=4` пересчитывает числа в «CPU ×4 медленнее»). CPU-профиль: `node --import tsx --cpu-prof tools/perf/profile.ts` и `node tools/perf/cpuprof-top.mjs <файл>`.
+- Тики подряд (Node) в 3-4 раза быстрее, чем в приложении: воркер просыпается раз в 28.6 мс, ядро успевает «остыть» (частота, кэши). Бюджет `Тик симуляции p95` меряется по `--perf-log` в приложении, а не по Node.
+
 ## 10. Сборки (T4.5/T4.6)
 
 - macOS: dmg открывается, приложение запускается на M5, есть иконка, работают fullscreen и Retina 3x. При запросе доступа к локальной сети текст из `NSLocalNetworkUsageDescription` виден. Прогресс сохраняется в `~/Library/Application Support/<appName>/save.json`.

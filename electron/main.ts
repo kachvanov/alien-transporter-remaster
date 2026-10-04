@@ -1,12 +1,13 @@
 // Electron main process (docs/01-architecture.md §9): window, `app://assets/` protocol, IPC of window.at.
-import { hostname } from 'node:os';
-import { extname, join } from 'node:path';
+import { cpus, hostname } from 'node:os';
+import { extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, Menu, MessageChannelMain, net, protocol, screen, shell, type MessagePortMain } from 'electron';
 import { resolveAssetFile } from './assetPath';
 import { encodeFlagsArg, parseDevFlags, parseProfile } from './flags';
 import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
 import { selfTest } from './net/selfTest';
+import { PerfLog } from './perfLog';
 import { saveReplayFile } from './replayFile';
 import { formatTraffic } from './net/trafficMeter';
 import { HostServer } from './net/wsServer';
@@ -352,6 +353,23 @@ function registerIpc(): void {
   ipcMain.handle('dev:save-replay', async (_event, replay: unknown) => {
     if (app.isPackaged) throw new Error('dev:save-replay: not available in a packaged app');
     return saveReplayFile(join(app.getAppPath(), 'tests', 'golden', 'replays'), replay);
+  });
+  // T4.3: `--perf-log=perf.json`: a line per second from the renderer; the memory of all the processes is added here.
+  const perfLog =
+    flags.perfLog !== undefined
+      ? new PerfLog(resolve(process.cwd(), flags.perfLog), {
+          app: app.getVersion(),
+          electron: process.versions.electron,
+          platform: process.platform,
+          arch: process.arch,
+          cpus: (cpus()[0]?.model ?? '') + ' x' + cpus().length,
+          startedAt: new Date().toISOString(),
+        })
+      : null;
+  ipcMain.handle('dev:perf-log', async (_event, entry: unknown) => {
+    if (perfLog === null) return;
+    const ramMB = app.getAppMetrics().reduce((sum, m) => sum + m.memory.workingSetSize, 0) / 1024; // (KB)
+    await perfLog.add(entry, ramMB);
   });
   ipcMain.handle('settings:get', () => settingsDoc.readAll());
   // Only the known, valid keys of the remaster settings pass (the key `window` belongs to this process).

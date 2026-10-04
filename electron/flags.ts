@@ -1,4 +1,5 @@
-// Command line of the app: --profile=N, --start-level=LevelNN, --tier=1x|2x|3x, --classic, --join=ip[:port], --host-start.
+// Command line of the app: --profile=N, --start-level=LevelNN, --tier=1x|2x|3x, --classic, --join=ip[:port], --host-start,
+// --perf-log=perf.json (T4.3).
 // Pure (no Electron import): unit-tested in tests/unit/electron.test.ts.
 
 import type { DevFlags, TierName } from '../src/app/at';
@@ -32,6 +33,8 @@ export function parseDevFlags(argv: readonly string[]): DevFlags {
   // (`join` is only there when it is given: the flags of the other cards stay as they were)
   if (join !== null && join.length > 0) flags.join = join;
   if (argv.includes('--host-start')) flags.hostStart = true;
+  const perfLog = valueOf(argv, 'perf-log');
+  if (perfLog !== null && perfLog.length > 0) flags.perfLog = perfLog;
   return flags;
 }
 
@@ -52,6 +55,7 @@ export function decodeFlagsArg(argv: readonly string[]): DevFlags {
       };
       if (typeof o.join === 'string' && o.join.length > 0) flags.join = o.join;
       if (o.hostStart === true) flags.hostStart = true;
+      if (typeof o.perfLog === 'string' && o.perfLog.length > 0) flags.perfLog = o.perfLog;
       return flags;
     } catch {
       // fall through to the defaults

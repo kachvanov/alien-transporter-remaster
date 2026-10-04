@@ -3,6 +3,7 @@
 
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
+import type { PerfSample } from './perfProbe';
 import type { Replay } from './replay';
 
 export type SimLogLevel = 'info' | 'warn' | 'error';
@@ -10,7 +11,7 @@ export type SimLogLevel = 'info' | 'warn' | 'error';
 /** renderer -> worker */
 export type SimIn =
   /** `assetBase`: URL of the assets root, e.g. `app://assets/`. */
-  | { t: 'init'; seed: number; assetBase: string }
+  | { t: 'init'; seed: number; assetBase: string; perf?: boolean }
   /** The last snapshot of the local input (the worker keeps the last one, wheel deltas are summed up). */
   | { t: 'input'; snapshot: InputSnapshot }
   /** Answer to `{t:'saveLoad'}`; `data` is null when nothing is stored under the key. */
@@ -40,5 +41,7 @@ export type SimOut =
   | { t: 'online'; req: OnlineRequest }
   /** T4.1: the replay of a recording that has stopped (`recordStop`, F9 of the dev build). */
   | { t: 'replay'; replay: Replay }
+  /** T4.3 (`--perf-log`): the measurement of the last 35 ticks. */
+  | { t: 'perf'; sample: PerfSample }
   | { t: 'log'; level: SimLogLevel; msg: string }
   | { t: 'ready' };

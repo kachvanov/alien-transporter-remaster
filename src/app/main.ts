@@ -70,6 +70,10 @@ async function bootstrap(): Promise<void> {
   let frameBytes = 0;
   let tickCostMs = 0;
 
+  // --- `--perf-log=perf.json` (T4.3): a line per second (FPS of the renderer, the tick of the worker, the size of the Frame) ---
+  const perfLog = flags.perfLog !== undefined;
+  const perfWindow = { start: performance.now(), t0: performance.now(), renderFrames: 0, simFrames: 0, bytesSum: 0, bytesMax: 0 };
+
   // --- frame source: the sim worker (not in the client mode: the frames come from the host) ---
   let lastReport = 0;
   // The screens of the LAN game (T3.4) ask this controller for the network.
@@ -93,8 +97,34 @@ async function bootstrap(): Promise<void> {
     seed: (Math.random() * 0x100000000) >>> 0,
     assetBase: ASSETS_URL,
     at: window.at,
+    onPerf: perfLog
+      ? (sample) => {
+          const now = performance.now();
+          const seconds = Math.max(0.001, (now - perfWindow.start) / 1000);
+          const frames = Math.max(1, perfWindow.simFrames);
+          const entry = {
+            t: (now - perfWindow.t0) / 1000,
+            fps: perfWindow.renderFrames / seconds,
+            simFps: perfWindow.simFrames / seconds,
+            ...sample,
+            frameBytesMean: perfWindow.bytesSum / frames,
+            frameBytesMax: perfWindow.bytesMax,
+          };
+          perfWindow.start = now;
+          perfWindow.renderFrames = 0;
+          perfWindow.simFrames = 0;
+          perfWindow.bytesSum = 0;
+          perfWindow.bytesMax = 0;
+          window.at.dev.perfLog(entry).catch((e: unknown) => console.warn('[perf-log] not written:', e));
+        }
+      : undefined,
     onFrame: (buffer) => {
       frameBytes = buffer.byteLength;
+      if (perfLog) {
+        perfWindow.simFrames++;
+        perfWindow.bytesSum += frameBytes;
+        perfWindow.bytesMax = Math.max(perfWindow.bytesMax, frameBytes);
+      }
       player.push(buffer, performance.now());
       const cur = player.current;
       if (cur !== null) {
@@ -363,6 +393,7 @@ async function bootstrap(): Promise<void> {
 
   // --- display loop (display refresh rate) ---
   const loop = (now: number): void => {
+    perfWindow.renderFrames++;
     if (inputDirty) {
       inputDirty = false;
       const snapshot = input.snapshot();
