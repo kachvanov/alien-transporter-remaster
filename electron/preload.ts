@@ -44,6 +44,9 @@ const api: AtApi = {
     load: (key) => ipcRenderer.invoke('save:load', key) as Promise<unknown>,
     write: (key, data) => ipcRenderer.invoke('save:write', key, data) as Promise<void>,
   },
+  dev: {
+    saveReplay: (replay) => ipcRenderer.invoke('dev:save-replay', replay) as Promise<string>,
+  },
   settings: {
     get: () => ipcRenderer.invoke('settings:get') as Promise<Record<string, unknown>>,
     set: (patch) => ipcRenderer.invoke('settings:set', patch) as Promise<Record<string, unknown>>,

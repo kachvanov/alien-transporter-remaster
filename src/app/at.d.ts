@@ -1,6 +1,8 @@
 // Types of `window.at`: the API that electron/preload.ts exposes to the renderer (docs/01-architecture.md §9).
 // The net part: discovery (T3.5), the WebSocket server of the host (T3.2).
 
+import type { Replay } from '../sim/replay';
+
 export type TierName = '1x' | '2x' | '3x';
 
 /** Dev flags of the command line, passed main -> preload -> renderer (`--start-level=`, `--tier=`, `--classic`). */
@@ -94,6 +96,10 @@ export interface AtApi {
   save: {
     load(key: string): Promise<unknown>;
     write(key: string, data: unknown): Promise<void>;
+  };
+  dev: {
+    /** T4.1 (dev build only): saves the replay of a recording to `tests/golden/replays/<level>-<time>.json`; resolves to the path. */
+    saveReplay(replay: Replay): Promise<string>;
   };
   settings: {
     /** The content of settings.json (src/app/settings.ts `parseSettings` reads it). */

@@ -50,6 +50,7 @@ async function start(seed: number, assetBase: string): Promise<void> {
       openExternal: (url) => post({ t: 'openExternal', url }),
       onQuality: (smooth) => post({ t: 'quality', smooth }),
       onOnline: (req) => post({ t: 'online', req }),
+      onReplay: (replay) => post({ t: 'replay', replay }),
       log,
     },
   });

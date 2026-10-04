@@ -2,14 +2,14 @@
 //
 // Keys are taken by `event.code` (the physical key: WASD works in any layout) and translated to Flash keyCodes by
 // the table of src/engine/input/keyCodes.ts. The pointer is translated to the logical 800x600 stage through the
-// letterbox. The hotkeys of the app (F11, Alt+Enter, Ctrl+Cmd+F: fullscreen; F3: perf overlay; F2: remaster settings) do not go to the game.
+// letterbox. The hotkeys of the app (F11, Alt+Enter, Ctrl+Cmd+F: fullscreen; F3: perf overlay; F2: remaster settings; F9: the recording of a replay, dev build, T4.1) do not go to the game.
 
 import { codeToFlashKeyCode } from '../engine/input/keyCodes';
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import { windowToLogical } from './Letterbox';
 import type { Letterbox } from './Letterbox';
 
-export type AppHotkey = 'fullscreen' | 'perf' | 'settings';
+export type AppHotkey = 'fullscreen' | 'perf' | 'settings' | 'record';
 
 /** The parts of KeyboardEvent / PointerEvent / WheelEvent that are used (lets the tests run without a DOM). */
 export interface InputEventLike {
@@ -52,6 +52,7 @@ export function hotkeyOf(e: InputEventLike): AppHotkey | null {
   if (e.code === 'KeyF' && e.ctrlKey === true && e.metaKey === true) return 'fullscreen';
   if (e.code === 'F3') return 'perf';
   if (e.code === 'F2') return 'settings';
+  if (e.code === 'F9') return 'record';
   return null;
 }
 

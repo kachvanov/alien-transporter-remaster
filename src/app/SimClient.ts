@@ -5,6 +5,7 @@
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
 import type { SimIn, SimOut } from '../sim/protocol';
+import type { Replay } from '../sim/replay';
 import type { AtApi } from './at';
 
 /** The part of `Worker` the client needs (a fake in tests). */
@@ -30,6 +31,8 @@ export interface SimClientOptions {
   onQuality?: (smooth: boolean) => void;
   /** A request of the screens of the LAN game (T3.4, `{t:'online'}`): see app/OnlineController.ts. */
   onOnline?: (req: OnlineRequest) => void;
+  /** T4.1: a recording has stopped (F9 of the dev build): the replay to save. */
+  onReplay?: (replay: Replay) => void;
   onLog?: (level: 'info' | 'warn' | 'error', msg: string) => void;
   /** Clock for the frame counter, ms (default `performance.now()`). */
   now?: () => number;
@@ -156,6 +159,9 @@ export class SimClient {
         break;
       case 'online':
         this._opts.onOnline?.(aMsg.req);
+        break;
+      case 'replay':
+        this._opts.onReplay?.(aMsg.replay);
         break;
       case 'log':
         this.log(aMsg.level, aMsg.msg);
