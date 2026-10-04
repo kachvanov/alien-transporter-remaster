@@ -1,11 +1,11 @@
 // Runs before `electron-builder`: makes sure assets/ is present and current (`npm run extract`; its own cache,
-// build/extract/.cache.json, decides what to redo), then builds the macOS icon.
-// Usage: `tsx tools/build/prepack.ts [--mac]`.
+// build/extract/.cache.json, decides what to redo), then builds the icon of the platform (icon.icns / icon.ico).
+// Usage: `tsx tools/build/prepack.ts [--mac | --win]`.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { resolveSwfPath } from '../extract/decompile';
-import { iconIsStale, makeIcon } from './make-icon';
+import { iconIsStale, makeIco, makeIcon } from './make-icon';
 
 export type ExtractDecision = 'run' | 'run-if-possible' | 'skip';
 
@@ -22,6 +22,7 @@ export function decideExtract(hasAssets: boolean, hasCache: boolean, hasSwf: boo
 async function main(): Promise<void> {
   const root = process.cwd();
   const mac = process.argv.includes('--mac');
+  const win = process.argv.includes('--win');
   const hasAssets = existsSync(join(root, 'assets', 'manifest.json'));
   const hasCache = existsSync(join(root, 'build', 'extract', '.cache.json'));
   const hasSwf = existsSync(resolveSwfPath(root));
@@ -35,6 +36,10 @@ async function main(): Promise<void> {
   if (mac) {
     if (iconIsStale(root)) console.log(`[prepack] icon: ${await makeIcon(root)}`);
     else console.log('[prepack] icon up to date');
+  }
+  if (win) {
+    if (iconIsStale(root, 'icon.ico')) console.log(`[prepack] icon: ${await makeIco(root)}`);
+    else console.log('[prepack] icon.ico up to date');
   }
 }
 

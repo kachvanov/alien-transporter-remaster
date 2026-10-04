@@ -7,12 +7,13 @@ afterPack: tools/build/adhocSign.cjs
 files:
   - out/**
   - package.json
-extraResources:
-  - from: assets
-    to: assets
-    filter:
-      - '**/*'
 mac:
+  # Everything: 1x (fallback), 2x and 3x (Retina).
+  extraResources:
+    - from: assets
+      to: assets
+      filter:
+        - '**/*'
   target:
     - target: dmg
       arch: arm64
@@ -33,3 +34,20 @@ win:
       arch: x64
     - target: portable
       arch: x64
+  # resources/icon.ico is generated from the game art by tools/build/make-icon.ts (npm run build:win).
+  icon: icon.ico
+  # Windows laptop (8 GB): only the 1x and 2x tiers (docs/05 section 9, T4.4). The 3x atlases (116 MB) stay out.
+  extraResources:
+    - from: assets
+      to: assets
+      filter:
+        - '**/*'
+        - '!gfx/3x/**'
+  # Same names for both: "<productName> Setup <ver>.exe" (installer) and "<productName> <ver>.exe" (portable).
+  artifactName: ${productName} ${version}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  artifactName: ${productName} Setup ${version}.${ext}

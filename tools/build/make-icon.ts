@@ -1,9 +1,11 @@
-// Builds resources/icon.icns (macOS app icon) from the game art: the Shuttle01BodyPreview_mc frame of the 3x atlas
-// on a rounded dark background, 1024x1024 -> iconset -> `iconutil`. macOS only (iconutil).
-// The icon is derived from the original assets, so it is generated, not committed (see .gitignore).
-// Usage: `tsx tools/build/make-icon.ts [--force]` (also called by tools/build/prepack.ts).
+// Builds the app icons from the game art: the Shuttle01BodyPreview_mc frame of the 3x atlas on a rounded dark
+// background, 1024x1024 master.
+//  - resources/icon.icns (macOS): master -> iconset -> `iconutil` (macOS only).
+//  - resources/icon.ico (Windows): PNG-compressed ICO container written here (works on any host, so a Mac can cross-build).
+// The icons are derived from the original assets, so they are generated, not committed (see .gitignore).
+// Usage: `tsx tools/build/make-icon.ts [--win] [--force]` (also called by tools/build/prepack.ts).
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import sharp from 'sharp';
 
@@ -95,9 +97,48 @@ export async function makeIcon(root: string): Promise<string> {
   return icns;
 }
 
-/** True when resources/icon.icns is missing or older than the asset manifest. */
-export function iconIsStale(root: string): boolean {
-  const icns = join(root, 'resources', 'icon.icns');
+/** Sizes inside icon.ico (256 is stored as 0 in the directory entry). */
+export const ICO_SIZES: readonly number[] = [16, 24, 32, 48, 64, 128, 256];
+
+/** ICO container (https://en.wikipedia.org/wiki/ICO_(file_format)) with one PNG-compressed image per entry. */
+export function buildIco(images: readonly { px: number; png: Buffer }[]): Buffer {
+  const header = Buffer.alloc(6 + 16 * images.length);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // type: icon
+  header.writeUInt16LE(images.length, 4);
+  let offset = header.length;
+  images.forEach((img, i) => {
+    const e = 6 + 16 * i;
+    header.writeUInt8(img.px >= 256 ? 0 : img.px, e); // width
+    header.writeUInt8(img.px >= 256 ? 0 : img.px, e + 1); // height
+    header.writeUInt8(0, e + 2); // palette colours
+    header.writeUInt8(0, e + 3); // reserved
+    header.writeUInt16LE(1, e + 4); // colour planes
+    header.writeUInt16LE(32, e + 6); // bits per pixel
+    header.writeUInt32LE(img.png.length, e + 8);
+    header.writeUInt32LE(offset, e + 12);
+    offset += img.png.length;
+  });
+  return Buffer.concat([header, ...images.map((i) => i.png)]);
+}
+
+/** Writes resources/icon.ico (Windows app icon). Works on any host. */
+export async function makeIco(root: string): Promise<string> {
+  const resources = join(root, 'resources');
+  const ico = join(resources, 'icon.ico');
+  mkdirSync(resources, { recursive: true });
+  const master = await renderMasterIcon(root);
+  const images: { px: number; png: Buffer }[] = [];
+  for (const px of ICO_SIZES) {
+    images.push({ px, png: await sharp(master).resize(px, px, { kernel: 'lanczos3' }).png().toBuffer() });
+  }
+  writeFileSync(ico, buildIco(images));
+  return ico;
+}
+
+/** True when resources/<file> (icon.icns or icon.ico) is missing or older than the asset manifest. */
+export function iconIsStale(root: string, file: 'icon.icns' | 'icon.ico' = 'icon.icns'): boolean {
+  const icns = join(root, 'resources', file);
   const manifest = join(root, 'assets', 'manifest.json');
   if (!existsSync(icns)) return true;
   if (!existsSync(manifest)) return false;
@@ -107,10 +148,12 @@ export function iconIsStale(root: string): boolean {
 if (process.argv[1] !== undefined && resolve(process.argv[1]).endsWith('make-icon.ts')) {
   const root = process.cwd();
   const force = process.argv.includes('--force');
-  if (!force && !iconIsStale(root)) {
-    console.log('[icon] up to date (resources/icon.icns)');
+  const win = process.argv.includes('--win');
+  const file = win ? 'icon.ico' : 'icon.icns';
+  if (!force && !iconIsStale(root, file)) {
+    console.log(`[icon] up to date (resources/${file})`);
   } else {
-    makeIcon(root).then(
+    (win ? makeIco(root) : makeIcon(root)).then(
       (p) => console.log(`[icon] wrote ${p}`),
       (e: unknown) => {
         console.error(e instanceof Error ? e.message : e);
