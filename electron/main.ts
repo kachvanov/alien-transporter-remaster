@@ -1,10 +1,13 @@
 // Electron main process (docs/01-architecture.md §9): window, `app://assets/` protocol, IPC of window.at.
+import { hostname } from 'node:os';
 import { extname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { app, BrowserWindow, ipcMain, Menu, net, protocol, screen, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, MessageChannelMain, net, protocol, screen, shell, type MessagePortMain } from 'electron';
 import { resolveAssetFile } from './assetPath';
 import { encodeFlagsArg, parseDevFlags, parseProfile } from './flags';
 import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
+import { HostServer } from './net/wsServer';
+import type { HostEvent } from '../src/app/at';
 import { sanitizeSettingsPatch } from '../src/app/settings';
 import { JsonDocument } from './save';
 import {
@@ -174,6 +177,89 @@ async function createWindow(): Promise<void> {
 }
 
 //---------------------------------------
+// Host of the LAN game (T3.2): the WebSocket server lives here, the sim worker talks to it through a MessagePort
+//---------------------------------------
+
+/** The running host: the server, the port1 of the bridge (frames in, client input out) and the window it serves. */
+interface HostSession {
+  server: HostServer;
+  port: MessagePortMain;
+  sender: Electron.WebContents;
+  detach: () => void;
+}
+
+let hostSession: HostSession | null = null;
+
+/** Frame data from the worker through MessagePortMain: an ArrayBuffer or a typed array / Buffer. */
+function frameBytes(aData: unknown): ArrayBufferView | null {
+  if (aData instanceof ArrayBuffer) return new Uint8Array(aData);
+  if (ArrayBuffer.isView(aData)) return aData;
+  return null;
+}
+
+async function startHost(sender: Electron.WebContents, aPort: number, aBuildHash: string): Promise<void> {
+  await stopHost();
+  const { port1, port2 } = new MessageChannelMain();
+  const emit = (event: HostEvent): void => {
+    if (!sender.isDestroyed()) sender.send('net:host-event', event);
+  };
+  const server = new HostServer({
+    buildHash: aBuildHash,
+    hostName: hostname(),
+    onClientJoined: (info) => {
+      port1.postMessage({ t: 'joined', name: info.name, ship: info.ship });
+      emit({ k: 'joined', name: info.name, ship: info.ship });
+    },
+    onClientLeft: (reason) => {
+      port1.postMessage({ t: 'left' });
+      emit({ k: 'left', reason });
+    },
+    onInput: (bits, seq) => port1.postMessage({ t: 'input', bits, seq }),
+    onError: (e) => {
+      console.warn('[host]', e.message);
+      emit({ k: 'error', message: e.message });
+    },
+  });
+  await server.start(aPort); // (rejects when the port is taken: nothing else has been started yet)
+
+  port1.on('message', (e) => {
+    const bytes = frameBytes(e.data);
+    if (bytes !== null) server.sendFrame(bytes);
+  });
+  port1.start();
+  // The window that goes away (closed, reloaded) takes the host with it.
+  const stop = (): void => void stopHost();
+  sender.once('destroyed', stop);
+  sender.once('did-start-loading', stop);
+  sender.once('render-process-gone', stop);
+  hostSession = {
+    server,
+    port: port1,
+    sender,
+    detach: () => {
+      sender.removeListener('destroyed', stop);
+      sender.removeListener('did-start-loading', stop);
+      sender.removeListener('render-process-gone', stop);
+    },
+  };
+  sender.postMessage('sim-port', null, [port2]);
+}
+
+async function stopHost(): Promise<void> {
+  const session = hostSession;
+  if (session === null) return;
+  hostSession = null;
+  session.detach();
+  try {
+    session.port.postMessage({ t: 'stop' });
+  } catch {
+    // (the port is already closed)
+  }
+  session.port.close();
+  await session.server.stop();
+}
+
+//---------------------------------------
 // IPC (window.at, see src/app/at.d.ts)
 //---------------------------------------
 
@@ -234,6 +320,16 @@ function registerIpc(): void {
     discovery.stopScan();
   });
 
+  ipcMain.handle('net:host-start', async (event, opts: unknown) => {
+    const o = (typeof opts === 'object' && opts !== null ? opts : {}) as Record<string, unknown>;
+    const port = o['port'];
+    const buildHash = o['buildHash'];
+    if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error('net: bad port');
+    if (typeof buildHash !== 'string') throw new Error('net: bad build hash');
+    await startHost(event.sender, port, buildHash);
+  });
+  ipcMain.handle('net:host-stop', () => stopHost());
+
   ipcMain.handle('save:load', (_event, key: unknown) => (typeof key === 'string' ? saveDoc.get(key) : null));
   ipcMain.handle('save:write', async (_event, key: unknown, data: unknown) => {
     if (typeof key === 'string') await saveDoc.set(key, data);
@@ -273,7 +369,10 @@ void app.whenReady().then(async () => {
   });
 });
 
-app.on('will-quit', () => getDiscovery().dispose());
+app.on('will-quit', () => {
+  getDiscovery().dispose();
+  void stopHost();
+});
 
 app.on('window-all-closed', () => {
   app.quit();

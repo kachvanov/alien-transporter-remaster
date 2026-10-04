@@ -1,7 +1,7 @@
 // Preload: `window.at` (types: src/app/at.d.ts, docs/01-architecture.md §9). Works under sandbox: true +
-// contextIsolation. The net.* and discovery.* parts arrive with M3.
+// contextIsolation. The net.* and discovery.* parts are M3.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { AtApi, DiscoveredGame } from '../src/app/at';
+import type { AtApi, DiscoveredGame, HostEvent } from '../src/app/at';
 import { decodeFlagsArg } from './flags';
 
 const api: AtApi = {
@@ -27,6 +27,17 @@ const api: AtApi = {
       };
     },
   },
+  net: {
+    hostStart: (opts) => ipcRenderer.invoke('net:host-start', opts) as Promise<void>,
+    hostStop: () => ipcRenderer.invoke('net:host-stop') as Promise<void>,
+    onHostEvent: (cb) => {
+      const listener = (_e: IpcRendererEvent, event: HostEvent): void => cb(event);
+      ipcRenderer.on('net:host-event', listener);
+      return () => {
+        ipcRenderer.removeListener('net:host-event', listener);
+      };
+    },
+  },
   save: {
     load: (key) => ipcRenderer.invoke('save:load', key) as Promise<unknown>,
     write: (key, data) => ipcRenderer.invoke('save:write', key, data) as Promise<void>,
@@ -38,3 +49,9 @@ const api: AtApi = {
 };
 
 contextBridge.exposeInMainWorld('at', api);
+
+// The MessagePort of the network bridge of the host (T3.2): main -> preload -> the page (src/app/main.ts), which
+// hands it to the sim worker. A port cannot cross contextBridge, window.postMessage is the way.
+ipcRenderer.on('sim-port', (e) => {
+  window.postMessage('sim-port', '*', e.ports);
+});

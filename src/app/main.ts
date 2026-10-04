@@ -73,7 +73,21 @@ async function bootstrap(): Promise<void> {
   // --- frame source: the sim worker (not in the client mode: the frames come from the host) ---
   let lastReport = 0;
   // The screens of the LAN game (T3.4) ask this controller for the network.
-  const online = new OnlineController({ at: window.at, settings, buildHash: manifest.buildHash });
+  const online: OnlineController = new OnlineController({
+    at: window.at,
+    settings,
+    buildHash: manifest.buildHash,
+    // The host (T3.2): the WebSocket server is in the main process, the bridge port goes to the worker (`sim-port` below).
+    server: {
+      start: (port) => window.at.net.hostStart({ port, buildHash: manifest.buildHash }),
+      stop: () => void window.at.net.hostStop().catch((e: unknown) => console.warn('[net] hostStop failed:', e)),
+    },
+  });
+  window.at.net.onHostEvent((e) => {
+    if (e.k === 'joined') online.peerConnected(e.name);
+    else if (e.k === 'left') online.peerDisconnected();
+    else console.warn('[net] host: ' + e.message);
+  });
   let sim: SimClient | null = null;
   if (joinTarget === null) sim = new SimClient({
     seed: (Math.random() * 0x100000000) >>> 0,
@@ -107,6 +121,16 @@ async function bootstrap(): Promise<void> {
   });
   if (sim !== null) online.bind(sim);
   sim?.start();
+  // The port of the network bridge (electron/preload.ts): main -> the page -> the sim worker.
+  window.addEventListener('message', (e) => {
+    if (e.source !== window || e.data !== 'sim-port') return;
+    const port = e.ports[0];
+    if (port === undefined) return;
+    if (sim !== null) sim.sendSimPort(port);
+    else port.close(); // (the network client has no worker to host from)
+  });
+  // `--host-start` (dev): host at once, as if HostScreen had been opened (the worker answers the screens' events anyway).
+  if (flags.hostStart === true && sim !== null) online.handle({ k: 'hostOpen' });
 
   // --- remaster settings (T2.8): the overlay of F2 ---
   let fullscreen = false;

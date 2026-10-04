@@ -5,7 +5,7 @@
 /** App flags that take a value: `--name=value` or `--name value`. */
 const VALUE_FLAGS: readonly string[] = ['start-level', 'profile', 'tier', 'join'];
 /** App flags without a value. */
-const BOOLEAN_FLAGS: readonly string[] = ['classic'];
+const BOOLEAN_FLAGS: readonly string[] = ['classic', 'host-start'];
 
 export interface SplitDevArgs {
   /** Arguments for `electron-vite dev` itself (before the `--`). */
