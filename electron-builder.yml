@@ -16,6 +16,9 @@ mac:
     - target: dmg
       arch: arm64
   identity: null
+  # The system asks for access to the local network at the first LAN game (docs/03 §8); this is the text of the question.
+  extendInfo:
+    NSLocalNetworkUsageDescription: Alien Transporter uses the local network to find and join LAN games.
 win:
   target:
     - target: nsis

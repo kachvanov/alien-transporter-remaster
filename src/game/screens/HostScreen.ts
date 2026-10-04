@@ -1,7 +1,8 @@
 // Not a port (T3.4, DEVIATION: online): "Host game". On entering the screen the renderer starts the WebSocket server and
 // the UDP beacon (OnlineBridge.send({k:'hostOpen'}), docs/03 §2, §7); the screen shows the IPv4 addresses of the machine
 // and the port, then who connected. START goes on to the level selection (the game then goes as usual, the client is Player2),
-// STOP and Back stop the server and the beacon.
+// STOP and Back stop the server and the beacon. TEST (T3.7) connects to the own addresses on the port and shows OK / FAIL:
+// the check that the server listens on the network and not only on loopback.
 
 import type { AntButton } from '../../engine/core/AntButton';
 import type { Label } from '../fonts/Label';
@@ -17,6 +18,10 @@ import {
   TEXT_WHITE,
 } from './OnlineScreenBase';
 
+/** The place of the TEST button (between STOP and START; its caption is on its right) and of the line of its result. */
+const TEST_X = 330;
+const TEST_RESULT_Y = 454;
+
 /** The lines of addresses that fit the screen. */
 const MAX_ADDRESS_LINES = 3;
 
@@ -25,6 +30,7 @@ export class HostScreen extends OnlineScreenBase {
   private _hint: Label | null = null;
   private _addresses: Label[] = [];
   private _status: Label | null = null;
+  private _testResult: Label | null = null;
   private _version = -1;
   private _opened = false;
   /** START was pressed: the server stays up for the game. */
@@ -35,13 +41,15 @@ export class HostScreen extends OnlineScreenBase {
     this._tm.addInstantTask(this.onMakeBackground, [0, 0, 'MainMenuBG_mc']);
     this._tm.addPause(0.15);
     this._title = this.makeLabel(400, 316, 'HOST GAME');
-    this._hint = this.makeLabel(400, 350, 'YOUR ADDRESS', 'font02', 'center', TEXT_COLOR);
+    this._hint = this.makeLabel(400, 350, 'YOUR ADDRESSES', 'font02', 'center', TEXT_COLOR);
     for (let i = 0; i < MAX_ADDRESS_LINES; i++) {
-      this._addresses.push(this.makeLabel(400, 370 + i * 26, ' ', 'font01'));
+      this._addresses.push(this.makeLabel(400, 368 + i * 24, ' ', 'font01'));
     }
 
-    this._status = this.makeLabel(400, 456, ' ', 'font01', 'center', TEXT_COLOR);
+    this._status = this.makeLabel(400, 432, ' ', 'font01', 'center', TEXT_COLOR);
+    this._testResult = this.makeLabel(400, TEST_RESULT_Y, ' ', 'font01');
     this.addButton(BACK_X, BUTTON_ROW_Y, 'BtnCancel_mc', 'STOP', this.onClickStop, false, false);
+    this.addButton(TEST_X, BUTTON_ROW_Y, 'BtnApply_mc', 'TEST', this.onClickTest, false, false);
     this.addButton(ACTION_X, BUTTON_ROW_Y, 'BtnPlay_mc', 'START', this.onClickStart, true, false);
     this._tm.addPause(0.25);
     this.playMenuMusic();
@@ -60,6 +68,7 @@ export class HostScreen extends OnlineScreenBase {
     this._title = null;
     this._hint = null;
     this._status = null;
+    this._testResult = null;
     super.destroy();
   }
 
@@ -91,6 +100,13 @@ export class HostScreen extends OnlineScreenBase {
       this.setLabel(this._addresses[i] as Label, lines[i] ?? '', TEXT_WHITE);
     }
 
+    const test = OnlineBridge.selfTest;
+    this.setLabel(
+      this._testResult as Label,
+      test.text,
+      test.state == 'ok' ? TEXT_WHITE : test.state == 'fail' ? TEXT_ERROR_COLOR : TEXT_COLOR,
+    );
+    this.setLabel(this._hint as Label, `YOUR ADDRESSES - PORT ${host.port}`, TEXT_COLOR);
     const status = this._status as Label;
     switch (host.status) {
       case 'connected':
@@ -124,6 +140,13 @@ export class HostScreen extends OnlineScreenBase {
     this._started = true;
     OnlineBridge.send({ k: 'hostBegin' }); // the game of two players: the client is Player2 (sim/GameLoop.ts)
     this.menu.switchScreen(MenuSystem.SELECT_LEVEL_SCREEN);
+  };
+
+  private onClickTest = (_aButton: AntButton): void => {
+    void _aButton;
+    if (this._opened && !this._started) {
+      OnlineBridge.send({ k: 'hostTest' });
+    }
   };
 
   private onClickStop = (_aButton: AntButton): void => {

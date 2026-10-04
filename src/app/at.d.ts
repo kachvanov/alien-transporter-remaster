@@ -45,6 +45,14 @@ export type HostEvent =
   | { k: 'left'; reason: string }
   | { k: 'error'; message: string };
 
+/** The answer of `net.selfTest` (electron/net/selfTest.ts). */
+export interface SelfTestResult {
+  /** Every address connected (and there was at least one). */
+  ok: boolean;
+  port: number;
+  results: { address: string; ok: boolean; error?: string }[];
+}
+
 export interface AtApi {
   /** `process.platform` of the main process: 'darwin' | 'win32' | ... */
   platform: string;
@@ -56,6 +64,8 @@ export interface AtApi {
     openExternal(url: string): Promise<boolean>;
     quit(): void;
     getLocalIPv4(): Promise<string[]>;
+    /** `os.hostname()` of this machine (the name of the client in `hello`, T3.7). */
+    getHostName(): Promise<string>;
   };
   discovery: {
     /** Host: beacon once a second; called again it only changes the info (e.g. status 'full'). */
@@ -76,6 +86,8 @@ export interface AtApi {
     hostStart(opts: { port: number; buildHash: string }): Promise<void>;
     /** `bye` to the client, the server and the bridge are closed. */
     hostStop(): Promise<void>;
+    /** The TEST button of the Host screen (T3.7): connects to every address on `port` (electron/net/selfTest.ts). */
+    selfTest(addresses: string[], port: number): Promise<SelfTestResult>;
     /** Events of the server (a player joined or left, an error). Returns the unsubscribe function. */
     onHostEvent(cb: (event: HostEvent) => void): () => void;
   };

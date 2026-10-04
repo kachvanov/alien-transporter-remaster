@@ -237,8 +237,13 @@ async function bootstrap(): Promise<void> {
   let clientOverlay: ClientOverlay | null = null;
   if (joinTarget !== null) {
     const savedGame = await window.at.save.load(GAME_SAVE_KEY).catch(() => null);
+    // The name that the host shows ("PLAYER 2 CONNECTED: ..."): the name of this machine (T3.7).
+    const machineName = (await window.at.app.getHostName().catch(() => '')).trim();
     const mapper = new ClientInputMapper(keyNamesFromSave(savedGame));
-    const jitter = new JitterBuffer();
+    // DEVIATION (T3.7): the floor of the delay is 1 tick, not the 1.5 of docs/03 §6. On a quiet LAN the delay settled at the
+    // floor (1.50, 43 ms) and the input delay of the client was ~105 ms; with 1 tick it is ~92 ms (the card asks for <= 100)
+    // and 0 underruns in 20 s. A noisy network still raises D by itself (D = 1 + 2 sigma / tick: 1.8-1.9 behind the proxy).
+    const jitter = new JitterBuffer({ minDelay: 1 });
     const overlayModel = new ClientOverlayModel();
     // STUB(T3.4): the way back to the main menu is the local game (the start state of the app), without a screen of its own.
     const goToMenu = (): void => {
@@ -291,6 +296,8 @@ async function bootstrap(): Promise<void> {
         root.dataset['levelGroup'] = String(r.frame.levelGroup);
       }
       root.dataset['jitterDelay'] = jitter.delayTicks.toFixed(2);
+      root.dataset['jitterUnderruns'] = String(jitter.underruns); // (T3.7: the smoothness of the client)
+      root.dataset['jitterDropped'] = String(jitter.droppedFrames);
       // while an overlay is open the player does not steer the ship
       session.setInput(overlayModel.isOpen ? 0 : mapper.bits(now));
     };
@@ -331,7 +338,7 @@ async function bootstrap(): Promise<void> {
 
     session.connect(joinTarget.host, joinTarget.port, {
       buildHash: manifest.buildHash,
-      name: 'Player 2 (' + window.at.platform + ')',
+      name: machineName !== '' ? machineName : 'Player 2 (' + window.at.platform + ')',
       ship: shipFromSave(savedGame),
     });
   }

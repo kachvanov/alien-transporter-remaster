@@ -12,6 +12,8 @@ export type OnlineRequest =
   | { k: 'hostOpen' }
   /** STOP / BACK of HostScreen: `bye` to the client, close the server, stop the beacon. */
   | { k: 'hostClose' }
+  /** TEST of HostScreen (T3.7): the renderer connects to its own addresses and port; answered with `{k:'selfTest'}`. */
+  | { k: 'hostTest' }
   /** START of HostScreen: the host goes to the level selection with the server up (the session goes on until the main menu). */
   | { k: 'hostBegin' }
   /** JoinScreen was opened: listen for the beacons. Answered with `{k:'games'}` events. */
@@ -29,10 +31,14 @@ export type OnlineEvent =
   | { k: 'info'; port: number; lastJoinAddress: string }
   /** The state of the host. `addresses` and `port` come with `waiting`; `peerName` with `connected`. */
   | { k: 'host'; status: HostStatus; addresses?: string[]; port?: number; peerName?: string; message?: string }
+  /** The progress of the TEST of HostScreen: `text` is the line to show (`OK`, `FAIL ECONNREFUSED 192.168.0.5`). */
+  | { k: 'selfTest'; state: SelfTestState; text?: string }
   /** The list of the games of the LAN (docs/03 §7); `error` when the UDP port cannot be listened to. */
   | { k: 'games'; games: OnlineGame[]; error?: string }
   /** Open JoinScreen with the message of the failure (after the worker was restarted). */
   | { k: 'openJoin'; reason: JoinFailure | null };
+
+export type SelfTestState = 'idle' | 'running' | 'ok' | 'fail';
 
 export type HostStatus = 'idle' | 'starting' | 'waiting' | 'connected' | 'error';
 
@@ -78,6 +84,8 @@ export class OnlineBridge {
   static scanError: string | null = null;
   /** The failure of the last join; JoinScreen shows it once and clears it. */
   static joinFailure: JoinFailure | null = null;
+  /** The result of the TEST button of HostScreen (T3.7). */
+  static selfTest: { state: SelfTestState; text: string } = { state: 'idle', text: '' };
   /** Counts the events: a screen redraws when it has changed. */
   static version = 0;
 
@@ -89,6 +97,7 @@ export class OnlineBridge {
     OnlineBridge.games = [];
     OnlineBridge.scanError = null;
     OnlineBridge.joinFailure = null;
+    OnlineBridge.selfTest = { state: 'idle', text: '' };
     OnlineBridge.version = 0;
   }
 
@@ -109,6 +118,9 @@ export class OnlineBridge {
           message: aEvent.message ?? '',
         };
         break;
+      case 'selfTest':
+        OnlineBridge.selfTest = { state: aEvent.state, text: aEvent.text ?? '' };
+        break;
       case 'games':
         OnlineBridge.games = aEvent.games.slice(0, 64);
         OnlineBridge.scanError = aEvent.error ?? null;
@@ -122,6 +134,7 @@ export class OnlineBridge {
   /** Forgets the state of the host (HostScreen was left). */
   static resetHost(): void {
     OnlineBridge.host = OnlineBridge.emptyHost();
+    OnlineBridge.selfTest = { state: 'idle', text: '' };
     OnlineBridge.version++;
   }
 
