@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 
 export const JPEXS_VERSION = '26.3.0';
 export const JPEXS_SHA256 = '35f4930eb7c380afe66f2117f90b006deac0631473ad7500bb39c78f68645ecd';
-export const DEFAULT_SWF = '/Applications/Flash Games/AlienTransporter.swf';
+export const DEFAULT_SWF = '/Applications/Flash Games/alien-transporter.swf';
 const JAVA_FALLBACK = '/opt/homebrew/opt/openjdk@17/bin/java';
 
 /** Project layout, all paths absolute. */
