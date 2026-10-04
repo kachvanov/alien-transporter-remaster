@@ -35,6 +35,7 @@ export class AtlasLoader {
   private readonly _failed = new Set<string>();
   private _levelGroup = NO_LEVEL_GROUP;
   private _levelName: string | null = null;
+  private _smooth = true;
 
   constructor(manifest: Manifest, tier: TierName, baseUrl = 'app://assets/') {
     this._manifest = manifest;
@@ -115,6 +116,21 @@ export class AtlasLoader {
     return sf;
   }
 
+  /**
+   * The Quality switch of the pause (T2.7): `linear` (true, the default) or `nearest` filtering of every atlas page,
+   * the loaded ones and those that are loaded later. The original turns `smoothing` of its bitmaps on and off.
+   */
+  setSmooth(smooth: boolean): void {
+    this._smooth = smooth;
+    for (const page of this._pages.values()) {
+      page.source.scaleMode = smooth ? 'linear' : 'nearest';
+    }
+  }
+
+  get smooth(): boolean {
+    return this._smooth;
+  }
+
   /** Number of atlas pages in memory (for the perf overlay and tests). */
   get pageCount(): number {
     return this._pages.size;
@@ -131,7 +147,7 @@ export class AtlasLoader {
       const res = await fetch(this._baseUrl + path);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const bitmap = await createImageBitmap(await res.blob());
-      const source = new ImageSource({ resource: bitmap, scaleMode: 'linear', autoGenerateMipmaps: false });
+      const source = new ImageSource({ resource: bitmap, scaleMode: this._smooth ? 'linear' : 'nearest', autoGenerateMipmaps: false });
       // the group may have been unloaded while the page was downloading
       if (this._groups.has(group)) this._pages.set(key, { group, source });
       else source.destroy();

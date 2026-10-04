@@ -6,12 +6,12 @@ import { AntBox2DManager } from '../physics/anthill/AntBox2DManager';
 import { Config } from './Config';
 import { GameData } from './data/GameData';
 import type { LevelManager } from './levels/LevelManager';
-import { MusicManager } from './MusicManager'; // STUB(T2.7)
-import { ContentManager } from './missions/ContentManager'; // STUB(T2.7)
-import { MissionManager } from './missions/MissionManager'; // STUB(T2.7)
+import { MusicManager } from './MusicManager';
+import { ContentManager } from './missions/ContentManager';
+import { MissionManager } from './missions/MissionManager';
 import { Models } from './Models';
 import type { GameState } from './states/GameState';
-import { Text } from './texts/Text'; // STUB(T2.7)
+import { Text } from './texts/Text';
 
 export class G {
   //---------------------------------------
@@ -36,6 +36,13 @@ export class G {
   static music: MusicManager;
   static missions: MissionManager;
   static content: ContentManager;
+
+  /**
+   * Not in the original: the host of the simulation (sim/GameLoop.ts) listens to the Quality switch here and sends
+   * `{t:'quality', smooth}` to the renderer, which sets the scale mode of the atlas textures (docs/01 §7). The
+   * original turns `smoothing` of its bitmaps on and off (GameState.setFancyQuality).
+   */
+  static onQuality: ((aSmooth: boolean) => void) | null = null;
 
   //---------------------------------------
   // CLASS CONSTANTS

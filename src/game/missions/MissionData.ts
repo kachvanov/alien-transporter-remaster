@@ -1,7 +1,8 @@
 // Port of ru/alientransporter/missions/MissionData.as
 //
-// Ported by T2.6 because LevelCompleteScreen reads it (the missions of the end of a level). The MissionManager
-// that fills it is still the stub of T2.7 (no missions in the list), so no instance exists in a game yet.
+// Ported by T2.6 because LevelCompleteScreen reads it (the missions of the end of a level); the MissionManager
+// that fills it is the one of T2.7.
+// DEVIATION: `resetIds()` is not in the original (see MissionManager.ts: every manager resets the ids).
 // DEVIATION: `fromObject` of the original writes a line to the log with trace(); it is dropped.
 
 import type { AnyObject } from '../../engine/utils/types';
@@ -40,6 +41,11 @@ export class MissionData {
     this.value = 0;
     this.isActive = false;
     this.isCompleted = false;
+  }
+
+  /** Not in the original: the static counter of the ids back to 0. */
+  static resetIds(): void {
+    MissionData._id = 0;
   }
 
   resetMissionId(): void {

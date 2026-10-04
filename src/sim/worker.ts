@@ -41,6 +41,7 @@ async function start(seed: number, assetBase: string): Promise<void> {
     host: {
       onFrame: (buf) => post({ t: 'frame', buf }, [buf]),
       openExternal: (url) => post({ t: 'openExternal', url }),
+      onQuality: (smooth) => post({ t: 'quality', smooth }),
       log,
     },
   });

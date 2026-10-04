@@ -21,6 +21,7 @@ export async function loadAssets(): Promise<AssetRegistry> {
   await registry.load();
   await registry.loadModels();
   await registry.loadTexts(); // Text.init() of G.init reads texts.json
+  await registry.loadMissions(); // the MissionManager of G.init reads missions.json
   await registry.loadEffects(); // PrepareState registers them (loadEmbeddedXML); the tests skip PrepareState
   AntEffectManager.getInstance().loadEmbeddedXML();
   for (let n = 1; n <= 20; n++) {
