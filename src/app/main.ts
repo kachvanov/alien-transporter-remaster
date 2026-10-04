@@ -20,6 +20,7 @@ import { PerfOverlay } from '../render/PerfOverlay';
 import { PixiRenderer } from '../render/PixiRenderer';
 import { SettingsMenuModel } from '../render/RemasterSettingsModel';
 import { RemasterSettingsOverlay } from '../render/RemasterSettingsOverlay';
+import { OnlineController } from './OnlineController';
 import { SettingsStore } from './settings';
 import { SimClient } from './SimClient';
 
@@ -71,6 +72,8 @@ async function bootstrap(): Promise<void> {
 
   // --- frame source: the sim worker (not in the client mode: the frames come from the host) ---
   let lastReport = 0;
+  // The screens of the LAN game (T3.4) ask this controller for the network.
+  const online = new OnlineController({ at: window.at, settings, buildHash: manifest.buildHash });
   let sim: SimClient | null = null;
   if (joinTarget === null) sim = new SimClient({
     seed: (Math.random() * 0x100000000) >>> 0,
@@ -96,10 +99,13 @@ async function bootstrap(): Promise<void> {
       }
     },
     onQuality: (smooth) => atlas.setSmooth(smooth),
+    onOnline: (req) => online.handle(req),
     onReady: () => {
+      online.onWorkerReady();
       if (flags.startLevel !== null) sim?.command('startLevel', [flags.startLevel]);
     },
   });
+  if (sim !== null) online.bind(sim);
   sim?.start();
 
   // --- remaster settings (T2.8): the overlay of F2 ---

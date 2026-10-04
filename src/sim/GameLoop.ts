@@ -20,6 +20,8 @@ import { GameData } from '../game/data/GameData';
 import { FONT_DATA_NAMES } from '../game/Fonts';
 import { G } from '../game/G';
 import { Ground } from '../game/map/Ground';
+import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
+import { OnlineBridge } from '../game/online/OnlineBridge';
 import { GameState } from '../game/states/GameState';
 import { PrepareState } from '../game/states/PrepareState';
 import { MenuSystem } from '../game/systems/MenuSystem';
@@ -47,6 +49,8 @@ export interface HostApi {
   openExternal(url: string): void;
   /** The Quality switch of the pause (T2.7): the renderer sets the filter of the atlas textures (`{t:'quality'}`). */
   onQuality?(smooth: boolean): void;
+  /** A request of the screens of the LAN game (T3.4): the renderer owns the network (`{t:'online'}`). */
+  onOnline?(req: OnlineRequest): void;
   log(level: SimLogLevel, msg: string): void;
 }
 
@@ -145,6 +149,8 @@ export class GameLoop {
     AntG.log = (aMessage: string, aType = 'data'): void => opts.host.log(aType === 'error' ? 'error' : 'info', aMessage);
     // Before the Anthill: its first state is created at once and the main menu loads the save (the Quality switch).
     G.onQuality = (smooth) => opts.host.onQuality?.(smooth);
+    OnlineBridge.reset();
+    OnlineBridge.send = (req) => opts.host.onOnline?.(req);
     this._anthill = new Anthill(opts.initialState ?? PrepareState, false, {
       onRender: () => this.renderFrame(),
     });
@@ -219,6 +225,21 @@ export class GameLoop {
       this._acc = 0;
     }
     return steps;
+  }
+
+  /**
+   * An event of the renderer for the screens of the LAN game (`{t:'online'}`, T3.4). `openJoin` (a join that failed or
+   * a session that was lost: the renderer restarted the worker) opens JoinScreen at once, without the fade.
+   */
+  online(aEvent: OnlineEvent): void {
+    OnlineBridge.receive(aEvent);
+    if (aEvent.k == 'openJoin') {
+      const menu = G.core?.getSystem(MenuSystem) ?? null;
+      if (menu !== null) {
+        menu.makeScreenNow(MenuSystem.JOIN_SCREEN);
+        this.requestSceneReset();
+      }
+    }
   }
 
   /** Commands of the worker protocol (`{t:'cmd'}`): `setTimeScale`, `freeze`, and the dev ones. */

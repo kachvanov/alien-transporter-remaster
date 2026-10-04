@@ -32,6 +32,10 @@ export class MenuSystem extends AntSystem {
   static readonly GAME_SCREEN = 'GameScreen';
   static readonly RESTART_LEVEL_SCREEN = 'RestartLevelScreen';
   static readonly CREDITS_SCREEN = 'CreditsScreen';
+  // DEVIATION: online (T3.4): the screens of the LAN game, they are not in the original.
+  static readonly ONLINE_SCREEN = 'OnlineScreen';
+  static readonly HOST_SCREEN = 'HostScreen';
+  static readonly JOIN_SCREEN = 'JoinScreen';
 
   /** DEVIATION: the screen classes by name, filled by screens/registerScreens.ts (see the header). */
   static screens: Record<string, Ctor<BasicScreen>> = {};
@@ -68,6 +72,10 @@ export class MenuSystem extends AntSystem {
     this.registerScreen(MenuSystem.GAME_SCREEN, MenuSystem.screens[MenuSystem.GAME_SCREEN]);
     this.registerScreen(MenuSystem.RESTART_LEVEL_SCREEN, MenuSystem.screens[MenuSystem.RESTART_LEVEL_SCREEN]);
     this.registerScreen(MenuSystem.CREDITS_SCREEN, MenuSystem.screens[MenuSystem.CREDITS_SCREEN]);
+    // DEVIATION: online (T3.4)
+    this.registerScreen(MenuSystem.ONLINE_SCREEN, MenuSystem.screens[MenuSystem.ONLINE_SCREEN]);
+    this.registerScreen(MenuSystem.HOST_SCREEN, MenuSystem.screens[MenuSystem.HOST_SCREEN]);
+    this.registerScreen(MenuSystem.JOIN_SCREEN, MenuSystem.screens[MenuSystem.JOIN_SCREEN]);
   }
 
   //---------------------------------------

@@ -42,6 +42,7 @@ async function start(seed: number, assetBase: string): Promise<void> {
       onFrame: (buf) => post({ t: 'frame', buf }, [buf]),
       openExternal: (url) => post({ t: 'openExternal', url }),
       onQuality: (smooth) => post({ t: 'quality', smooth }),
+      onOnline: (req) => post({ t: 'online', req }),
       log,
     },
   });
@@ -71,6 +72,10 @@ function handle(msg: SimIn): void {
     case 'cmd':
       if (loop === null) early.push(msg);
       else loop.command(msg.name, msg.args);
+      break;
+    case 'online':
+      if (loop === null) early.push(msg);
+      else loop.online(msg.ev);
       break;
     case 'simPort':
       break; // taken from the event in onmessage

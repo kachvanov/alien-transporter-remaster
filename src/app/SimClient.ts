@@ -3,6 +3,7 @@
 // openExternal requests through `window.at`.
 
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
+import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
 import type { SimIn, SimOut } from '../sim/protocol';
 import type { AtApi } from './at';
 
@@ -27,6 +28,8 @@ export interface SimClientOptions {
   onReady?: () => void;
   /** The Quality switch of the pause: `smooth` true = `linear` filtering of the atlas textures, false = `nearest`. */
   onQuality?: (smooth: boolean) => void;
+  /** A request of the screens of the LAN game (T3.4, `{t:'online'}`): see app/OnlineController.ts. */
+  onOnline?: (req: OnlineRequest) => void;
   onLog?: (level: 'info' | 'warn' | 'error', msg: string) => void;
   /** Clock for the frame counter, ms (default `performance.now()`). */
   now?: () => number;
@@ -38,7 +41,7 @@ function defaultWorker(): WorkerLike {
 
 export class SimClient {
   private readonly _opts: SimClientOptions;
-  private readonly _worker: WorkerLike;
+  private _worker: WorkerLike;
   private readonly _now: () => number;
   private _ready = false;
   private _disposed = false;
@@ -81,6 +84,28 @@ export class SimClient {
   /** A dev command (`startLevel`, `setTimeScale`, `recordStart`, `recordStop`). */
   command(aName: string, aArgs: unknown[] = []): void {
     this._worker.postMessage({ t: 'cmd', name: aName, args: aArgs });
+  }
+
+  /** An answer for the screens of the LAN game (T3.4). */
+  sendOnline(aEvent: OnlineEvent): void {
+    this._worker.postMessage({ t: 'online', ev: aEvent });
+  }
+
+  /**
+   * T3.4: stops the worker and starts a new one: the game is at the main menu again and `onReady` runs again. Used when
+   * the client session ends and the player goes back to the Join screen (app/OnlineController.ts).
+   */
+  restart(): void {
+    this._worker.onmessage = null;
+    this._worker.onerror = null;
+    this._worker.terminate();
+    this._worker = (this._opts.createWorker ?? defaultWorker)();
+    this._worker.onmessage = (ev) => this.handle(ev.data);
+    this._worker.onerror = (ev) => this.log('error', 'sim worker: ' + ev.message);
+    this._ready = false;
+    this._windowStart = -1;
+    this._windowFrames = 0;
+    this.start();
   }
 
   /** Passes the MessagePort of the network bridge to the worker (T3.2). */
@@ -128,6 +153,9 @@ export class SimClient {
         break;
       case 'quality':
         this._opts.onQuality?.(aMsg.smooth);
+        break;
+      case 'online':
+        this._opts.onOnline?.(aMsg.req);
         break;
       case 'log':
         this.log(aMsg.level, aMsg.msg);

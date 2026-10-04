@@ -2,6 +2,7 @@
 // docs/01-architecture.md §1, §7.
 
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
+import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
 
 export type SimLogLevel = 'info' | 'warn' | 'error';
 
@@ -15,6 +16,8 @@ export type SimIn =
   | { t: 'saveLoaded'; key: string; data: unknown }
   /** MessagePort of the network bridge goes in the transfer list (STUB(T3.2): the worker only keeps it). */
   | { t: 'simPort' }
+  /** The answer of the renderer to a request of the screens of the LAN game (T3.4, game/online/OnlineBridge.ts). */
+  | { t: 'online'; ev: OnlineEvent }
   /** Commands: `freeze` [bool] (the settings panel), dev: `startLevel` [levelName], `setTimeScale` [k], `recordStart`, `recordStop`. */
   | { t: 'cmd'; name: string; args?: unknown[] };
 
@@ -29,5 +32,10 @@ export type SimOut =
   | { t: 'openExternal'; url: string }
   /** The Quality switch of the pause: `smooth` is `linear` (true) or `nearest` (false) filtering of the atlases. */
   | { t: 'quality'; smooth: boolean }
+  /**
+   * A request of the screens of the LAN game (T3.4): the host starts and stops, the scan of the LAN, and
+   * `{k:'joinRequest', host, port}` - the renderer then stops this worker and starts the client session (T3.3).
+   */
+  | { t: 'online'; req: OnlineRequest }
   | { t: 'log'; level: SimLogLevel; msg: string }
   | { t: 'ready' };
