@@ -3,6 +3,7 @@
 
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
+import type { Replay } from './replay';
 
 export type SimLogLevel = 'info' | 'warn' | 'error';
 
@@ -37,5 +38,7 @@ export type SimOut =
    * `{k:'joinRequest', host, port}` - the renderer then stops this worker and starts the client session (T3.3).
    */
   | { t: 'online'; req: OnlineRequest }
+  /** T4.1: the replay of a recording that has stopped (`recordStop`, F9 of the dev build). */
+  | { t: 'replay'; replay: Replay }
   | { t: 'log'; level: SimLogLevel; msg: string }
   | { t: 'ready' };

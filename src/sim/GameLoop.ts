@@ -17,6 +17,7 @@ import { AntMath } from '../engine/utils/AntMath';
 import type { Ctor } from '../engine/utils/types';
 import { Config } from '../game/Config';
 import { GameData } from '../game/data/GameData';
+import { PlayerData } from '../game/data/PlayerData';
 import type { ShipLook } from '../game/data/GameData';
 import { FONT_DATA_NAMES } from '../game/Fonts';
 import { G } from '../game/G';
@@ -35,8 +36,11 @@ import type { FrameScene } from '../frame/types';
 import { keyCodeOfName } from '../net/clientInput';
 import { InputRouter } from './InputRouter';
 import type { SimLogLevel } from './protocol';
+import { InputRecorder, REPLAY_VERSION } from './replay';
+import type { Replay } from './replay';
+import { makeReplayState } from './replayState';
 import type { SaveStorage } from './SaveStorage';
-import { CachedGameSaveStorage } from './SaveStorage';
+import { CachedGameSaveStorage, MemorySaveStorage } from './SaveStorage';
 
 /** Simulation step, ms. */
 export const TICK_MS = 1000 / 35;
@@ -54,6 +58,8 @@ export interface HostApi {
   onQuality?(smooth: boolean): void;
   /** A request of the screens of the LAN game (T3.4): the renderer owns the network (`{t:'online'}`). */
   onOnline?(req: OnlineRequest): void;
+  /** T4.1: the replay of a recording that has stopped (`recordStop`): the renderer saves it through the main process. */
+  onReplay?(replay: Replay): void;
   log(level: SimLogLevel, msg: string): void;
 }
 
@@ -97,6 +103,13 @@ export class GameLoop {
   private _last = -1;
   private _sceneReset = true;
   private _recording: Recording | null = null;
+  /** T4.1: the run of a recording (a replay that starts at tick 0 of the level) and the facts it starts with. */
+  private _recorder: InputRecorder | null = null;
+  private _recordHead: Omit<Replay, 'ticks' | 'inputs'> | null = null;
+  /** T4.1: `init()` of a new run is under way (a recording starts a fresh run of the level): no ticks until it is done. */
+  private _restarting: Promise<void> | null = null;
+  /** T4.1: what the run of a recording starts with instead of the options (the level, an isolated save). */
+  private _override: { initialState: Ctor<AntState>; save: SaveStorage } | null = null;
   private _screenName: string | null = null;
   private _frozen = false;
   /** T3.6: the server of the host is up (HostScreen was opened and not closed): the session is `Host`, else `Solo`. */
@@ -108,8 +121,10 @@ export class GameLoop {
 
   /** The 1..20 level group of the frame header (see GameLoopOptions.levelGroup). */
   levelGroup: number;
-  /** The recording of the last `recordStop` (STUB(T4.1): the replay format and its files). */
+  /** The raw inputs of the last `recordStart`..`recordStop` (every tick, whatever the game was doing). */
   lastRecording: Recording | null = null;
+  /** T4.1: the replay of the last `recordStop` (null when the recording was not in a level). */
+  lastReplay: Replay | null = null;
 
   constructor(aOpts: GameLoopOptions) {
     this._opts = aOpts;
@@ -124,6 +139,8 @@ export class GameLoop {
   /** Loads the assets, seeds the PRNG, preloads the save, creates the Anthill and the initial state. */
   async init(): Promise<void> {
     const opts = this._opts;
+    const initialState = this._override?.initialState ?? opts.initialState ?? PrepareState;
+    const saveStorage = this._override?.save ?? opts.save;
     const registry = new AssetRegistry(opts.assets);
     await registry.load();
     // The data the game reads synchronously: levels, models, fonts, effects, missions, texts (files that the
@@ -139,7 +156,7 @@ export class GameLoop {
       opts.host.log('warn', 'sounds.json: ' + String(e));
     }
 
-    const cache = new CachedGameSaveStorage(opts.save, (e) => opts.host.log('error', 'save failed: ' + String(e)));
+    const cache = new CachedGameSaveStorage(saveStorage, (e) => opts.host.log('error', 'save failed: ' + String(e)));
     await cache.preload([GameData.SAVE_KEY]);
     GameData.storage = cache;
 
@@ -156,6 +173,8 @@ export class GameLoop {
     this._last = -1;
     this._sceneReset = true;
     this._recording = null;
+    this._recorder = null;
+    this._recordHead = null;
     this._screenName = null;
     this._writer = new FrameWriter();
 
@@ -170,7 +189,7 @@ export class GameLoop {
     this._peerEvents.length = 0;
     RemotePlayer.noticeText = null;
     this.input.setHostMode(false);
-    this._anthill = new Anthill(opts.initialState ?? PrepareState, false, {
+    this._anthill = new Anthill(initialState, false, {
       onRender: () => this.renderFrame(),
     });
     AntG.onOpenUrl = (url) => opts.host.openExternal(url);
@@ -199,6 +218,9 @@ export class GameLoop {
     if (this._recording !== null) {
       this._recording.inputs.push(aInput);
     }
+    if (this._recorder !== null) {
+      this._recorder.push(aInput.keysDown);
+    }
     this.applyPeerEvents();
     const t0 = this._clock();
     anthill.tick(aInput);
@@ -222,7 +244,7 @@ export class GameLoop {
     if (this._anthill === null) {
       return 0;
     }
-    if (this._frozen) {
+    if (this._frozen || this._restarting !== null) {
       // (T2.8, the settings panel of the renderer is open) no ticks, and no catch-up burst when the time runs again
       this._last = aNowMs;
       this._acc = 0;
@@ -319,24 +341,95 @@ export class GameLoop {
         break;
       }
       case 'recordStart':
-        this._recording = { seed: this._opts.seed, inputs: [] };
-        host.log('info', 'recording started');
+        this.recordStart();
         break;
-      case 'recordStop': {
-        const rec = this._recording;
-        this._recording = null;
-        host.log('info', rec === null ? 'not recording' : `recording stopped: ${rec.inputs.length} ticks`);
-        this.lastRecording = rec;
+      case 'recordStop':
+        this.recordStop();
         break;
-      }
       default:
         host.log('warn', 'unknown command: ' + aName);
+    }
+  }
+
+  /** The run that `recordStart` begins is ready (the level is restarted); resolves at once when nothing is under way. */
+  async whenIdle(): Promise<void> {
+    while (this._restarting !== null) {
+      await this._restarting;
     }
   }
 
   //---------------------------------------
   // PROTECTED METHODS
   //---------------------------------------
+
+  /**
+   * `recordStart` (F9 of the dev build, T4.1). A replay has to start where a headless run starts: tick 0 of the level of a
+   * fresh process. So when a level is being played the game starts a new run of that level (the same seed, the mode and the
+   * ship of the game that is on, a save of its own that is not written to the file) and records it from its first tick.
+   * Outside a level only the raw inputs are kept (`lastRecording`).
+   */
+  private recordStart(): void {
+    const host = this._opts.host;
+    if (this._restarting !== null || this._recorder !== null) {
+      host.log('warn', 'recordStart: already recording');
+      return;
+    }
+
+    const number = G.levelManager?.currentLevelNumber ?? 0;
+    const gameData = G.gameData as typeof G.gameData | undefined;
+    if (!(this._anthill?.state instanceof GameState) || number <= 0 || gameData === undefined) {
+      this._recording = { seed: this._opts.seed, inputs: [] };
+      host.log('warn', 'recordStart: no level is being played, only the raw inputs are recorded (no replay)');
+      return;
+    }
+
+    const player = gameData.getPlayerData(PlayerData.PLAYER1) as PlayerData;
+    const head: Omit<Replay, 'ticks' | 'inputs'> = {
+      version: REPLAY_VERSION,
+      seed: this._opts.seed,
+      level: 'Level' + (number < 10 ? '0' : '') + number,
+      casualMode: gameData.casualMode,
+      twoPlayers: gameData.isTwoPlayerMode,
+      ship: {
+        shuttleKind: player.shuttleKind,
+        shuttleColor: player.shuttleColor,
+        engineKind: player.engineKind,
+        engineColor: player.engineColor,
+      },
+    };
+    this._override = { initialState: makeReplayState(head), save: new MemorySaveStorage() };
+    host.log('info', 'recording ' + head.level + ': a new run of the level starts (this run does not write the save)');
+    this._restarting = this.init()
+      .then(() => {
+        this._recordHead = head;
+        this._recorder = new InputRecorder();
+        this._recording = { seed: head.seed, inputs: [] };
+      })
+      .catch((e: unknown) => host.log('error', 'recordStart failed: ' + String(e)))
+      .finally(() => {
+        this._restarting = null;
+      });
+  }
+
+  private recordStop(): void {
+    const host = this._opts.host;
+    const rec = this._recording;
+    const recorder = this._recorder;
+    const head = this._recordHead;
+    this._recording = null;
+    this._recorder = null;
+    this._recordHead = null;
+    this.lastRecording = rec;
+    if (recorder !== null && head !== null && recorder.ticks > 0) {
+      const replay: Replay = { ...head, ticks: recorder.ticks, inputs: recorder.inputs };
+      this.lastReplay = replay;
+      host.log('info', `recording stopped: ${replay.level}, ${replay.ticks} ticks`);
+      host.onReplay?.(replay);
+    } else {
+      this.lastReplay = null;
+      host.log('info', rec === null ? 'not recording' : `recording stopped: ${rec.inputs.length} ticks (no replay)`);
+    }
+  }
 
   /** A request of the screens (OnlineBridge.send): the loop follows the session, the renderer carries the request out. */
   private sendOnline(aReq: OnlineRequest): void {

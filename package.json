@@ -15,7 +15,9 @@
     "extract": "tsx tools/extract/index.ts",
     "viewer": "vite --config tools/viewer/vite.config.ts",
     "build:mac": "electron-vite build && electron-builder --mac --arm64",
-    "build:win": "electron-vite build && electron-builder --win --x64"
+    "build:win": "electron-vite build && electron-builder --win --x64",
+    "golden:update": "tsx tools/golden/update.ts",
+    "golden:record": "tsx tools/golden/record.ts"
   },
   "dependencies": {
     "box2dweb": "2.1.0-b",

@@ -7,6 +7,7 @@ import { resolveAssetFile } from './assetPath';
 import { encodeFlagsArg, parseDevFlags, parseProfile } from './flags';
 import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
 import { selfTest } from './net/selfTest';
+import { saveReplayFile } from './replayFile';
 import { formatTraffic } from './net/trafficMeter';
 import { HostServer } from './net/wsServer';
 import type { HostEvent } from '../src/app/at';
@@ -346,6 +347,11 @@ function registerIpc(): void {
   ipcMain.handle('save:load', (_event, key: unknown) => (typeof key === 'string' ? saveDoc.get(key) : null));
   ipcMain.handle('save:write', async (_event, key: unknown, data: unknown) => {
     if (typeof key === 'string') await saveDoc.set(key, data);
+  });
+  // T4.1: F9 of the dev build saves the replay of a recording into the project (tests/golden/replays/). Not in a packaged app.
+  ipcMain.handle('dev:save-replay', async (_event, replay: unknown) => {
+    if (app.isPackaged) throw new Error('dev:save-replay: not available in a packaged app');
+    return saveReplayFile(join(app.getAppPath(), 'tests', 'golden', 'replays'), replay);
   });
   ipcMain.handle('settings:get', () => settingsDoc.readAll());
   // Only the known, valid keys of the remaster settings pass (the key `window` belongs to this process).

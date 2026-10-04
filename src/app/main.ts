@@ -114,6 +114,12 @@ async function bootstrap(): Promise<void> {
     },
     onQuality: (smooth) => atlas.setSmooth(smooth),
     onOnline: (req) => online.handle(req),
+    onReplay: (replay) => {
+      window.at.dev
+        .saveReplay(replay)
+        .then((path) => console.info(`[replay] saved ${replay.ticks} ticks of ${replay.level}: ${path}`))
+        .catch((e: unknown) => console.error('[replay] not saved:', e));
+    },
     onReady: () => {
       online.onWorkerReady();
       if (flags.startLevel !== null) sim?.command('startLevel', [flags.startLevel]);
@@ -176,9 +182,21 @@ async function bootstrap(): Promise<void> {
     onHotkey: (h) => {
       if (h === 'fullscreen') toggleFullscreen();
       else if (h === 'settings') openSettings();
+      else if (h === 'record') toggleRecording();
       else perf.toggle();
     },
   });
+
+  // F9 (dev build, T4.1): the first press starts the recording of a replay (the level starts anew, see GameLoop.recordStart), the
+  // second saves it to tests/golden/replays/.
+  let recording = false;
+  const toggleRecording = (): void => {
+    if (!import.meta.env.DEV || sim === null) return;
+    recording = !recording;
+    sim.command(recording ? 'recordStart' : 'recordStop');
+    root.dataset['recording'] = String(recording);
+    console.info(recording ? '[replay] recording...' : '[replay] stopped');
+  };
 
   // While the panel is open no key and no mouse event reaches the game: these listeners run first (capture phase of the
   // window) and stop the event. The simulation stands still (command `freeze`).
