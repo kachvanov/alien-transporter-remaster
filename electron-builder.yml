@@ -3,6 +3,7 @@ productName: Alien Transporter Remaster
 directories:
   buildResources: resources
   output: dist
+afterPack: tools/build/adhocSign.cjs
 files:
   - out/**
   - package.json
@@ -15,7 +16,14 @@ mac:
   target:
     - target: dmg
       arch: arm64
+  category: public.app-category.games
+  # resources/icon.icns is generated from the game art by tools/build/make-icon.ts (npm run build:mac).
+  icon: icon.icns
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # No Apple Developer ID: unsigned by electron-builder, ad-hoc signed by the afterPack hook below.
   identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
   # The system asks for access to the local network at the first LAN game (docs/03 §8); this is the text of the question.
   extendInfo:
     NSLocalNetworkUsageDescription: Alien Transporter uses the local network to find and join LAN games.
