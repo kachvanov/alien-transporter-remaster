@@ -27,6 +27,8 @@ vendor/jpexs/
 
 # test artifacts
 tests/visual/actual/
+tests/visual/diff/
+tests/visual/report.html
 test-results/
 playwright-report/
 
