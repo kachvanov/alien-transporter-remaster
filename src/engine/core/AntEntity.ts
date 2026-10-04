@@ -692,26 +692,16 @@ export class AntEntity extends AntBasic implements IBubbleEventHandler {
   }
 
   updateBounds(): void {
-    if (
-      this.globalAngle == 0 &&
-      (!this._oldPosition.equal(this.globalX, this.globalY) ||
-        !this._oldSize.equal(this.width, this.height) ||
-        !this._oldScale.equal(this.scaleX, this.scaleY))
-    ) {
+    // PERF (T4.3): the three comparisons have no side effects, so they are made once here and not once in every branch
+    // of the original (a still entity, the common case, made 8 of them). The branches and their order are the original's.
+    const positionSame = this._oldPosition.equal(this.globalX, this.globalY);
+    const sizeSame = this._oldSize.equal(this.width, this.height);
+    const scaleSame = this._oldScale.equal(this.scaleX, this.scaleY);
+    if (this.globalAngle == 0 && (!positionSame || !sizeSame || !scaleSame)) {
       this.calcBounds();
-    } else if (
-      this._oldAngle == this.globalAngle &&
-      !this._oldPosition.equal(this.globalX, this.globalY) &&
-      this._oldSize.equal(this.width, this.height) &&
-      this._oldScale.equal(this.scaleX, this.scaleY)
-    ) {
+    } else if (this._oldAngle == this.globalAngle && !positionSame && sizeSame && scaleSame) {
       this.moveBounds();
-    } else if (
-      this._oldAngle != this.globalAngle ||
-      !this._oldPosition.equal(this.globalX, this.globalY) ||
-      !this._oldSize.equal(this.width, this.height) ||
-      !this._oldScale.equal(this.scaleX, this.scaleY)
-    ) {
+    } else if (this._oldAngle != this.globalAngle || !positionSame || !sizeSame || !scaleSame) {
       this.rotateBounds();
     }
   }

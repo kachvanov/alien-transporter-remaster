@@ -38,6 +38,8 @@ import { InputRouter } from './InputRouter';
 import type { SimLogLevel } from './protocol';
 import { InputRecorder, REPLAY_VERSION } from './replay';
 import type { Replay } from './replay';
+import { PERF_WINDOW_TICKS, PerfProbe } from './perfProbe';
+import type { PerfSample } from './perfProbe';
 import { makeReplayState } from './replayState';
 import type { SaveStorage } from './SaveStorage';
 import { CachedGameSaveStorage, MemorySaveStorage } from './SaveStorage';
@@ -60,6 +62,8 @@ export interface HostApi {
   onOnline?(req: OnlineRequest): void;
   /** T4.1: the replay of a recording that has stopped (`recordStop`): the renderer saves it through the main process. */
   onReplay?(replay: Replay): void;
+  /** T4.3: the sample of the last PERF_WINDOW_TICKS ticks (only when `GameLoopOptions.perf` is on, `--perf-log`). */
+  onPerf?(sample: PerfSample): void;
   log(level: SimLogLevel, msg: string): void;
 }
 
@@ -77,6 +81,8 @@ export interface GameLoopOptions {
   levelGroup?: number;
   /** Clock of the tick cost measurement, ms. Default `performance.now()`; headless runs pass `() => 0`. */
   clock?: () => number;
+  /** T4.3 (`--perf-log`): measure the tick and its parts with the clock above, see perfProbe.ts. Does not change the game. */
+  perf?: boolean;
 }
 
 /** The client that plays in the host session (HostBridge.PeerInfo): only its ship matters to the game. */
@@ -95,6 +101,7 @@ export class GameLoop {
   private readonly _opts: GameLoopOptions;
   private readonly _clock: () => number;
   private _anthill: Anthill | null = null;
+  private _probe: PerfProbe | null = null;
   private _writer: FrameWriter | null = null;
   private _frame: ArrayBuffer | null = null;
   private _tick = 0;
@@ -177,6 +184,10 @@ export class GameLoop {
     this._recordHead = null;
     this._screenName = null;
     this._writer = new FrameWriter();
+    if (opts.perf === true && this._probe === null) {
+      this._probe = new PerfProbe(this._clock);
+      this._probe.install();
+    }
 
     // AntG.log of the original writes to the debug console; here it goes to the log of the host.
     AntG.log = (aMessage: string, aType = 'data'): void => opts.host.log(aType === 'error' ? 'error' : 'info', aMessage);
@@ -222,9 +233,18 @@ export class GameLoop {
       this._recorder.push(aInput.keysDown);
     }
     this.applyPeerEvents();
+    const probe = this._probe;
+    probe?.begin();
     const t0 = this._clock();
     anthill.tick(aInput);
     this._tickCost = Math.max(0, Math.round((this._clock() - t0) * 100));
+    if (probe !== null) {
+      probe.end();
+      if (probe.ticks >= PERF_WINDOW_TICKS) {
+        this._opts.host.onPerf?.(probe.take() as PerfSample);
+      }
+    }
+
     this._tick++;
     this.logScreenChange();
     const frame = this._frame;

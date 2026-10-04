@@ -17,6 +17,8 @@ export interface DevFlags {
   join?: string;
   /** `--host-start` (T3.2, dev): start hosting at once (the Host screen without the menu), on the port of the settings. */
   hostStart?: boolean;
+  /** `--perf-log=perf.json` (T4.3, dev): the file (relative to the working directory of the process) that the measurements go to. */
+  perfLog?: string;
 }
 
 /** What a host tells about itself in the LAN beacon (electron/net/discovery.ts; `game` and `proto` are added there). */
@@ -100,6 +102,8 @@ export interface AtApi {
   dev: {
     /** T4.1 (dev build only): saves the replay of a recording to `tests/golden/replays/<level>-<time>.json`; resolves to the path. */
     saveReplay(replay: Replay): Promise<string>;
+    /** T4.3: one line of the `--perf-log` file (the main process adds the memory and writes the file); a no-op without the flag. */
+    perfLog(entry: Record<string, unknown>): Promise<void>;
   };
   settings: {
     /** The content of settings.json (src/app/settings.ts `parseSettings` reads it). */

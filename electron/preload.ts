@@ -46,6 +46,7 @@ const api: AtApi = {
   },
   dev: {
     saveReplay: (replay) => ipcRenderer.invoke('dev:save-replay', replay) as Promise<string>,
+    perfLog: (entry) => ipcRenderer.invoke('dev:perf-log', entry) as Promise<void>,
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get') as Promise<Record<string, unknown>>,

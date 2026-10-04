@@ -35,13 +35,14 @@ bridge.onPeerChange = (peer) => loop?.remotePeer(peer);
 /** Messages that arrive while `init()` is loading (input, commands) are applied when it has finished. */
 const early: SimIn[] = [];
 
-async function start(seed: number, assetBase: string): Promise<void> {
+async function start(seed: number, assetBase: string, perf: boolean): Promise<void> {
   const storage = new WorkerSaveStorage(post);
   save = storage;
   const gameLoop = new GameLoop({
     assets: new FetchAssetSource(assetBase),
     save: storage,
     seed,
+    perf,
     host: {
       onFrame: (buf) => {
         bridge.sendFrame(buf); // (a copy for the client, before `buf` goes to the renderer)
@@ -51,6 +52,7 @@ async function start(seed: number, assetBase: string): Promise<void> {
       onQuality: (smooth) => post({ t: 'quality', smooth }),
       onOnline: (req) => post({ t: 'online', req }),
       onReplay: (replay) => post({ t: 'replay', replay }),
+      onPerf: (sample) => post({ t: 'perf', sample }),
       log,
     },
   });
@@ -68,7 +70,7 @@ function handle(msg: SimIn): void {
     case 'init':
       if (starting) return;
       starting = true;
-      start(msg.seed, msg.assetBase).catch((e: unknown) => log('error', 'sim init failed: ' + String(e)));
+      start(msg.seed, msg.assetBase, msg.perf === true).catch((e: unknown) => log('error', 'sim init failed: ' + String(e)));
       break;
     case 'input':
       if (loop === null) early.push(msg);

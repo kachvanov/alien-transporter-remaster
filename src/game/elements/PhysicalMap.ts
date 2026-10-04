@@ -39,6 +39,8 @@ export class PhysicalMap extends AntEntity {
   private _range: number;
   private _rangeSq: number;
   private _exceptionList: Ctor[] | null = null;
+  /** PERF (T4.3): the box of `onAddFixture`, one for all the calls (`new b2AABB()` of the original; ComputeAABB sets all 4 numbers). */
+  private readonly _fixtureAABB = new b2AABB();
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -177,7 +179,7 @@ export class PhysicalMap extends AntEntity {
     let row: number;
     let count: number; // :int
     let cell: PhysicalCell;
-    const aabb = new b2AABB();
+    const aabb = this._fixtureAABB;
     const transform = aFixture.GetBody().GetTransform();
     aFixture.GetShape().ComputeAABB(aabb, transform);
     const data = aFixture.GetBody().GetUserData();

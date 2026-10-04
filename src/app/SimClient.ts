@@ -5,6 +5,7 @@
 import type { InputSnapshot } from '../engine/input/InputSnapshot';
 import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
 import type { SimIn, SimOut } from '../sim/protocol';
+import type { PerfSample } from '../sim/perfProbe';
 import type { Replay } from '../sim/replay';
 import type { AtApi } from './at';
 
@@ -34,6 +35,8 @@ export interface SimClientOptions {
   /** T4.1: a recording has stopped (F9 of the dev build): the replay to save. */
   onReplay?: (replay: Replay) => void;
   onLog?: (level: 'info' | 'warn' | 'error', msg: string) => void;
+  /** T4.3 (`--perf-log`): the worker measures its ticks and sends a sample every 35 ticks. */
+  onPerf?: (sample: PerfSample) => void;
   /** Clock for the frame counter, ms (default `performance.now()`). */
   now?: () => number;
 }
@@ -63,7 +66,9 @@ export class SimClient {
 
   /** Starts the simulation: the worker loads its assets and the save, then posts `ready`. */
   start(): void {
-    this._worker.postMessage({ t: 'init', seed: this._opts.seed, assetBase: this._opts.assetBase });
+    const init: SimIn = { t: 'init', seed: this._opts.seed, assetBase: this._opts.assetBase };
+    if (this._opts.onPerf !== undefined) init.perf = true;
+    this._worker.postMessage(init);
   }
 
   get ready(): boolean {
@@ -162,6 +167,9 @@ export class SimClient {
         break;
       case 'replay':
         this._opts.onReplay?.(aMsg.replay);
+        break;
+      case 'perf':
+        this._opts.onPerf?.(aMsg.sample);
         break;
       case 'log':
         this.log(aMsg.level, aMsg.msg);
