@@ -1,11 +1,19 @@
 // Renderer entry (T1.7): FramePlayer + PixiRenderer + InputCollector around a frame source.
-// The frame source is the sim worker (SimClient, T1.6).
+// The frame source is the sim worker (SimClient, T1.6) or, with `--join=ip[:port]` (T3.3), the network: the frames of the
+// host come through ClientSession -> JitterBuffer, the local worker is not started.
 
 import { FetchAssetSource } from '../engine/assets/AssetSource';
 import { parseManifest, SoundsSchema } from '../engine/assets/schemas';
 import { AudioEngine } from '../audio/AudioEngine';
+import { ClientInputMapper, GAME_SAVE_KEY, keyNamesFromSave, shipFromSave } from '../net/clientInput';
+import { ClientSession, closeText } from '../net/clientSession';
+import { JitterBuffer } from '../net/JitterBuffer';
+import { parseAddress } from '../net/protocol';
 import { availableTiers, selectTier } from '../render/atlasMath';
 import { AtlasLoader } from '../render/AtlasLoader';
+import { ClientOverlay } from '../render/ClientOverlay';
+import { ClientOverlayModel } from '../render/ClientOverlayModel';
+import type { ClientOverlayResult } from '../render/ClientOverlayModel';
 import { FramePlayer } from '../render/FramePlayer';
 import { InputCollector } from '../render/InputCollector';
 import { PerfOverlay } from '../render/PerfOverlay';
@@ -20,6 +28,9 @@ const ASSETS_URL = 'app://assets/';
 async function bootstrap(): Promise<void> {
   const flags = window.at.app.flags;
   const root = document.documentElement;
+  // Network client: `--join=ip[:port]` (until the Join screen of T3.4). `#local` is set when the session is over: the local game.
+  const joinTarget = flags.join !== undefined && window.location.hash !== '#local' ? parseAddress(flags.join) : null;
+  root.dataset['mode'] = joinTarget !== null ? 'client' : 'local';
 
   const manifest = parseManifest(await new FetchAssetSource(ASSETS_URL).readText('manifest.json'));
   // settings.json (T2.8): the command line flags win over it (dev), the overlay of F2 changes it.
@@ -58,9 +69,10 @@ async function bootstrap(): Promise<void> {
   let frameBytes = 0;
   let tickCostMs = 0;
 
-  // --- frame source: the sim worker ---
+  // --- frame source: the sim worker (not in the client mode: the frames come from the host) ---
   let lastReport = 0;
-  const sim = new SimClient({
+  let sim: SimClient | null = null;
+  if (joinTarget === null) sim = new SimClient({
     seed: (Math.random() * 0x100000000) >>> 0,
     assetBase: ASSETS_URL,
     at: window.at,
@@ -78,16 +90,17 @@ async function bootstrap(): Promise<void> {
       const now = performance.now();
       if (now - lastReport >= 5000) {
         lastReport = now;
-        root.dataset['simFps'] = sim.framesPerSecond.toFixed(1);
-        console.info(`[sim] ${sim.framesPerSecond.toFixed(1)} frames/s, ${buffer.byteLength} bytes`);
+        const fps = sim?.framesPerSecond ?? 0;
+        root.dataset['simFps'] = fps.toFixed(1);
+        console.info(`[sim] ${fps.toFixed(1)} frames/s, ${buffer.byteLength} bytes`);
       }
     },
     onQuality: (smooth) => atlas.setSmooth(smooth),
     onReady: () => {
-      if (flags.startLevel !== null) sim.command('startLevel', [flags.startLevel]);
+      if (flags.startLevel !== null) sim?.command('startLevel', [flags.startLevel]);
     },
   });
-  sim.start();
+  sim?.start();
 
   // --- remaster settings (T2.8): the overlay of F2 ---
   let fullscreen = false;
@@ -139,18 +152,18 @@ async function bootstrap(): Promise<void> {
   const openSettings = (): void => {
     if (overlay === null || overlay.isOpen) return;
     input.releaseAll();
-    sim.sendInput(input.snapshot());
+    sim?.sendInput(input.snapshot());
     menu.refresh();
     overlay.open();
     root.dataset['settingsOpen'] = 'true'; // (test hook)
-    sim.command('freeze', [true]);
+    sim?.command('freeze', [true]);
   };
   const closeSettings = (): void => {
     if (overlay === null || !overlay.isOpen) return;
     overlay.close();
     root.dataset['settingsOpen'] = 'false';
     input.releaseAll();
-    sim.command('freeze', [false]);
+    sim?.command('freeze', [false]);
   };
   void RemasterSettingsOverlay.create({
     stage: renderer.app.stage,
@@ -185,13 +198,122 @@ async function bootstrap(): Promise<void> {
   window.addEventListener('wheel', (e) => void gate(e), true);
   input.attach();
 
+  // --- network client (T3.3): ClientSession -> JitterBuffer -> FramePlayer / AudioEngine ---
+  let clientKeys: ((keysDown: readonly number[], now: number) => void) | null = null;
+  let clientTick: ((now: number) => void) | null = null;
+  let clientOverlay: ClientOverlay | null = null;
+  if (joinTarget !== null) {
+    const savedGame = await window.at.save.load(GAME_SAVE_KEY).catch(() => null);
+    const mapper = new ClientInputMapper(keyNamesFromSave(savedGame));
+    const jitter = new JitterBuffer();
+    const overlayModel = new ClientOverlayModel();
+    // STUB(T3.4): the way back to the main menu is the local game (the start state of the app), without a screen of its own.
+    const goToMenu = (): void => {
+      window.location.hash = '#local';
+      window.location.reload();
+    };
+    const session = new ClientSession({
+      onStateChange: (state, reason) => {
+        root.dataset['netState'] = state;
+        if (reason !== null) root.dataset['netReason'] = reason;
+        if (state === 'closed') {
+          input.releaseAll();
+          mapper.releaseAll();
+          if (reason === 'left') goToMenu();
+          else overlayModel.showMessage(closeText(reason ?? 'connection_lost'));
+        }
+      },
+      onFrame: (frame, bytes) => {
+        frameBytes = bytes;
+        jitter.push(frame, performance.now());
+      },
+      onNotice: (text) => console.info('[net] host: ' + text),
+    });
+    const onResult = (result: ClientOverlayResult): void => {
+      if (result === 'yes') session.disconnect();
+      else if (result === 'no') overlayModel.hide();
+      else if (result === 'ok') goToMenu();
+    };
+    void ClientOverlay.create({
+      stage: renderer.app.stage,
+      atlas,
+      manifest,
+      assets: new FetchAssetSource(ASSETS_URL),
+      model: overlayModel,
+      onResult,
+    })
+      .then((o) => {
+        clientOverlay = o;
+      })
+      .catch((e: unknown) => console.warn('[net] client overlay unavailable:', e));
+
+    clientKeys = (keysDown, now) => mapper.setKeysDown(keysDown, now);
+    clientTick = (now) => {
+      // the frames whose tick the playback clock has reached become current: the picture and the sound of each
+      for (const r of jitter.update(now)) {
+        player.push(r.frame, r.releaseTime, r.spanTicks);
+        audio.apply(r.frame);
+        tickCostMs = r.frame.tickCost / 100;
+        root.dataset['ticks'] = String(r.frame.tick + 1);
+        root.dataset['levelGroup'] = String(r.frame.levelGroup);
+      }
+      root.dataset['jitterDelay'] = jitter.delayTicks.toFixed(2);
+      // while an overlay is open the player does not steer the ship
+      session.setInput(overlayModel.isOpen ? 0 : mapper.bits(now));
+    };
+
+    // Esc: "Disconnect?"; while an overlay is open it takes every key and click (capture phase: before the game input).
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (overlay?.isOpen === true) return; // (the settings panel has its own gate)
+        if (!overlayModel.isOpen) {
+          if (e.code !== 'Escape' || session.state === 'closed') return;
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (!e.repeat) {
+            input.releaseAll();
+            mapper.releaseAll();
+            overlayModel.showConfirm();
+          }
+          return;
+        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (!e.repeat) onResult(overlayModel.handleKey(e.code));
+      },
+      true,
+    );
+    const gateOverlay = (e: Event): boolean => {
+      if (!overlayModel.isOpen) return false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return true;
+    };
+    window.addEventListener('keyup', (e) => void gateOverlay(e), true);
+    window.addEventListener('pointermove', (e) => void (gateOverlay(e) && clientOverlay?.pointerMove(e.clientX, e.clientY)), true);
+    window.addEventListener('pointerdown', (e) => void (gateOverlay(e) && clientOverlay?.pointerDown(e.clientX, e.clientY)), true);
+    window.addEventListener('pointerup', (e) => void (gateOverlay(e) && clientOverlay?.pointerUp(e.clientX, e.clientY)), true);
+    window.addEventListener('wheel', (e) => void gateOverlay(e), true);
+
+    session.connect(joinTarget.host, joinTarget.port, {
+      buildHash: manifest.buildHash,
+      name: 'Player 2 (' + window.at.platform + ')',
+      ship: shipFromSave(savedGame),
+    });
+  }
+
   // --- display loop (display refresh rate) ---
   const loop = (now: number): void => {
     if (inputDirty) {
       inputDirty = false;
-      sim.sendInput(input.snapshot());
+      const snapshot = input.snapshot();
+      sim?.sendInput(snapshot);
+      clientKeys?.(snapshot.keysDown, now);
     }
+    clientTick?.(now);
     overlay?.update(renderer.letterbox);
+    clientOverlay?.update(renderer.letterbox);
     const sample = player.sample(now);
     if (sample !== null) {
       renderer.render(sample);

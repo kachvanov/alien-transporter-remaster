@@ -48,6 +48,8 @@ export class FramePlayer {
   private _prev: FrameData | null = null;
   private _curr: FrameData | null = null;
   private _currArrival = 0;
+  /** Ticks over which `prev` -> `curr` is interpolated (1; more when the client skipped frames). */
+  private _currSpan = 1;
   /** For every node of `curr`: the index of the node with the same uid in `prev`, or -1. */
   private _prevIndex = new Int32Array(0);
 
@@ -74,12 +76,17 @@ export class FramePlayer {
   /**
    * Accepts a frame (from the sim worker or, later, from the network jitter buffer). `arrivalTime` is on the
    * same clock as the `now` of `sample()` (`performance.now()`).
+   *
+   * Network client: the frames come from the JitterBuffer, `arrivalTime` is the moment at which its playback clock
+   * reached the tick of the frame, and `spanTicks` the number of ticks since the previous frame (frames can be missing):
+   * the interpolation takes that long, so a gap does not speed the motion up.
    */
-  push(frame: FrameData | ArrayBuffer, arrivalTime: number): void {
+  push(frame: FrameData | ArrayBuffer, arrivalTime: number, spanTicks = 1): void {
     const data = frame instanceof ArrayBuffer ? readFrame(frame) : frame;
     this._prev = this._curr;
     this._curr = data;
     this._currArrival = arrivalTime;
+    this._currSpan = spanTicks >= 1 ? spanTicks : 1;
     this._framesReceived++;
 
     const n = data.nodes.length;
@@ -110,7 +117,7 @@ export class FramePlayer {
     }
 
     const prev = this._prev;
-    let alpha = (now - this._currArrival) / this._tickMs;
+    let alpha = (now - this._currArrival) / (this._tickMs * this._currSpan);
     alpha = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
     const interpolate = !this.classic && prev !== null && (curr.flags & FRAME_SCENE_RESET) === 0;
     const pn = prev !== null ? prev.nodes : null;

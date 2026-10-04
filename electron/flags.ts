@@ -1,4 +1,4 @@
-// Command line of the app: --profile=N, --start-level=LevelNN, --tier=1x|2x|3x, --classic.
+// Command line of the app: --profile=N, --start-level=LevelNN, --tier=1x|2x|3x, --classic, --join=ip[:port].
 // Pure (no Electron import): unit-tested in tests/unit/electron.test.ts.
 
 import type { DevFlags, TierName } from '../src/app/at';
@@ -23,11 +23,15 @@ export function parseProfile(argv: readonly string[]): string | null {
 export function parseDevFlags(argv: readonly string[]): DevFlags {
   const tier = valueOf(argv, 'tier');
   const level = valueOf(argv, 'start-level');
-  return {
+  const join = valueOf(argv, 'join');
+  const flags: DevFlags = {
     startLevel: level !== null && level.length > 0 ? level : null,
     tier: tier === '1x' || tier === '2x' || tier === '3x' ? (tier as TierName) : null,
     classic: argv.includes('--classic'),
   };
+  // (`join` is only there when it is given: the flags of the other cards stay as they were)
+  if (join !== null && join.length > 0) flags.join = join;
+  return flags;
 }
 
 export function encodeFlagsArg(flags: DevFlags): string {
@@ -40,11 +44,13 @@ export function decodeFlagsArg(argv: readonly string[]): DevFlags {
   if (raw !== null) {
     try {
       const o = JSON.parse(raw) as Partial<DevFlags>;
-      return {
+      const flags: DevFlags = {
         startLevel: typeof o.startLevel === 'string' ? o.startLevel : null,
         tier: o.tier === '1x' || o.tier === '2x' || o.tier === '3x' ? o.tier : null,
         classic: o.classic === true,
       };
+      if (typeof o.join === 'string' && o.join.length > 0) flags.join = o.join;
+      return flags;
     } catch {
       // fall through to the defaults
     }

@@ -11,6 +11,8 @@ export interface DevFlags {
   tier: TierName | null;
   /** `--classic`: draw the frames as they are, without interpolation (35 fps). */
   classic: boolean;
+  /** `--join=ip[:port]` (T3.3, until the Join screen of T3.4): start as a network client of that host. */
+  join?: string;
 }
 
 export interface AtApi {
