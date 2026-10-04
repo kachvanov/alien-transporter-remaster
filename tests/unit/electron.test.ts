@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { resolveAssetFile } from '../../electron/assetPath';
 import { decodeFlagsArg, encodeFlagsArg, parseDevFlags, parseProfile } from '../../electron/flags';
-import { JsonObjectFile, readJson, writeJsonAtomic } from '../../electron/jsonStore';
+import { JsonDocument, readJson, writeJsonAtomic } from '../../electron/save';
 import {
   defaultWindowRect,
   isVisibleOnAny,
@@ -113,10 +113,10 @@ describe('atomic JSON files', () => {
     }
   });
 
-  it('JsonObjectFile: keys, merge, parallel writes are serialised', async () => {
+  it('JsonDocument: keys, merge, parallel writes are serialised', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'at-json-'));
     try {
-      const f = new JsonObjectFile(join(dir, 'save.json'));
+      const f = new JsonDocument(join(dir, 'save.json'));
       expect(await f.get('progress')).toBeNull();
       await Promise.all([f.set('a', 1), f.set('b', { x: 2 }), f.set('c', [3])]);
       expect(await f.get('a')).toBe(1);

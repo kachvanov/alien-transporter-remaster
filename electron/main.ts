@@ -5,13 +5,15 @@ import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, Menu, net, protocol, screen, shell } from 'electron';
 import { resolveAssetFile } from './assetPath';
 import { encodeFlagsArg, parseDevFlags, parseProfile } from './flags';
-import { JsonObjectFile, readJson, writeJsonAtomic } from './jsonStore';
+import { sanitizeSettingsPatch } from '../src/app/settings';
+import { JsonDocument } from './save';
 import {
   defaultWindowRect,
   isVisibleOnAny,
   MIN_HEIGHT,
   MIN_WIDTH,
-  sanitizeWindowState,
+  sanitizeWindowSettings,
+  windowSettingsValue,
 } from './windowState';
 
 // Privileged scheme for the assets (app://assets/...). Must run before app is ready.
@@ -74,22 +76,39 @@ function registerAssetProtocol(): void {
 }
 
 //---------------------------------------
+// Files in userData (T2.8, electron/save.ts)
+//---------------------------------------
+
+/** Settings are written this long after the last change (the window is moved and resized all the time). */
+const SETTINGS_DEBOUNCE_MS = 500;
+
+/** `save.json`: the progress of the game (key `alientransporter`), written at once, atomically. */
+let saveDoc: JsonDocument;
+/** `settings.json`: the settings of the remaster and the key `window` (bounds, fullscreen), debounced. */
+let settingsDoc: JsonDocument;
+
+function initStores(): void {
+  const dir = app.getPath('userData');
+  const onCorrupt = (path: string, backup: string): void =>
+    console.warn(`[save] ${path} is broken${backup !== '' ? `, moved to ${backup}` : ''}: starting clean`);
+  const onError = (e: unknown): void => console.error('[save] write failed:', e);
+  saveDoc = new JsonDocument(join(dir, 'save.json'), { onCorrupt, onError });
+  settingsDoc = new JsonDocument(join(dir, 'settings.json'), { debounceMs: SETTINGS_DEBOUNCE_MS, onCorrupt, onError });
+}
+
+//---------------------------------------
 // Window
 //---------------------------------------
 
 let mainWindow: BrowserWindow | null = null;
 
-function windowStatePath(): string {
-  return join(app.getPath('userData'), 'window.json');
-}
-
 async function createWindow(): Promise<void> {
   const workAreas = screen.getAllDisplays().map((d) => d.workArea);
   const primary = screen.getPrimaryDisplay().workArea;
   let rect = defaultWindowRect(primary);
-  const saved = sanitizeWindowState(await readJson(windowStatePath()));
-  if (saved !== null && isVisibleOnAny(saved, workAreas)) {
-    rect = saved;
+  const savedWindow = sanitizeWindowSettings(await settingsDoc.get('window'));
+  if (savedWindow.bounds !== null && isVisibleOnAny(savedWindow.bounds, workAreas)) {
+    rect = savedWindow.bounds;
   }
 
   const win = new BrowserWindow({
@@ -110,24 +129,29 @@ async function createWindow(): Promise<void> {
     },
   });
   mainWindow = win;
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    win.show();
+    if (savedWindow.fullscreen) win.setFullScreen(true);
+  });
   if (process.platform !== 'darwin') win.removeMenu();
 
-  // Position and size are remembered (temporarily in userData/window.json; T2.8 moves this to settings.json).
-  let saveTimer: NodeJS.Timeout | null = null;
+  // Position, size and fullscreen are remembered in settings.json (key `window`; the write is debounced).
+  // (macOS leaves the fullscreen when a fullscreen window is closed: the flag is the one of the moment of closing)
+  let closing = false;
+  let fullscreenAtClose = false;
   const saveState = (): void => {
     if (win.isDestroyed() || win.isMinimized()) return;
-    const b = win.getNormalBounds();
-    void writeJsonAtomic(windowStatePath(), { x: b.x, y: b.y, width: b.width, height: b.height });
+    // (the normal bounds: while the window is fullscreen or maximised they are the size it comes back to)
+    const fullscreen = closing ? fullscreenAtClose : win.isFullScreen();
+    void settingsDoc.set('window', windowSettingsValue(win.getNormalBounds(), fullscreen));
   };
-  const scheduleSave = (): void => {
-    if (saveTimer !== null) clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveState, 500);
-  };
-  win.on('resize', scheduleSave);
-  win.on('move', scheduleSave);
+  win.on('resize', saveState);
+  win.on('move', saveState);
+  win.on('enter-full-screen', saveState);
+  win.on('leave-full-screen', saveState);
   win.on('close', () => {
-    if (saveTimer !== null) clearTimeout(saveTimer);
+    fullscreenAtClose = win.isFullScreen();
+    closing = true;
     saveState();
   });
   win.on('closed', () => {
@@ -154,14 +178,11 @@ async function createWindow(): Promise<void> {
 //---------------------------------------
 
 function registerIpc(): void {
-  // Temporary storage (T2.8 replaces it with the real save.json / settings.json).
-  const saveFile = new JsonObjectFile(join(app.getPath('userData'), 'save.json'));
-  const settingsFile = new JsonObjectFile(join(app.getPath('userData'), 'settings.json'));
-
   ipcMain.handle('app:toggle-fullscreen', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win !== null) win.setFullScreen(!win.isFullScreen());
   });
+  ipcMain.handle('app:is-fullscreen', (event) => BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false);
   ipcMain.handle('app:open-external', async (_event, url: unknown) => {
     if (typeof url !== 'string') return false;
     try {
@@ -185,16 +206,13 @@ function registerIpc(): void {
     return list;
   });
 
-  ipcMain.handle('save:load', (_event, key: unknown) =>
-    typeof key === 'string' ? saveFile.get(key) : null,
-  );
+  ipcMain.handle('save:load', (_event, key: unknown) => (typeof key === 'string' ? saveDoc.get(key) : null));
   ipcMain.handle('save:write', async (_event, key: unknown, data: unknown) => {
-    if (typeof key === 'string') await saveFile.set(key, data);
+    if (typeof key === 'string') await saveDoc.set(key, data);
   });
-  ipcMain.handle('settings:get', () => settingsFile.readAll());
-  ipcMain.handle('settings:set', (_event, patch: unknown) =>
-    settingsFile.merge(typeof patch === 'object' && patch !== null ? (patch as Record<string, unknown>) : {}),
-  );
+  ipcMain.handle('settings:get', () => settingsDoc.readAll());
+  // Only the known, valid keys of the remaster settings pass (the key `window` belongs to this process).
+  ipcMain.handle('settings:set', (_event, patch: unknown) => settingsDoc.merge(sanitizeSettingsPatch(patch)));
 }
 
 function buildMenu(): void {
@@ -218,6 +236,7 @@ function buildMenu(): void {
 
 void app.whenReady().then(async () => {
   registerAssetProtocol();
+  initStores();
   registerIpc();
   buildMenu();
   await createWindow();
@@ -228,4 +247,17 @@ void app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   app.quit();
+});
+
+// The files are written before the app exits: pending settings (debounce) and a save that is being written.
+let flushed = false;
+app.on('before-quit', (event) => {
+  if (flushed) return;
+  event.preventDefault();
+  void Promise.all([saveDoc.flush(), settingsDoc.flush()])
+    .catch((e: unknown) => console.error('[save] flush failed:', e))
+    .finally(() => {
+      flushed = true;
+      app.quit();
+    });
 });

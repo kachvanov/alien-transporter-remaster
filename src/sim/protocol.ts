@@ -15,7 +15,7 @@ export type SimIn =
   | { t: 'saveLoaded'; key: string; data: unknown }
   /** MessagePort of the network bridge goes in the transfer list (STUB(T3.2): the worker only keeps it). */
   | { t: 'simPort' }
-  /** Dev commands: `startLevel` [levelName], `setTimeScale` [k], `recordStart`, `recordStop`. */
+  /** Commands: `freeze` [bool] (the settings panel), dev: `startLevel` [levelName], `setTimeScale` [k], `recordStart`, `recordStop`. */
   | { t: 'cmd'; name: string; args?: unknown[] };
 
 /** worker -> renderer */
