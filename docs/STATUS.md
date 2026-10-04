@@ -5,7 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T3.6 | 1 | (worktree агента) | .claude/worktrees/… | 2026-10-04 |
+| T3.7 | 1 | (worktree агента) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -111,3 +111,6 @@
 - 2026-10-04 T3.2 merged 9d3ec9b (попытка 1; 1041 тест, e2e 14/14). Запущена T3.6.
 - T3.2 → T3.6: HostBridge.peer/onPeerChange и OnlineBridge.host.peerName дают имя и ship клиента (hello.ship). InputRouter.setHostMode(true) пока не вызывается — включает T3.6 (до этого ввод клиента игрой не применяется). Новому клиенту посреди уровня не форсируется sceneReset: проверить поведение FramePlayer на первом кадре без teleport-флагов. После reload окна хост останавливается (did-start-loading) — перепроверить, если T3.6 включит reload на хосте. STUB(T3.6) остаётся в OnlineController (hostBegin).
 - T3.2 → T3.7: имя клиента захардкожено 'Player 2 (darwin)' в src/app/main.ts; hostName в beacon пустой (os.hostname() подставляется только в welcome); firewall (docs/03 §8) не проверялся; DISCOVERY_PROTO продублирован в electron/net/discovery.ts. Dev-флаг `--host-start` добавлен (не в карточке). Кадр worker→main идёт без transfer (MessagePortMain получает transferred ArrayBuffer как null).
+- 2026-10-04 T3.6 merged cbdbf76 (попытка 1; 1057 тестов, e2e 16/16). Запущена T3.7.
+- T3.6 отклонения (DEVIATION: online): при уходе P2 жизнь возвращается и isTwoPlayerMode=false (иначе зависание при P1 без жизней); GameData.overrideShip/restoreShip; UISystem.triggerGameOver; «PLAYER 2 DISCONNECTED» — Label font04 на 3 с. Хост Online→Host включает Host-режим сразу (локальный W/A/D хоста игнорируется даже до подключения клиента).
+- T3.6 вне задачи: (1) шаг 6 карточки «портал ждёт обоих» не соответствует оригиналу — PortalSystem завершает уровень по первому вошедшему шаттлу, как и локально; (2) ShuttleModel.shuttleColor читает _engineLeft.currentFrame — возможный баг порта, геймплей не затрагивает (проверить на T4.2); (3) хост не проверяет unlock ship клиента, только диапазоны kind 1..4/color 1..5; (4) ручной проход вдвоём с людьми и пауза из окна клиента вручную не проверялись — для ворот M3.
