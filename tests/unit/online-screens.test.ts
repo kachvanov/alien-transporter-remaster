@@ -256,6 +256,35 @@ describe.skipIf(!hasAssets)('HostScreen', () => {
     expect(sent).toEqual([{ k: 'hostOpen' }, { k: 'hostBegin' }]);
   });
 
+  it('T3.7: the port is told, TEST asks the renderer and shows OK / FAIL', () => {
+    const state = newGame();
+    const sent = requests();
+    openOnline(state);
+    clickButton(state, 'BtnPlay_mc');
+    waitScreen(HostScreen);
+    OnlineBridge.receive({ k: 'host', status: 'waiting', addresses: ['192.168.1.20'], port: 5000 });
+    ticks(2);
+    expect(texts(state)).toEqual(expect.arrayContaining(['YOUR ADDRESSES - PORT 5000', 'TEST']));
+    clickButton(state, 'BtnApply_mc');
+    expect(sent).toEqual([{ k: 'hostOpen' }, { k: 'hostTest' }]);
+    OnlineBridge.receive({ k: 'selfTest', state: 'running', text: 'TESTING...' });
+    ticks(2);
+    expect(texts(state)).toContain('TESTING...');
+    OnlineBridge.receive({ k: 'selfTest', state: 'ok', text: 'OK 192.168.1.20' });
+    ticks(2);
+    expect(texts(state)).toContain('OK 192.168.1.20');
+    expect(texts(state)).not.toContain('TESTING...');
+    OnlineBridge.receive({ k: 'selfTest', state: 'fail', text: 'FAIL ECONNREFUSED 192.168.1.20' });
+    ticks(2);
+    const fail = all(state.layerMenu, Label).find((l) => l.text == 'FAIL ECONNREFUSED 192.168.1.20') as Label;
+    const ok = all(state.layerMenu, Label).find((l) => l.text == 'WAITING FOR PLAYER...') as Label;
+    expect(fail.color).not.toBe(ok.color); // (red)
+    // a player who connects does not wipe the result of the test
+    OnlineBridge.receive({ k: 'host', status: 'connected', peerName: 'macbook' });
+    ticks(2);
+    expect(texts(state)).toContain('PLAYER 2 CONNECTED: MACBOOK');
+  });
+
   it('Esc is Stop', () => {
     const state = newGame();
     const sent = requests();

@@ -6,6 +6,8 @@ import { app, BrowserWindow, ipcMain, Menu, MessageChannelMain, net, protocol, s
 import { resolveAssetFile } from './assetPath';
 import { encodeFlagsArg, parseDevFlags, parseProfile } from './flags';
 import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
+import { selfTest } from './net/selfTest';
+import { formatTraffic } from './net/trafficMeter';
 import { HostServer } from './net/wsServer';
 import type { HostEvent } from '../src/app/at';
 import { sanitizeSettingsPatch } from '../src/app/settings';
@@ -211,6 +213,7 @@ async function startHost(sender: Electron.WebContents, aPort: number, aBuildHash
       emit({ k: 'joined', name: info.name, ship: info.ship });
     },
     onClientLeft: (reason) => {
+      console.info(`[host] client left (${reason}); sent to it: ${formatTraffic(server.traffic)}`);
       port1.postMessage({ t: 'left' });
       emit({ k: 'left', reason });
     },
@@ -250,6 +253,7 @@ async function stopHost(): Promise<void> {
   if (session === null) return;
   hostSession = null;
   session.detach();
+  if (session.server.hasClient) console.info(`[host] stopped; sent to the client: ${formatTraffic(session.server.traffic)}`);
   try {
     session.port.postMessage({ t: 'stop' });
   } catch {
@@ -283,6 +287,7 @@ function registerIpc(): void {
   });
   ipcMain.on('app:quit', () => app.quit());
   ipcMain.handle('app:local-ipv4', () => getLocalIPv4());
+  ipcMain.handle('app:hostname', () => hostname());
 
   // LAN discovery (T3.5). The list goes to the window that started the scan.
   // (a beacon error repeats every second: every distinct message is logged once)
@@ -329,6 +334,14 @@ function registerIpc(): void {
     await startHost(event.sender, port, buildHash);
   });
   ipcMain.handle('net:host-stop', () => stopHost());
+  // The TEST button of the Host screen (T3.7): does the server answer on the addresses of this machine?
+  ipcMain.handle('net:self-test', (_event, addresses: unknown, port: unknown) => {
+    if (!Array.isArray(addresses) || addresses.length > 16 || !addresses.every((a) => typeof a === 'string')) {
+      throw new Error('net: bad addresses');
+    }
+    if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) throw new Error('net: bad port');
+    return selfTest(addresses as string[], port);
+  });
 
   ipcMain.handle('save:load', (_event, key: unknown) => (typeof key === 'string' ? saveDoc.get(key) : null));
   ipcMain.handle('save:write', async (_event, key: unknown, data: unknown) => {

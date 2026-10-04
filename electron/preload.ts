@@ -1,7 +1,7 @@
 // Preload: `window.at` (types: src/app/at.d.ts, docs/01-architecture.md §9). Works under sandbox: true +
 // contextIsolation. The net.* and discovery.* parts are M3.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { AtApi, DiscoveredGame, HostEvent } from '../src/app/at';
+import type { AtApi, DiscoveredGame, HostEvent, SelfTestResult } from '../src/app/at';
 import { decodeFlagsArg } from './flags';
 
 const api: AtApi = {
@@ -13,6 +13,7 @@ const api: AtApi = {
     openExternal: (url) => ipcRenderer.invoke('app:open-external', url) as Promise<boolean>,
     quit: () => ipcRenderer.send('app:quit'),
     getLocalIPv4: () => ipcRenderer.invoke('app:local-ipv4') as Promise<string[]>,
+    getHostName: () => ipcRenderer.invoke('app:hostname') as Promise<string>,
   },
   discovery: {
     startBeacon: (info) => ipcRenderer.invoke('discovery:start-beacon', info) as Promise<void>,
@@ -30,6 +31,7 @@ const api: AtApi = {
   net: {
     hostStart: (opts) => ipcRenderer.invoke('net:host-start', opts) as Promise<void>,
     hostStop: () => ipcRenderer.invoke('net:host-stop') as Promise<void>,
+    selfTest: (addresses, port) => ipcRenderer.invoke('net:self-test', addresses, port) as Promise<SelfTestResult>,
     onHostEvent: (cb) => {
       const listener = (_e: IpcRendererEvent, event: HostEvent): void => cb(event);
       ipcRenderer.on('net:host-event', listener);

@@ -8,7 +8,7 @@ import { OnlineController } from '../../src/app/OnlineController';
 import type { OnlineSim } from '../../src/app/OnlineController';
 import { SimClient } from '../../src/app/SimClient';
 import type { WorkerLike } from '../../src/app/SimClient';
-import type { BeaconInfo, DiscoveredGame } from '../../src/app/at';
+import type { BeaconInfo, DiscoveredGame, SelfTestResult } from '../../src/app/at';
 import { DEFAULT_SETTINGS } from '../../src/app/settings';
 import type { RemasterSettings } from '../../src/app/settings';
 import type { OnlineEvent, OnlineRequest } from '../../src/game/online/OnlineBridge';
@@ -29,6 +29,7 @@ interface Fake {
   pushGames(games: DiscoveredGame[]): void;
   failStart: { error: Error | null };
   clientCalls: [string, number][];
+  selfTestImpl: { fn: () => Promise<SelfTestResult> };
 }
 
 function makeFake(aOpts: { server?: boolean; client?: boolean } = {}): Fake {
@@ -38,6 +39,9 @@ function makeFake(aOpts: { server?: boolean; client?: boolean } = {}): Fake {
   const settings: Partial<RemasterSettings>[] = [];
   const clientCalls: [string, number][] = [];
   const failStart = { error: null as Error | null };
+  const selfTestImpl = {
+    fn: (): Promise<SelfTestResult> => Promise.resolve({ ok: true, port: 5000, results: [{ address: '192.168.1.20', ok: true }, { address: '10.0.0.7', ok: true }] }),
+  };
   let listener: ((g: DiscoveredGame[]) => void) | null = null;
   const sim: OnlineSim = {
     sendOnline: (e) => events.push(e),
@@ -47,6 +51,12 @@ function makeFake(aOpts: { server?: boolean; client?: boolean } = {}): Fake {
   };
   const at = {
     app: { getLocalIPv4: () => Promise.resolve(['192.168.1.20', '10.0.0.7']) },
+    net: {
+      selfTest: (addresses: string[], port: number) => {
+        calls.push(`selfTest:${addresses.join(',')}:${port}`);
+        return selfTestImpl.fn();
+      },
+    },
     discovery: {
       startBeacon: (info: BeaconInfo) => {
         calls.push('startBeacon');
@@ -103,6 +113,7 @@ function makeFake(aOpts: { server?: boolean; client?: boolean } = {}): Fake {
     pushGames: (g) => listener?.(g),
     failStart,
     clientCalls,
+    selfTestImpl,
   };
   return fake;
 }
@@ -167,6 +178,42 @@ describe('OnlineController', () => {
     f.controller.handle({ k: 'hostOpen' });
     await flush();
     expect(f.events[f.events.length - 1]).toEqual({ k: 'host', status: 'error', message: 'Cannot start the host: EADDRINUSE' });
+  });
+
+  it('T3.7: TEST connects to the addresses and the port of the host and reports OK, FAIL or an error', async () => {
+    const f = makeFake({ server: true });
+    f.controller.handle({ k: 'hostTest' }); // (the host is not running)
+    await flush();
+    expect(f.events).toEqual([{ k: 'selfTest', state: 'fail', text: 'FAIL HOST IS NOT RUNNING' }]);
+    f.events.length = 0;
+
+    f.controller.handle({ k: 'hostOpen' });
+    await flush();
+    f.events.length = 0;
+    f.controller.handle({ k: 'hostTest' });
+    expect(f.events).toEqual([{ k: 'selfTest', state: 'running', text: 'TESTING...' }]);
+    await flush();
+    expect(f.calls).toContain('selfTest:192.168.1.20,10.0.0.7:5000');
+    expect(f.events[1]).toEqual({ k: 'selfTest', state: 'ok', text: 'OK 2 ADDRESSES' });
+
+    f.selfTestImpl.fn = () =>
+      Promise.resolve({ ok: false, port: 5000, results: [{ address: '192.168.1.20', ok: true }, { address: '10.0.0.7', ok: false, error: 'ECONNREFUSED' }] });
+    f.controller.handle({ k: 'hostTest' });
+    await flush();
+    expect(f.events[f.events.length - 1]).toEqual({ k: 'selfTest', state: 'fail', text: 'FAIL ECONNREFUSED 10.0.0.7' });
+
+    f.selfTestImpl.fn = () => Promise.reject(new Error('boom'));
+    f.controller.handle({ k: 'hostTest' });
+    await flush();
+    expect(f.events[f.events.length - 1]).toEqual({ k: 'selfTest', state: 'fail', text: 'FAIL BOOM' });
+
+    // Stop while the test runs: its result is not shown
+    f.selfTestImpl.fn = () => new Promise((r) => setTimeout(() => r({ ok: true, port: 5000, results: [{ address: '1.1.1.1', ok: true }] }), 5));
+    f.controller.handle({ k: 'hostTest' });
+    f.controller.handle({ k: 'hostClose' });
+    const n = f.events.length;
+    await new Promise((r) => setTimeout(r, 20));
+    expect(f.events.length).toBe(n);
   });
 
   it('scan: the list of the games goes to the screen, Back stops it', async () => {

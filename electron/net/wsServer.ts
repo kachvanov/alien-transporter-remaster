@@ -18,6 +18,7 @@ import {
   ProtocolError,
 } from '../../src/net/protocol';
 import type { Hello, Ship } from '../../src/net/protocol';
+import { TrafficMeter, type TrafficStats } from './trafficMeter';
 
 /** Tick rate of the simulation, told to the client in `welcome`. */
 export const HOST_TICK_RATE = 35;
@@ -80,6 +81,7 @@ export class HostServer {
   private _pingTimer: ReturnType<typeof setInterval> | null = null;
   private _framesSent = 0;
   private _framesSkipped = 0;
+  private readonly _traffic = new TrafficMeter();
 
   constructor(aOpts: HostServerOptions) {
     this._opts = aOpts;
@@ -107,6 +109,11 @@ export class HostServer {
   /** Frames that were not sent because the socket was behind. */
   get framesSkipped(): number {
     return this._framesSkipped;
+  }
+
+  /** What was sent to the client since the server started: bytes, average and peak KB/s (T3.7). */
+  get traffic(): TrafficStats {
+    return this._traffic.stats;
   }
 
   /** Starts listening. Rejects when the port cannot be used (EADDRINUSE, ...). */
@@ -195,6 +202,7 @@ export class HostServer {
     }
 
     this._framesSent++;
+    this._traffic.add(aBuf.byteLength, Date.now());
     return true;
   }
 
@@ -330,6 +338,7 @@ export class HostServer {
       tickRate: HOST_TICK_RATE,
     });
     this.startPing();
+    this._traffic.reset(); // (the numbers are of the current client)
     this._opts.onClientJoined?.({ name: cleanName(aHello.name), ship: aHello.ship });
   }
 

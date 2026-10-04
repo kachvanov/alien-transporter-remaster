@@ -9,7 +9,7 @@
 
 import type { JoinFailure, OnlineEvent, OnlineGame, OnlineRequest } from '../game/online/OnlineBridge';
 import { formatJoinAddress } from '../game/online/OnlineBridge';
-import type { AtApi, DiscoveredGame } from './at';
+import type { AtApi, DiscoveredGame, SelfTestResult } from './at';
 import type { RemasterSettings } from './settings';
 
 /** The WebSocket server of the host (T3.2): the card T3.2 fills it in. */
@@ -31,7 +31,7 @@ export interface OnlineSim {
 }
 
 export interface OnlineControllerOptions {
-  at: Pick<AtApi, 'app' | 'discovery'>;
+  at: Pick<AtApi, 'app' | 'discovery'> & { net?: Pick<AtApi['net'], 'selfTest'> };
   settings: OnlineSettings;
   /** `manifest.buildHash`: the games of another build are "different version" (docs/03 §3). */
   buildHash: string;
@@ -50,6 +50,8 @@ export class OnlineController {
   private _sim: OnlineSim | null = null;
   private _hostGeneration = 0;
   private _hosting = false;
+  private _hostAddresses: string[] = [];
+  private _testGeneration = 0;
   private _unsubscribeScan: (() => void) | null = null;
   private _scanning = false;
   private _pendingFailure: JoinFailure | null = null;
@@ -82,6 +84,9 @@ export class OnlineController {
         break;
       case 'hostClose':
         this.closeHost();
+        break;
+      case 'hostTest':
+        void this.testHost();
         break;
       case 'hostBegin':
         // The host goes to the level selection with the server up. Nothing is to be done here: the worker follows the
@@ -146,6 +151,7 @@ export class OnlineController {
         return; // (closed while it was starting: closeHost has stopped what was started)
       }
 
+      this._hostAddresses = addresses;
       this.emit({ k: 'host', status: 'waiting', addresses, port });
     } catch (e) {
       this.log('error', 'host: ' + messageOf(e));
@@ -156,8 +162,35 @@ export class OnlineController {
     }
   }
 
+  /** The TEST button (T3.7): connect to the own addresses on the port of the host. */
+  private async testHost(): Promise<void> {
+    const generation = ++this._testGeneration;
+    const net = this._opts.at.net;
+    if (!this._hosting || net === undefined) {
+      this.emit({ k: 'selfTest', state: 'fail', text: 'FAIL HOST IS NOT RUNNING' });
+      return;
+    }
+
+    this.emit({ k: 'selfTest', state: 'running', text: 'TESTING...' });
+    let text: string;
+    let ok = false;
+    try {
+      const result = await net.selfTest(this._hostAddresses, this._opts.settings.value.netPort);
+      ok = result.ok;
+      text = describeSelfTest(result);
+    } catch (e) {
+      this.log('warn', 'self test: ' + messageOf(e));
+      text = 'FAIL ' + messageOf(e).toUpperCase().slice(0, 30);
+    }
+
+    if (generation === this._testGeneration && this._hosting) {
+      this.emit({ k: 'selfTest', state: ok ? 'ok' : 'fail', text });
+    }
+  }
+
   private closeHost(): void {
     this._hostGeneration++;
+    this._testGeneration++;
     if (!this._hosting) {
       return;
     }
@@ -238,6 +271,20 @@ export class OnlineController {
       console[aLevel]('[online] ' + aMessage);
     }
   }
+}
+
+/** The line for the screen: `OK 192.168.0.5` or `FAIL ECONNREFUSED 192.168.0.5` (capitals: the font of the game). */
+export function describeSelfTest(aResult: SelfTestResult): string {
+  if (aResult.results.length === 0) {
+    return 'FAIL NO NETWORK ADDRESS';
+  }
+
+  const bad = aResult.results.find((r) => !r.ok);
+  if (bad !== undefined) {
+    return `FAIL ${(bad.error ?? '?').toUpperCase()} ${bad.address}`;
+  }
+
+  return aResult.results.length == 1 ? `OK ${aResult.results[0]?.address ?? ''}` : `OK ${aResult.results.length} ADDRESSES`;
 }
 
 function toOnlineGame(aGame: DiscoveredGame): OnlineGame {
