@@ -1,5 +1,5 @@
 // Types of `window.at`: the API that electron/preload.ts exposes to the renderer (docs/01-architecture.md §9).
-// The net part arrives with M3 (T3.x); discovery is T3.5.
+// The net part: discovery (T3.5), the WebSocket server of the host (T3.2).
 
 export type TierName = '1x' | '2x' | '3x';
 
@@ -13,6 +13,8 @@ export interface DevFlags {
   classic: boolean;
   /** `--join=ip[:port]` (T3.3, until the Join screen of T3.4): start as a network client of that host. */
   join?: string;
+  /** `--host-start` (T3.2, dev): start hosting at once (the Host screen without the menu), on the port of the settings. */
+  hostStart?: boolean;
 }
 
 /** What a host tells about itself in the LAN beacon (electron/net/discovery.ts; `game` and `proto` are added there). */
@@ -36,6 +38,13 @@ export interface DiscoveredGame {
   lastSeen: number;
 }
 
+/** What the WebSocket server of the host reports (T3.2, electron/main.ts -> `at.net.onHostEvent`). */
+export type HostEvent =
+  | { k: 'joined'; name: string; ship: { shuttleKind: number; shuttleColor: number; engineKind: number; engineColor: number } }
+  /** `reason`: `bye` | `closed` | `timeout` | `protocol_error` (electron/net/wsServer.ts). */
+  | { k: 'left'; reason: string }
+  | { k: 'error'; message: string };
+
 export interface AtApi {
   /** `process.platform` of the main process: 'darwin' | 'win32' | ... */
   platform: string;
@@ -57,6 +66,18 @@ export interface AtApi {
     stopScan(): Promise<void>;
     /** The whole list on every change (at most 4 times a second). Returns the unsubscribe function. */
     onUpdate(cb: (games: DiscoveredGame[]) => void): () => void;
+  };
+  net: {
+    /**
+     * Host: starts the WebSocket server on `port` (all interfaces). Main then sends the MessagePort of the network
+     * bridge to this window as `window.postMessage('sim-port', '*', [port])` (see src/app/main.ts). Rejects when the
+     * port cannot be used.
+     */
+    hostStart(opts: { port: number; buildHash: string }): Promise<void>;
+    /** `bye` to the client, the server and the bridge are closed. */
+    hostStop(): Promise<void>;
+    /** Events of the server (a player joined or left, an error). Returns the unsubscribe function. */
+    onHostEvent(cb: (event: HostEvent) => void): () => void;
   };
   save: {
     load(key: string): Promise<unknown>;

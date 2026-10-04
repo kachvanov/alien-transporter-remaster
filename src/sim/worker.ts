@@ -4,6 +4,7 @@
 
 import { FetchAssetSource } from '../engine/assets/AssetSource';
 import { GameLoop } from './GameLoop';
+import { HostBridge } from './HostBridge';
 import type { SimIn, SimLogLevel, SimOut } from './protocol';
 import { WorkerSaveStorage } from './SaveStorage';
 
@@ -26,8 +27,9 @@ function log(level: SimLogLevel, msg: string): void {
 let loop: GameLoop | null = null;
 let save: WorkerSaveStorage | null = null;
 let starting = false;
-// STUB(T3.2): the MessagePort of the network bridge is only kept (the bridge reads it).
-export let simPort: MessagePort | null = null;
+// The network bridge of the host (T3.2): its MessagePort leads to the WebSocket server in the main process.
+// The loop (and its InputRouter) exists only after `init()`: a bit that comes earlier is dropped.
+const bridge = new HostBridge({ setRemote: (r) => loop?.input.setRemote(r) });
 /** Messages that arrive while `init()` is loading (input, commands) are applied when it has finished. */
 const early: SimIn[] = [];
 
@@ -39,7 +41,10 @@ async function start(seed: number, assetBase: string): Promise<void> {
     save: storage,
     seed,
     host: {
-      onFrame: (buf) => post({ t: 'frame', buf }, [buf]),
+      onFrame: (buf) => {
+        bridge.sendFrame(buf); // (a copy for the client, before `buf` goes to the renderer)
+        post({ t: 'frame', buf }, [buf]);
+      },
       openExternal: (url) => post({ t: 'openExternal', url }),
       onQuality: (smooth) => post({ t: 'quality', smooth }),
       onOnline: (req) => post({ t: 'online', req }),
@@ -84,7 +89,8 @@ function handle(msg: SimIn): void {
 
 scope.onmessage = (ev) => {
   if (ev.data.t === 'simPort') {
-    simPort = ev.ports[0] ?? null;
+    const port = ev.ports[0];
+    if (port !== undefined) bridge.attach(port as unknown as Parameters<HostBridge['attach']>[0]);
     return;
   }
   handle(ev.data);

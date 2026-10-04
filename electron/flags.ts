@@ -1,4 +1,4 @@
-// Command line of the app: --profile=N, --start-level=LevelNN, --tier=1x|2x|3x, --classic, --join=ip[:port].
+// Command line of the app: --profile=N, --start-level=LevelNN, --tier=1x|2x|3x, --classic, --join=ip[:port], --host-start.
 // Pure (no Electron import): unit-tested in tests/unit/electron.test.ts.
 
 import type { DevFlags, TierName } from '../src/app/at';
@@ -31,6 +31,7 @@ export function parseDevFlags(argv: readonly string[]): DevFlags {
   };
   // (`join` is only there when it is given: the flags of the other cards stay as they were)
   if (join !== null && join.length > 0) flags.join = join;
+  if (argv.includes('--host-start')) flags.hostStart = true;
   return flags;
 }
 
@@ -50,6 +51,7 @@ export function decodeFlagsArg(argv: readonly string[]): DevFlags {
         classic: o.classic === true,
       };
       if (typeof o.join === 'string' && o.join.length > 0) flags.join = o.join;
+      if (o.hostStart === true) flags.hostStart = true;
       return flags;
     } catch {
       // fall through to the defaults

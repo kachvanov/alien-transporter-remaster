@@ -14,7 +14,7 @@ export type SimIn =
   | { t: 'input'; snapshot: InputSnapshot }
   /** Answer to `{t:'saveLoad'}`; `data` is null when nothing is stored under the key. */
   | { t: 'saveLoaded'; key: string; data: unknown }
-  /** MessagePort of the network bridge goes in the transfer list (STUB(T3.2): the worker only keeps it). */
+  /** MessagePort of the network bridge of the host goes in the transfer list (T3.2, sim/HostBridge.ts). */
   | { t: 'simPort' }
   /** The answer of the renderer to a request of the screens of the LAN game (T3.4, game/online/OnlineBridge.ts). */
   | { t: 'online'; ev: OnlineEvent }

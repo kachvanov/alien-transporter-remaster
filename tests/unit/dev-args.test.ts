@@ -46,4 +46,12 @@ describe('splitDevArgs', () => {
     expect(parseDevFlags(appArgs)).toEqual({ startLevel: 'Level01', tier: '2x', classic: true });
     expect(parseProfile(appArgs)).toBe('2');
   });
+
+  it('--host-start (T3.2) is an app flag; the vite option --host is not', () => {
+    const r = splitDevArgs(['--host-start', '--host', '--profile=1']);
+    expect(r.appArgs).toEqual(['--host-start', '--profile=1']);
+    expect(r.viteArgs).toEqual(['--host']);
+    expect(parseDevFlags(r.appArgs)).toEqual({ startLevel: null, tier: null, classic: false, hostStart: true });
+    expect(parseDevFlags([]).hostStart).toBeUndefined();
+  });
 });
