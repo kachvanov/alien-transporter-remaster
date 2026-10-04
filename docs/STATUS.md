@@ -5,7 +5,8 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| — | | | | |
+| FIX-2 (persistence F2 flaky) | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
+| FIX-3 (путь SWF по умолчанию) | 1 | (worktree-agent) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
