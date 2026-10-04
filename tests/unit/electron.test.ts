@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { resolveAssetFile } from '../../electron/assetPath';
-import { decodeFlagsArg, encodeFlagsArg, parseDevFlags, parseProfile } from '../../electron/flags';
+import { decodeFlagsArg, encodeFlagsArg, invalidProfileArg, MAX_PROFILE_LENGTH, parseDevFlags, parseProfile } from '../../electron/flags';
 import { JsonDocument, readJson, writeJsonAtomic } from '../../electron/save';
 import {
   defaultWindowRect,
@@ -33,6 +33,23 @@ describe('command line flags', () => {
     expect(parseProfile(['--profile=2'])).toBe('2');
     expect(parseProfile(['--profile=../x'])).toBeNull();
     expect(parseProfile(['--profile='])).toBeNull();
+  });
+
+  it('--profile=N: up to 32 chars (the e2e ids are 16..19 chars), longer is invalid', () => {
+    expect(MAX_PROFILE_LENGTH).toBe(32);
+    expect(parseProfile(['--profile=e2e-n37h-123456789'])).toBe('e2e-n37h-123456789');
+    expect(parseProfile(['--profile=e2e-client123456789'])).toBe('e2e-client123456789');
+    expect(parseProfile([`--profile=${'a'.repeat(32)}`])).toBe('a'.repeat(32));
+    expect(parseProfile([`--profile=${'a'.repeat(33)}`])).toBeNull();
+  });
+
+  it('a given but rejected --profile= is reported (main.ts refuses to start); absent or valid is not', () => {
+    expect(invalidProfileArg([])).toBeNull();
+    expect(invalidProfileArg(['.', '--host-start'])).toBeNull();
+    expect(invalidProfileArg(['--profile=ok_1-2'])).toBeNull();
+    expect(invalidProfileArg(['--profile=../x'])).toBe('../x');
+    expect(invalidProfileArg(['--profile='])).toBe('');
+    expect(invalidProfileArg([`--profile=${'a'.repeat(33)}`])).toBe('a'.repeat(33));
   });
 
   it('flags survive main -> preload encoding', () => {

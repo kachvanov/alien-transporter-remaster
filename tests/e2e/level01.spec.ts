@@ -1,5 +1,8 @@
-import { _electron as electron, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { PNG } from 'pngjs';
+import { launchApp, removeProfilesAfterEach } from './profile';
+
+removeProfilesAfterEach();
 
 // ELECTRON_RUN_AS_NODE (set by some hosts/CI) would make Electron start as plain Node.
 function cleanEnv(): Record<string, string> {
@@ -11,7 +14,7 @@ function cleanEnv(): Record<string, string> {
 }
 
 test('--start-level=Level01: the level runs 10 s of scripted input, 35 Frames/s, no errors in the console', async () => {
-  const app = await electron.launch({ args: ['.', '--start-level=Level01', '--profile=e2e-level01'], env: cleanEnv() });
+  const app = await launchApp({ args: ['.', '--start-level=Level01', '--profile=e2e-level01'], env: cleanEnv() });
   try {
     const page = await app.firstWindow();
     const problems: string[] = [];

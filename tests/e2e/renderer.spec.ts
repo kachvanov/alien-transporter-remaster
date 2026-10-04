@@ -1,6 +1,9 @@
-import { _electron as electron, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import { PNG } from 'pngjs';
+import { launchApp, removeProfilesAfterEach } from './profile';
+
+removeProfilesAfterEach();
 
 // ELECTRON_RUN_AS_NODE (set by some hosts/CI) would make Electron start as plain Node.
 function cleanEnv(): Record<string, string> {
@@ -12,8 +15,10 @@ function cleanEnv(): Record<string, string> {
 }
 
 // The dev flag --start-level=Level01 skips the menu: every launch of these tests starts Level01.
+// A profile of its own (removed after the test): the window state would otherwise land in the settings.json of the player.
 async function launch(extraArgs: string[] = []): Promise<{ app: ElectronApplication; page: Page; urls: string[] }> {
-  const app = await electron.launch({ args: ['.', '--start-level=Level01', ...extraArgs], env: cleanEnv() });
+  const profileArgs = extraArgs.some((a) => a.startsWith('--profile=')) ? [] : [`--profile=rend${Date.now() % 1e9}`];
+  const app = await launchApp({ args: ['.', '--start-level=Level01', ...profileArgs, ...extraArgs], env: cleanEnv() });
   const page = await app.firstWindow();
   const urls: string[] = [];
   page.on('request', (r) => urls.push(r.url()));

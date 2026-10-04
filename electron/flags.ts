@@ -15,10 +15,23 @@ function valueOf(argv: readonly string[], name: string): string | null {
   return null;
 }
 
+/** Longest `--profile=` id (dev/test flag; e2e tests build ids like `e2e-n37h-<9 digits>`). */
+export const MAX_PROFILE_LENGTH = 32;
+
 /** `--profile=N`: a short alphanumeric id of a separate userData directory; null when absent or invalid. */
 export function parseProfile(argv: readonly string[]): string | null {
   const v = valueOf(argv, 'profile');
-  return v !== null && /^[A-Za-z0-9_-]{1,16}$/.test(v) ? v : null;
+  return v !== null && /^[A-Za-z0-9_-]+$/.test(v) && v.length <= MAX_PROFILE_LENGTH ? v : null;
+}
+
+/**
+ * The value of a `--profile=` that is given but not accepted by `parseProfile` (null when there is none or it is fine).
+ * Ignoring it silently would run the app on the shared userData, i.e. on the real save.json / settings.json of the player:
+ * main.ts refuses to start instead.
+ */
+export function invalidProfileArg(argv: readonly string[]): string | null {
+  const v = valueOf(argv, 'profile');
+  return v !== null && parseProfile(argv) === null ? v : null;
 }
 
 export function parseDevFlags(argv: readonly string[]): DevFlags {

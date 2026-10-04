@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { _electron as electron, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import WebSocket from 'ws';
 import { getDiscovery } from '../../electron/net/discovery';
 import { startProxy } from '../../tools/net/proxy';
+import { launchApp, removeProfilesAfterEach } from './profile';
 
 // T3.7: the manual checklist of docs/05-verification.md §8 on one machine, with real Electron instances: the host plays
 // Level11 (docs/05 §9), the real client (`--join`) joins it directly or through the latency proxy (30 +- 15 ms each way).
@@ -21,6 +22,8 @@ function cleanEnv(): Record<string, string> {
     ),
   );
 }
+
+removeProfilesAfterEach();
 
 const PORT = 47020;
 const PROXY_PORT = 47030;
@@ -86,7 +89,7 @@ async function runScenario(aScenario: Scenario): Promise<void> {
   test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
   test.skip(!(await portIsFree(PROXY_PORT)), `port ${PROXY_PORT} is taken`);
   const hostLog: string[] = [];
-  const host: ElectronApplication = await electron.launch({
+  const host: ElectronApplication = await launchApp({
     args: ['.', '--host-start', '--start-level=11', `--profile=e2e-n37h-${Date.now() % 1e9}`],
     env: cleanEnv(),
   });
@@ -101,7 +104,7 @@ async function runScenario(aScenario: Scenario): Promise<void> {
   });
   const clients: ElectronApplication[] = [];
   const launchClient = async (): Promise<{ app: ElectronApplication; page: Page }> => {
-    const app = await electron.launch({
+    const app = await launchApp({
       args: ['.', `--join=127.0.0.1:${aScenario.joinPort}`, `--profile=e2e-n37c-${Date.now() % 1e9}`],
       env: cleanEnv(),
     });
@@ -210,7 +213,7 @@ test('checklist 5: the same through the latency proxy (30 +- 15 ms each way)', a
 test('checklist 2: the discovery shows the host within 2 s', async () => {
   test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
   test.setTimeout(90_000);
-  const host = await electron.launch({
+  const host = await launchApp({
     args: ['.', '--host-start', `--profile=e2e-n37d-${Date.now() % 1e9}`],
     env: cleanEnv(),
   });
@@ -245,7 +248,7 @@ test('checklist 2: the discovery shows the host within 2 s', async () => {
 test('the host half of the input path: gas bit -> the Frame with P2 (ws client, 5 runs)', async () => {
   test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
   test.setTimeout(120_000);
-  const host = await electron.launch({
+  const host = await launchApp({
     args: ['.', '--host-start', '--start-level=11', `--profile=e2e-n37p-${Date.now() % 1e9}`],
     env: cleanEnv(),
   });
@@ -312,7 +315,7 @@ test('the host half of the input path: gas bit -> the Frame with P2 (ws client, 
 test('Host screen: TEST connects to the own addresses (every one answers), a closed port fails', async () => {
   test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
   test.setTimeout(90_000);
-  const app = await electron.launch({ args: ['.', `--profile=e2e-n37s-${Date.now() % 1e9}`], env: cleanEnv() });
+  const app = await launchApp({ args: ['.', `--profile=e2e-n37s-${Date.now() % 1e9}`], env: cleanEnv() });
   try {
     const page = await app.firstWindow();
     const screens: string[] = [];
@@ -373,7 +376,7 @@ test('Host screen: TEST connects to the own addresses (every one answers), a clo
 test('pauseReq of the client = one press of P on the host (Frame flag `paused`)', async () => {
   test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
   test.setTimeout(90_000);
-  const host = await electron.launch({
+  const host = await launchApp({
     args: ['.', '--host-start', '--start-level=1', `--profile=e2e-n37q-${Date.now() % 1e9}`],
     env: cleanEnv(),
   });
