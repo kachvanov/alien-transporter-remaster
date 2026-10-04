@@ -5,7 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T3.2 | 1 | (worktree агента) | .claude/worktrees/… | 2026-10-04 |
+| T3.6 | 1 | (worktree агента) | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -108,3 +108,6 @@
 - 2026-10-04 T3.4 merged (попытка 1; 1005 тестов; конфликт в src/app/main.ts разрешён оркестратором: sim nullable из T3.3 + OnlineController из T3.4). Для T3.2: передать `server` в OnlineControllerOptions, вызывать controller.peerConnected(name)/peerDisconnected(). Для T3.3/T3.6: `startClient` в OnlineControllerOptions (сейчас join → joinFailed('failed')), сессия сообщает конец через controller.joinFailed(reason); main.ts `--join` (STUB(T3.4) из T3.3) заменить на путь через экран Join. STUB(T3.6): hostBegin (START) только лог. hostName в beacon пустой (main подставляет os.hostname()); имя игрока для hello/PLAYER 2 CONNECTED — T3.2/T3.6. joinFailure-сообщение показывается один раз. Вне задачи: чёрная скошенная виньетка ScreenFade_mc по краям всех экранов (возможно баг рендера T2.6/T1.7, сверить с Ruffle в T4.2); нет вставки адреса Ctrl+V; docs/03 §5 («вернуться в главное меню») vs карточка T3.4 (JoinScreen с сообщением) — реализовано по карточке. e2e T3.4 после merge не перепрогнан (только npm run check).
 - 2026-10-04 остановка по просьбе пользователя после T3.3 и T3.4. Следующая: T3.2 (хост), затем T3.6 → T3.7.
 - 2026-10-04 /orchestrate возобновлён пользователем: запущена T3.2 (хост). Далее T3.6 → T3.7.
+- 2026-10-04 T3.2 merged 9d3ec9b (попытка 1; 1041 тест, e2e 14/14). Запущена T3.6.
+- T3.2 → T3.6: HostBridge.peer/onPeerChange и OnlineBridge.host.peerName дают имя и ship клиента (hello.ship). InputRouter.setHostMode(true) пока не вызывается — включает T3.6 (до этого ввод клиента игрой не применяется). Новому клиенту посреди уровня не форсируется sceneReset: проверить поведение FramePlayer на первом кадре без teleport-флагов. После reload окна хост останавливается (did-start-loading) — перепроверить, если T3.6 включит reload на хосте. STUB(T3.6) остаётся в OnlineController (hostBegin).
+- T3.2 → T3.7: имя клиента захардкожено 'Player 2 (darwin)' в src/app/main.ts; hostName в beacon пустой (os.hostname() подставляется только в welcome); firewall (docs/03 §8) не проверялся; DISCOVERY_PROTO продублирован в electron/net/discovery.ts. Dev-флаг `--host-start` добавлен (не в карточке). Кадр worker→main идёт без transfer (MessagePortMain получает transferred ArrayBuffer как null).

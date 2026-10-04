@@ -59,7 +59,7 @@ T2.1–T2.5 идут параллельно (2–3 агента). T2.1 може�
 | | ID | Задача | Зависит от | Размер |
 |---|---|---|---|---|
 | [x] | T3.1 | `net/protocol`: handshake, input, коды, тесты | T1.5 | S | (merge 35d0c3c)
-| [ ] | T3.2 | Хост: ws-сервер в main, MessagePort-мост воркер↔main, heartbeat | T3.1, T1.7 | M |
+| [x] | T3.2 | Хост: ws-сервер в main, MessagePort-мост воркер↔main, heartbeat | T3.1, T1.7 | M | (merge 9d3ec9b)
 | [x] | T3.3 | Клиент: WebSocket, jitter-буфер, ввод, обрывы, оверлей | T3.1, T1.7 | M | (merge ecdf411)
 | [x] | T3.4 | Экраны Online (Host/Join, ввод IP, список игр) в стиле оригинала | T2.6, T3.5 | M | (merge 58d9698)
 | [x] | T3.5 | UDP-автопоиск | T1.7 | S | (merge 474cac7)
