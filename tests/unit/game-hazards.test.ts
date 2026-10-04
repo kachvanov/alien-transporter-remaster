@@ -542,6 +542,9 @@ describe.skipIf(!hasAssets)('Level13: the missile starts after the sensor is act
     expect(Math.abs(missile.physic.body.velocity.x)).toBeLessThan(0.5);
     expect(AntG.sounds.takeOneShots().length).toBeGreaterThan(0);
     // MissileSystem.updateMissiles: the gravity does not pull the missile (a flat flight)
+    // T2.2: the oil particles of the fuel at the sensor push the missile on the first tick after the start (the
+    // impulses of Particle.resolveCollisions), so the speed is taken after that tick.
+    tick();
     const vy = missile.physic.body.velocity.y;
     tickUntil(() => false, 5);
     expect(missile.physic.body.velocity.y).toBeCloseTo(vy, 1);

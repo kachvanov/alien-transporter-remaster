@@ -42,6 +42,7 @@ declare module 'box2dweb' {
         class b2Math {
           static Dot(a: b2Vec2, b: b2Vec2): number;
           static MulX(T: b2Transform, v: b2Vec2): b2Vec2;
+          static MulMV(A: b2Mat22, v: b2Vec2): b2Vec2;
         }
       }
     }
@@ -104,6 +105,7 @@ declare module 'box2dweb' {
           static readonly e_polygonShape: number;
           GetType(): number;
           TestPoint(xf: Common.Math.b2Transform, p: Common.Math.b2Vec2): boolean;
+          ComputeAABB(aabb: b2AABB, xf: Common.Math.b2Transform): void;
         }
 
         class b2PolygonShape extends b2Shape {
@@ -235,6 +237,8 @@ declare module 'box2dweb' {
         GetNext(): b2Fixture | null;
         GetUserData(): unknown;
         IsSensor(): boolean;
+        GetType(): number;
+        TestPoint(p: Common.Math.b2Vec2): boolean;
       }
 
       class b2BodyDef {

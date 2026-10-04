@@ -1,8 +1,5 @@
 // Port of ru/alientransporter/states/GameState.as
 //
-// STUB(T2.2): ElementSimulation (oil, smoke and fire) and PhysicalMap. The simulations are stand-ins with the
-// signatures that map/Factory.ts and map/LevelCore.ts call (`pour`, `pour2`, `clear`); they do nothing and are
-// not added to the state. T2.2 ports `elements/*` and adds the statements marked below.
 // STUB(T2.4): AntLightEnvironment (living lights). The stand-in has only `add()` (Factory.makeShuttle) and is
 // not added to the state either.
 // STUB(T2.7): `Music.init()` (the music is MusicManager, a stub).
@@ -23,7 +20,12 @@ import { Fonts } from '../Fonts';
 import { G } from '../G';
 import { GameScreen } from '../screens/GameScreen';
 import '../screens/registerScreens';
+import { ElementSimulation } from '../elements/ElementSimulation';
+import { PhysicalMap } from '../elements/PhysicalMap';
+import { FireParticleView } from '../views/FireParticleView';
+import { OilParticleView } from '../views/OilParticleView';
 import { PassengerView } from '../views/PassengerView';
+import { SmokeParticleView } from '../views/SmokeParticleView';
 import { ShuttleView } from '../views/ShuttleView';
 import { PassengerTag } from '../tags/PassengerTag';
 import { ShuttleTag } from '../tags/ShuttleTag';
@@ -48,23 +50,6 @@ import { TriggerSystem } from '../systems/TriggerSystem';
 import { UISystem } from '../systems/UISystem';
 // The level manager registers itself in G (G.levelManagerClass), see G.ts: the state has to load its module.
 import '../levels/LevelManager';
-
-/** STUB(T2.2): stand-in for ru/alientransporter/elements/ElementSimulation.as. */
-export class StubElementSimulation {
-  lowerAnimationSpeed = NaN;
-  upperAnimationSpeed = NaN;
-  velocityFadeCoef = NaN;
-
-  /** AS3 `pour(aX:Number, aY:Number, aVelocityX:Number, aVelocityY:Number)`. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  pour(_aX: number, _aY: number, _aVelocityX: number, _aVelocityY: number): void {}
-
-  /** AS3 `pour2(aX:Number, aY:Number, aAngle:Number, aSpeed:Number)` (ShuttleSystem.updateEngines needs it). */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  pour2(_aX: number, _aY: number, _aAngle: number, _aSpeed: number): void {}
-
-  clear(): void {}
-}
 
 /** STUB(T2.4): stand-in for ru/antkarlov/anthill/extensions/livinglights/AntLightEnvironment.as. */
 export class StubLightEnvironment {
@@ -106,9 +91,10 @@ export class GameState extends AntState {
   layerMenuBG!: AntEntity;
   layerMenu!: AntEntity;
   layerMenuFG!: AntEntity;
-  oilSimulation!: StubElementSimulation; // STUB(T2.2): ElementSimulation
-  smokeSimulation!: StubElementSimulation; // STUB(T2.2): ElementSimulation
-  fireSimulation!: StubElementSimulation; // STUB(T2.2): ElementSimulation
+  physicalMap!: PhysicalMap;
+  oilSimulation!: ElementSimulation;
+  smokeSimulation!: ElementSimulation;
+  fireSimulation!: ElementSimulation;
   lightEnvironment!: StubLightEnvironment; // STUB(T2.4): AntLightEnvironment
 
   //---------------------------------------
@@ -162,20 +148,16 @@ export class GameState extends AntState {
     this.layerMenu = new AntEntity();
     this.layerMenuFG = new AntEntity();
     this.layerPopups = new AntEntity();
-    // STUB(T2.2): this.physicalMap = new PhysicalMap(G.physics, 800, 600);
-    //             this.physicalMap.addExceptionClasses([ShuttleTag, PassengerTag]);
-    void ShuttleTag;
-    void PassengerTag;
-    // STUB(T2.2): oil: lowerAnimationSpeed 0.1, upperAnimationSpeed 0.25 (OilParticleView); smoke: 0.75, 1.5,
-    //             velocityFadeCoef 0.95 (SmokeParticleView); fire: 1.25, 1.5 (FireParticleView).
-    this.oilSimulation = new StubElementSimulation();
+    this.physicalMap = new PhysicalMap(G.physics, 800, 600);
+    this.physicalMap.addExceptionClasses([ShuttleTag, PassengerTag]);
+    this.oilSimulation = new ElementSimulation(this.physicalMap, OilParticleView);
     this.oilSimulation.lowerAnimationSpeed = 0.1;
     this.oilSimulation.upperAnimationSpeed = 0.25;
-    this.smokeSimulation = new StubElementSimulation();
+    this.smokeSimulation = new ElementSimulation(this.physicalMap, SmokeParticleView);
     this.smokeSimulation.lowerAnimationSpeed = 0.75;
     this.smokeSimulation.upperAnimationSpeed = 1.5;
     this.smokeSimulation.velocityFadeCoef = 0.95;
-    this.fireSimulation = new StubElementSimulation();
+    this.fireSimulation = new ElementSimulation(this.physicalMap, FireParticleView);
     this.fireSimulation.lowerAnimationSpeed = 1.25;
     this.fireSimulation.upperAnimationSpeed = 1.5;
     this.add(this.layerBack);
@@ -186,7 +168,9 @@ export class GameState extends AntState {
     this.add(this.layerIndicators);
     this.add(this.layerMain);
     this.add(this.layerPhysic);
-    // STUB(T2.2): add(oilSimulation); add(smokeSimulation); add(fireSimulation);
+    this.add(this.oilSimulation);
+    this.add(this.smokeSimulation);
+    this.add(this.fireSimulation);
     this.add(this.layerEngineEffects);
     this.add(this.layerShuttles);
     this.add(this.layerFGPassengers);
@@ -202,7 +186,7 @@ export class GameState extends AntState {
     this.add(this.layerMenuFG);
     this.add(this.layerInterface);
     this.add(this.layerPopups);
-    // STUB(T2.2): add(physicalMap);
+    this.add(this.physicalMap);
     this.addSystems();
     // DEVIATION: a null check (see addSystems(): a test may make a state without the MenuSystem).
     G.core.getSystem(MenuSystem)?.switchScreen(MenuSystem.MAIN_MENU_SCREEN);
