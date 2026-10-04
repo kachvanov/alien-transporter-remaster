@@ -5,7 +5,6 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T3.4 | 1 | worktree-agent | .claude/worktrees/… | 2026-10-04 |
 
 ## Ворота
 | Милстоун | статус |
@@ -105,3 +104,5 @@
 - 2026-10-04 T3.5 merged (попытка 1; 935 тестов). Заметка: DISCOVERY_PROTO=1 продублирована в electron/net/discovery.ts (electron/ не тянет src/net) — держать равной PROTO_VERSION; проверить в T3.7. Запущена T3.4 (общий src/app/* с T3.3 — возможен мелкий конфликт). T3.2 — после T3.3.
 - 2026-10-04 по указанию пользователя: после завершения T3.3 и T3.4 новых задач НЕ запускать (T3.2 не стартовать). Только merge, учёт и отчёт.
 - 2026-10-04 T3.3 merged (попытка 1; 976 тестов). Ручная проверка (хост + `--profile=2 --join=127.0.0.1`) отложена до T3.2/T3.6. Для T3.2/T3.7: проверить, что pauseReq-бит (~90 мс) = одно нажатие P на хосте (реакция на фронт); клиент тестировался на фейковом ws-хосте, интеграция с HostServer — T3.7. STUB(T3.4) в src/app/main.ts: goToMenu() через reload, `--join` вместо экрана Join. Клиент берёт клавиши/ship P2 из сохранения (window.at.save.load) — T3.6 учесть. Overflow jitter-буфера теряет oneShot-звуки пропущенных кадров.
+- 2026-10-04 T3.4 merged (попытка 1; 1005 тестов; конфликт в src/app/main.ts разрешён оркестратором: sim nullable из T3.3 + OnlineController из T3.4). Для T3.2: передать `server` в OnlineControllerOptions, вызывать controller.peerConnected(name)/peerDisconnected(). Для T3.3/T3.6: `startClient` в OnlineControllerOptions (сейчас join → joinFailed('failed')), сессия сообщает конец через controller.joinFailed(reason); main.ts `--join` (STUB(T3.4) из T3.3) заменить на путь через экран Join. STUB(T3.6): hostBegin (START) только лог. hostName в beacon пустой (main подставляет os.hostname()); имя игрока для hello/PLAYER 2 CONNECTED — T3.2/T3.6. joinFailure-сообщение показывается один раз. Вне задачи: чёрная скошенная виньетка ScreenFade_mc по краям всех экранов (возможно баг рендера T2.6/T1.7, сверить с Ruffle в T4.2); нет вставки адреса Ctrl+V; docs/03 §5 («вернуться в главное меню») vs карточка T3.4 (JoinScreen с сообщением) — реализовано по карточке. e2e T3.4 после merge не перепрогнан (только npm run check).
+- 2026-10-04 остановка по просьбе пользователя после T3.3 и T3.4. Следующая: T3.2 (хост), затем T3.6 → T3.7.
