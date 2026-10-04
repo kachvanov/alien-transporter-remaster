@@ -6,9 +6,8 @@ import { FetchAssetSource } from '../engine/assets/AssetSource';
 import { parseManifest, SoundsSchema } from '../engine/assets/schemas';
 import { AudioEngine } from '../audio/AudioEngine';
 import { ClientInputMapper, GAME_SAVE_KEY, keyNamesFromSave, shipFromSave } from '../net/clientInput';
-import { ClientSession, closeText } from '../net/clientSession';
+import { ClientSession, closeText, type SessionCloseReason } from '../net/clientSession';
 import { JitterBuffer } from '../net/JitterBuffer';
-import { parseAddress } from '../net/protocol';
 import { availableTiers, selectTier } from '../render/atlasMath';
 import { AtlasLoader } from '../render/AtlasLoader';
 import { ClientOverlay } from '../render/ClientOverlay';
@@ -20,6 +19,7 @@ import { PerfOverlay } from '../render/PerfOverlay';
 import { PixiRenderer } from '../render/PixiRenderer';
 import { SettingsMenuModel } from '../render/RemasterSettingsModel';
 import { RemasterSettingsOverlay } from '../render/RemasterSettingsOverlay';
+import { failureFromHash, joinFailureOf, joinHash, localHash, resolveJoinTarget } from './joinTarget';
 import { OnlineController } from './OnlineController';
 import { SettingsStore } from './settings';
 import { SimClient } from './SimClient';
@@ -29,8 +29,8 @@ const ASSETS_URL = 'app://assets/';
 async function bootstrap(): Promise<void> {
   const flags = window.at.app.flags;
   const root = document.documentElement;
-  // Network client: `--join=ip[:port]` (until the Join screen of T3.4). `#local` is set when the session is over: the local game.
-  const joinTarget = flags.join !== undefined && window.location.hash !== '#local' ? parseAddress(flags.join) : null;
+  // Network client: `--join=ip[:port]` or `#join=ip:port` (set by the Join screen). `#local` is set when the session is over: the local game.
+  const joinTarget = resolveJoinTarget(flags.join, window.location.hash);
   root.dataset['mode'] = joinTarget !== null ? 'client' : 'local';
 
   const manifest = parseManifest(await new FetchAssetSource(ASSETS_URL).readText('manifest.json'));
@@ -83,6 +83,12 @@ async function bootstrap(): Promise<void> {
     at: window.at,
     settings,
     buildHash: manifest.buildHash,
+    initialFailure: failureFromHash(window.location.hash),
+    // The Join screen (T3.4): the renderer restarts as a network client (the worker dies with it; `goToMenu` below is the way back).
+    startClient: (host, port) => {
+      window.location.hash = joinHash(host, port);
+      window.location.reload();
+    },
     // The host (T3.2): the WebSocket server is in the main process, the bridge port goes to the worker (`sim-port` below).
     server: {
       start: (port) => window.at.net.hostStart({ port, buildHash: manifest.buildHash }),
@@ -308,9 +314,10 @@ async function bootstrap(): Promise<void> {
     // and 0 underruns in 20 s. A noisy network still raises D by itself (D = 1 + 2 sigma / tick: 1.8-1.9 behind the proxy).
     const jitter = new JitterBuffer({ minDelay: 1 });
     const overlayModel = new ClientOverlayModel();
-    // STUB(T3.4): the way back to the main menu is the local game (the start state of the app), without a screen of its own.
+    // The way back is the local game (the renderer reloads): the main menu, or JoinScreen with the reason when the session failed.
+    let closeReason: SessionCloseReason | null = null;
     const goToMenu = (): void => {
-      window.location.hash = '#local';
+      window.location.hash = localHash(joinFailureOf(closeReason));
       window.location.reload();
     };
     const session = new ClientSession({
@@ -318,6 +325,7 @@ async function bootstrap(): Promise<void> {
         root.dataset['netState'] = state;
         if (reason !== null) root.dataset['netReason'] = reason;
         if (state === 'closed') {
+          closeReason = reason;
           input.releaseAll();
           mapper.releaseAll();
           if (reason === 'left') goToMenu();

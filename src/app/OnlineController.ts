@@ -35,6 +35,8 @@ export interface OnlineControllerOptions {
   settings: OnlineSettings;
   /** `manifest.buildHash`: the games of another build are "different version" (docs/03 §3). */
   buildHash: string;
+  /** A failed client session of the previous page (the renderer reloads to leave the client mode): JoinScreen opens with it. */
+  initialFailure?: JoinFailure | null;
   /** STUB(T3.2): the WebSocket server of the host. Without it the host announces itself, but nobody can connect. */
   server?: HostServerHook;
   /**
@@ -58,6 +60,7 @@ export class OnlineController {
 
   constructor(aOpts: OnlineControllerOptions) {
     this._opts = aOpts;
+    this._pendingFailure = aOpts.initialFailure ?? null;
   }
 
   /** The simulation that the answers go to (the controller is made before the SimClient, which needs its `onOnline`). */

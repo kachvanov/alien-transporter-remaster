@@ -12,8 +12,8 @@ function cleanEnv(): Record<string, string> {
 }
 
 // T3.4: the screens of the LAN game with the mouse and the keys: main menu -> Online -> Host (the beacon is on the air)
-// -> Stop -> Join -> an address is typed -> Enter -> (no client session yet: STUB(T3.3)) the worker is restarted and
-// JoinScreen shows "CONNECTION FAILED" with the address that was typed.
+// -> Stop -> Join -> an address is typed -> Enter -> the renderer restarts as a network client, nobody answers there
+// ("Cannot connect to the host"), Enter -> back to JoinScreen with "CONNECTION FAILED" and the address that was typed.
 test('menu -> Online -> Host -> Stop -> Join -> address -> Enter -> Join with the message', async () => {
   const app = await electron.launch({ args: ['.', `--profile=on${Date.now() % 1e9}`], env: cleanEnv() });
   let userData = '';
@@ -121,8 +121,13 @@ test('menu -> Online -> Host -> Stop -> Join -> address -> Enter -> Join with th
 
     await snap('5-join-typed');
     await key('Enter');
-    // no client session yet (STUB(T3.3)): the worker is restarted and JoinScreen is back with the message (the new worker
-    // opens it before its first tick, so it never logs the main menu)
+    // the client mode: the connection is refused (nobody listens on 127.0.0.2:47020), the overlay of the client says so
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset['netReason']), { timeout: 20_000 }).toBe('connect_failed');
+    expect(await page.evaluate(() => document.documentElement.dataset['mode'])).toBe('client');
+    await page.waitForTimeout(1500);
+    await key('Enter'); // OK
+    // back: the local game restarts and JoinScreen opens with the message (the new worker opens it before its first tick,
+    // so it never logs the main menu)
     await expect.poll(() => screens.slice(-3), { timeout: 20_000 }).toEqual(['OnlineScreen', 'JoinScreen', 'JoinScreen']);
     await page.waitForTimeout(2500);
     await snap('6-join-failed');
@@ -131,5 +136,61 @@ test('menu -> Online -> Host -> Stop -> Join -> address -> Enter -> Join with th
   } finally {
     await app.close();
     if (userData.includes('-profileon')) rmSync(userData, { recursive: true, force: true });
+  }
+});
+
+// The Join screen against a real host (a second Electron instance, `--host-start`): the address is typed, Enter -> the
+// renderer restarts as a client and plays (netState=playing). This is the path of a player; `--join=` is only a shortcut to it.
+test('Join screen -> address -> Enter -> connected to a host', async () => {
+  const stamp = Date.now() % 1e9;
+  const host = await electron.launch({ args: ['.', `--profile=jh${stamp}`, '--host-start', '--start-level=Level01'], env: cleanEnv() });
+  const client = await electron.launch({ args: ['.', `--profile=jc${stamp}`], env: cleanEnv() });
+  const dirs: string[] = [];
+  try {
+    const hostPage = await host.firstWindow();
+    await hostPage.waitForSelector('canvas');
+    const page = await client.firstWindow();
+    const screens: string[] = [];
+    page.on('console', (m) => {
+      if (m.type() === 'info' && m.text().includes('screen ')) screens.push(m.text().replace(/^.*screen /, ''));
+    });
+    await page.waitForSelector('canvas');
+    await client.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]!.setContentSize(800, 600);
+    });
+    await expect.poll(() => page.evaluate(() => [window.innerWidth, window.innerHeight]), { timeout: 10_000 }).toEqual([800, 600]);
+    const lastScreen = (): string | undefined => screens[screens.length - 1];
+    const clickTo = async (x: number, y: number, screen: string): Promise<void> => {
+      for (let i = 0; i < 3 && lastScreen() !== screen; i++) {
+        await page.mouse.move(x, y);
+        await page.waitForTimeout(150);
+        await page.mouse.down();
+        await page.waitForTimeout(100);
+        await page.mouse.up();
+        await expect.poll(lastScreen, { timeout: 6000 }).toBe(screen).catch(() => undefined);
+      }
+      await expect.poll(lastScreen, { timeout: 15_000 }).toBe(screen);
+    };
+    const key = async (code: string): Promise<void> => {
+      await page.keyboard.down(code);
+      await page.waitForTimeout(90);
+      await page.keyboard.up(code);
+      await page.waitForTimeout(60);
+    };
+    await expect.poll(lastScreen, { timeout: 30_000 }).toBe('MainScreen');
+    await page.waitForTimeout(2500);
+    await clickTo(512, 385, 'OnlineScreen');
+    await page.waitForTimeout(2500);
+    await clickTo(500, 385, 'JoinScreen');
+    await page.waitForTimeout(2500);
+    for (const code of ['Digit1', 'Digit2', 'Digit7', 'Period', 'Digit0', 'Period', 'Digit0', 'Period', 'Digit1']) await key(code);
+    await key('Enter');
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset['netState']), { timeout: 20_000 }).toBe('playing');
+    expect(await page.evaluate(() => document.documentElement.dataset['mode'])).toBe('client');
+    dirs.push(await client.evaluate(({ app: a }) => a.getPath('userData')), await host.evaluate(({ app: a }) => a.getPath('userData')));
+  } finally {
+    await client.close();
+    await host.close();
+    for (const d of dirs) if (d.includes('-profilej')) rmSync(d, { recursive: true, force: true });
   }
 });

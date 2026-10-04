@@ -32,7 +32,7 @@ interface Fake {
   selfTestImpl: { fn: () => Promise<SelfTestResult> };
 }
 
-function makeFake(aOpts: { server?: boolean; client?: boolean } = {}): Fake {
+function makeFake(aOpts: { server?: boolean; client?: boolean; initialFailure?: 'failed' | 'full' | 'version' | 'lost' } = {}): Fake {
   const events: OnlineEvent[] = [];
   const beacons: BeaconInfo[] = [];
   const calls: string[] = [];
@@ -98,6 +98,7 @@ function makeFake(aOpts: { server?: boolean; client?: boolean } = {}): Fake {
       },
     },
     buildHash: 'hash1',
+    initialFailure: aOpts.initialFailure ?? null,
     server: aOpts.server === true ? { start: (p) => (calls.push('serverStart:' + p), Promise.resolve()), stop: () => void calls.push('serverStop') } : undefined,
     startClient: aOpts.client === true ? (h, p) => void clientCalls.push([h, p]) : undefined,
     onLog: () => undefined,
@@ -353,4 +354,13 @@ describe.skipIf(!hasSounds)('GameLoop: the LAN game', () => {
     for (let i = 0; i < 40; i++) loop.tick({ keysDown: [], mouseX: 0, mouseY: 0, mouseDown: false, wheelDelta: 0 });
     expect(G.core.getSystem(MenuSystem)?.currentScreenName).toBe(MenuSystem.JOIN_SCREEN);
   }, 60_000);
+
+  it('a failure of the previous page (the client mode is left by a reload) opens JoinScreen once the worker is ready', () => {
+    const f = makeFake({ client: true, initialFailure: 'full' });
+    f.controller.onWorkerReady();
+    expect(f.events).toEqual([
+      { k: 'info', port: 5000, lastJoinAddress: '1.2.3.4' },
+      { k: 'openJoin', reason: 'full' },
+    ]);
+  });
 });
