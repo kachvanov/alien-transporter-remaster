@@ -17,6 +17,7 @@ export interface RemoteInput {
   pauseReq: boolean;
 }
 
+/** Key codes of the P2 actions; a negative one is a key that is not assigned (Config.keyP2* = " "): nothing is filtered or pressed. */
 export interface P2Keys {
   gas: number;
   left: number;
@@ -71,9 +72,9 @@ export class InputRouter {
       const filtered = keys.filter((k) => k !== p2.gas && k !== p2.left && k !== p2.right);
       const remote = this._remote;
       if (remote != null) {
-        if (remote.gas) filtered.push(p2.gas);
-        if (remote.left) filtered.push(p2.left);
-        if (remote.right) filtered.push(p2.right);
+        if (remote.gas && p2.gas >= 0) filtered.push(p2.gas);
+        if (remote.left && p2.left >= 0) filtered.push(p2.left);
+        if (remote.right && p2.right >= 0) filtered.push(p2.right);
       }
       if (this._pauseReq && filtered.indexOf(KEY_PAUSE) < 0) {
         filtered.push(KEY_PAUSE);

@@ -309,6 +309,23 @@ export class UISystem extends AntSystem {
     }
   }
 
+  /**
+   * DEVIATION: online (T3.6), not in the original. The branch of onShuttleRemoved that ends the game, for the moment
+   * when the network player P2 leaves and nobody can fly any more (Player1 has no lives and its death did not end the
+   * game because P2 was alive).
+   */
+  triggerGameOver(): void {
+    if (!this._isGameOver) {
+      const menu = G.core.getSystem(MenuSystem);
+      if (menu != null && menu.currentScreen instanceof GameScreen) {
+        menu.currentScreen.listenFocusLost = false;
+      }
+
+      (this._tm as AntTaskManager).addInstantTask(this.onGameOver);
+      this._isGameOver = true;
+    }
+  }
+
   get isGameOver(): boolean {
     return this._isGameOver;
   }

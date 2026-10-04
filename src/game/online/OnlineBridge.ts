@@ -12,7 +12,7 @@ export type OnlineRequest =
   | { k: 'hostOpen' }
   /** STOP / BACK of HostScreen: `bye` to the client, close the server, stop the beacon. */
   | { k: 'hostClose' }
-  /** START of HostScreen: the host goes to the level selection with the server up. STUB(T3.6). */
+  /** START of HostScreen: the host goes to the level selection with the server up (the session goes on until the main menu). */
   | { k: 'hostBegin' }
   /** JoinScreen was opened: listen for the beacons. Answered with `{k:'games'}` events. */
   | { k: 'scanOpen' }

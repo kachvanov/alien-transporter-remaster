@@ -30,6 +30,8 @@ let starting = false;
 // The network bridge of the host (T3.2): its MessagePort leads to the WebSocket server in the main process.
 // The loop (and its InputRouter) exists only after `init()`: a bit that comes earlier is dropped.
 const bridge = new HostBridge({ setRemote: (r) => loop?.input.setRemote(r) });
+// T3.6: a client that joins or leaves is a hook of the game (its ship, the shuttle of P2), applied between two ticks.
+bridge.onPeerChange = (peer) => loop?.remotePeer(peer);
 /** Messages that arrive while `init()` is loading (input, commands) are applied when it has finished. */
 const early: SimIn[] = [];
 

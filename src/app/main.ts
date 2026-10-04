@@ -130,7 +130,10 @@ async function bootstrap(): Promise<void> {
     else port.close(); // (the network client has no worker to host from)
   });
   // `--host-start` (dev): host at once, as if HostScreen had been opened (the worker answers the screens' events anyway).
-  if (flags.hostStart === true && sim !== null) online.handle({ k: 'hostOpen' });
+  if (flags.hostStart === true && sim !== null) {
+    online.handle({ k: 'hostOpen' });
+    sim.command('hostSession', [true]); // (the worker is a host: the P2 keys come from the client)
+  }
 
   // --- remaster settings (T2.8): the overlay of F2 ---
   let fullscreen = false;
