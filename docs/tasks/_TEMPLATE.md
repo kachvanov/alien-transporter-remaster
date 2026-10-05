@@ -1,28 +1,28 @@
-# T<ID> — <Название>
+# T<ID> — <Title>
 
-**Милстоун:** M? · **Зависит от:** … · **Параллельно с:** … · **Размер:** S/M/L
+**Milestone:** M? · **Depends on:** … · **In parallel with:** … · **Size:** S/M/L
 
-## Цель
-Одно-два предложения: что появится после задачи.
+## Goal
+One or two sentences: what exists after the task.
 
-## Прочитать перед началом
+## Read before starting
 - `CLAUDE.md`, `docs/00-overview.md`
-- разделы `docs/0X-…` по теме
-- файлы оригинала `reference/as3/...`
+- sections of `docs/0X-…` relevant to the topic
+- original files `reference/as3/...`
 
-## Шаги
+## Steps
 1. …
 
-## Выходы
-- файлы и папки, которые должны появиться или измениться
+## Outputs
+- files and folders that must appear or change
 
-## Критерии приёмки
-- [ ] проверяемые утверждения (команда → ожидаемый результат)
-- [ ] `npm run check` зелёный
-- [ ] коммит `T<ID>: …`
+## Acceptance criteria
+- [ ] verifiable statements (command → expected result)
+- [ ] `npm run check` is green
+- [ ] commit `T<ID>: …`
 
-## Подводные камни
+## Pitfalls
 - …
 
-## Отчёт
-Что сделано · отклонения от оригинала (`DEVIATION`) · заглушки (`STUB`) · что осталось · замечания вне задачи.
+## Report
+What was done · deviations from the original (`DEVIATION`) · stubs (`STUB`) · what is left · out-of-scope notes.
