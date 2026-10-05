@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Manifest } from '../../src/engine/assets/schemas';
 import { emptyInputSnapshot } from '../../src/engine/input/InputSnapshot';
-import { NO_LEVEL_GROUP } from '../../src/frame/constants';
+import { FRAME_PAUSED, NO_LEVEL_GROUP } from '../../src/frame/constants';
 import { readFrame } from '../../src/frame/FrameReader';
 import {
   buildButtonFaces,
@@ -53,6 +53,39 @@ describe('ClientViewModel', () => {
     m.reset();
     expect(m.viewOnly).toBe(false);
     expect(VIEW_ONLY_HINT).toBe('WAITING FOR THE HOST');
+  });
+});
+
+// FIX-7: the host's pause popup (the `paused` flag of the frame header) is the second "the client cannot press it" state.
+describe('ClientViewModel: the pause popup of the host', () => {
+  it('the paused flag turns the dim look on and off at once, with no delay and with a level present', () => {
+    const m = new ClientViewModel(3);
+    m.push(7, 0);
+    expect(m.hostPaused).toBe(false);
+    expect(m.dim).toBe(false);
+    m.push(7, FRAME_PAUSED);
+    expect(m.hostPaused).toBe(true);
+    expect(m.dim).toBe(true);
+    expect(m.viewOnly).toBe(false); // (it is not the menu mode)
+    m.push(7, FRAME_PAUSED | 2); // (other header bits do not matter)
+    expect(m.dim).toBe(true);
+    m.push(7, 0); // the host resumed: the normal look returns with the very next frame
+    expect(m.hostPaused).toBe(false);
+    expect(m.dim).toBe(false);
+  });
+
+  it('a menu still dims after its delay; the flag argument is optional; reset() clears both', () => {
+    const m = new ClientViewModel(2);
+    m.push(NO_LEVEL_GROUP);
+    expect(m.dim).toBe(false);
+    m.push(NO_LEVEL_GROUP);
+    expect(m.dim).toBe(true);
+    expect(m.hostPaused).toBe(false);
+    m.push(NO_LEVEL_GROUP, FRAME_PAUSED);
+    expect(m.hostPaused).toBe(true);
+    m.reset();
+    expect(m.dim).toBe(false);
+    expect(m.hostPaused).toBe(false);
   });
 });
 
@@ -107,5 +140,40 @@ describe.skipIf(!hasAssets)('levelGroup of the frames of a host', () => {
     let last: ArrayBuffer | null = null;
     for (let i = 0; i < 60; i++) last = run.loop.tick(emptyInputSnapshot());
     expect(readFrame(last as ArrayBuffer).levelGroup).toBe(1);
+  }, 60_000);
+
+  it('pausing the host inside a level sets the paused flag; the popup brings muted button faces; resuming clears it', async () => {
+    const manifest = JSON.parse(readFileSync(resolve(process.cwd(), 'assets', 'manifest.json'), 'utf8')) as Manifest;
+    const faces = buildButtonFaces((manifest.frames as unknown as readonly { key: string }[]).map((f) => f.key));
+    const view = new ClientViewModel();
+    const run = await runHeadless({ seed: 1, ticks: 150 });
+    run.loop.command('startLevel', ['1']);
+    const tickFrame = (keys: number[]): ReturnType<typeof readFrame> => {
+      const snap = emptyInputSnapshot();
+      snap.keysDown = keys;
+      const f = readFrame(run.loop.tick(snap) as ArrayBuffer);
+      view.push(f.levelGroup, f.flags);
+      return f;
+    };
+    const dimNodes = (f: ReturnType<typeof readFrame>): number => f.nodes.filter((n) => faces.dim[n.texId] === 1).length;
+    let f = tickFrame([]);
+    for (let i = 0; i < 60; i++) f = tickFrame([]);
+    expect(f.levelGroup).toBe(1);
+    expect((f.flags & FRAME_PAUSED) !== 0).toBe(false);
+    expect(view.dim).toBe(false);
+    const hudButtons = dimNodes(f);
+
+    for (let i = 0; i < 3; i++) f = tickFrame([80]); // P (Flash keyCode 80): the pause popup
+    for (let i = 0; i < 20; i++) f = tickFrame([]);
+    expect((f.flags & FRAME_PAUSED) !== 0).toBe(true);
+    expect(view.hostPaused).toBe(true);
+    expect(view.dim).toBe(true);
+    expect(dimNodes(f)).toBeGreaterThan(hudButtons); // Resume, Restart, Main menu, the switches
+
+    for (let i = 0; i < 3; i++) tickFrame([80]); // P again: resume
+    f = tickFrame([]);
+    expect((f.flags & FRAME_PAUSED) !== 0).toBe(false);
+    expect(view.dim).toBe(false);
+    expect(f.levelGroup).toBe(1);
   }, 60_000);
 });

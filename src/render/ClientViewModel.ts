@@ -6,8 +6,13 @@
 // that the LevelManager of the host holds (1..20) and NO_LEVEL_GROUP when it holds none (GameLoop.renderFrame). The level is
 // cleared whenever the host leaves it (GameScreen, LevelCompleteScreen, RestartLevelScreen) and is loaded before the level
 // scene is built, so "no level" = menu screens, "a level" = the client can steer its ship.
+//
+// FIX-7: the host's pause popup (Resume / Restart / Main menu, the Effects and Quality switches) is the second "the host decides"
+// state. It is read from the header too, from the `paused` flag (FRAME_PAUSED, bit0; GameLoop: `G.physics != null && G.gamePause`,
+// which the original sets exactly while the pause popup is up: GameScreen.onClickPause / onTakeFocus -> showPausePopup, and
+// clears when it closes), so the protocol does not change. Unlike the menu mode it has no debounce: both edges are immediate.
 
-import { NO_LEVEL_GROUP } from '../frame/constants';
+import { FRAME_PAUSED, NO_LEVEL_GROUP } from '../frame/constants';
 
 /** The hint of the client while the host is on a menu screen (the glyphs of font01, uppercase). */
 export const VIEW_ONLY_HINT = 'WAITING FOR THE HOST';
@@ -26,6 +31,7 @@ export class ClientViewModel {
   private readonly _after: number;
   private _noLevelFrames = 0;
   private _viewOnly = false;
+  private _hostPaused = false;
 
   constructor(aAfterFrames: number = VIEW_ONLY_AFTER_FRAMES) {
     this._after = aAfterFrames;
@@ -36,8 +42,22 @@ export class ClientViewModel {
     return this._viewOnly;
   }
 
-  /** `levelGroup` of every Frame that becomes current. A level turns the mode off at once, no level turns it on after a while. */
-  push(aLevelGroup: number): void {
+  /** true: the host's pause popup is open (the `paused` flag of the frame header). */
+  get hostPaused(): boolean {
+    return this._hostPaused;
+  }
+
+  /** true: the client cannot press what it sees (a host menu or the host's pause popup): muted buttons and the hint. */
+  get dim(): boolean {
+    return this._viewOnly || this._hostPaused;
+  }
+
+  /**
+   * `levelGroup` and the header `flags` of every Frame that becomes current. A level turns the menu mode off at once, no level
+   * turns it on after a while; the pause flag follows the frame as it is.
+   */
+  push(aLevelGroup: number, aFlags = 0): void {
+    this._hostPaused = (aFlags & FRAME_PAUSED) !== 0;
     if (aLevelGroup === NO_LEVEL_GROUP) {
       if (this._noLevelFrames < this._after) {
         this._noLevelFrames++;
@@ -54,6 +74,7 @@ export class ClientViewModel {
   reset(): void {
     this._noLevelFrames = 0;
     this._viewOnly = false;
+    this._hostPaused = false;
   }
 }
 
