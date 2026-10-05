@@ -1,11 +1,11 @@
 # STATUS — state of the work (maintained only by the orchestrator `/orchestrate`)
 
-Updated: 2026-10-05 · Last merge: FIX-6 8821472
+Updated: 2026-10-05 · Last merge: T5.2 96c967c
 
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| T5.2 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
+| T5.6 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -189,3 +189,6 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - 2026-10-05 the user's instruction: stop after T5.2 is merged (until=T5.2). T5.6 (blurry UI at 3x) and FIX-7 (dim the pause popup for the client) stay queued, NOT started.
 - 2026-10-05 the user is at ~90% of the 5-hour session limit. T5.2 agent told: soaks max 30 min (the running ones must NOT be interrupted), WIP commits ("WIP T5.2: …") + drafts of docs/05 §11 and the report on the branch worktree-agent-af4f7854ffa999cc6. RECOVERY NOTE: if the session is cut off, the branch may hold only a "WIP T5.2" commit — it is NOT finished, and §0.6 must NOT delete that branch/worktree: resume it (attempt 1, same branch) with the instruction "finish from the WIP commit, run check, amend into `T5.2: white-screen diagnostics and fixes`". Findings so far (agent report): unbounded client frame queue fixed (126000 frames/h on old code), audio-node leak fixed (non-looped loop channel), atlas/VRAM stable, no crash/hang in 3x60-min 'before' soaks, white-screen root cause NOT found; safety net + crash.log done.
 - 2026-10-05 the user's updated instruction: after T5.2 is merged, also run T5.6 (blurry UI at 3x) and then stop (until=T5.6). FIX-7 stays queued, NOT started. T5.6 starts only after T5.2's soaks finish and T5.2 is merged (T5.6 opens windows at 3x and may re-extract the shared assets/, which would disturb the running soak).
+- 2026-10-05 T5.2 merged 96c967c (attempt 1; 1295 tests, e2e 27/27). Root cause of the white screen NOT found: three 60-min 'before' soaks (net/proxy/solo, tier 2x, Mac) showed no crash/hang/context loss. Delivered: crash.log (userData, 1 MB rotation: render-process-gone, unresponsive, child-process-gone, WebGL context lost, errors, STATE line every 30 s), a safety net (renderer crash / hang >10 s / GPU not back in 6 s -> fresh page, message in the menu, client -> Join 'Connection lost', host server stops), fixes: JitterBuffer.push bounded (old code could queue 126000 frames/h), AudioEngine disconnects finished non-looped loop-list channels, disable-backgrounding-occluded-windows + CalculateNativeWinOcclusion off on Windows (unmeasured). New tools: tools/perf/soak.ts (muted by default, --audio to unmute), heap-diff.ts, profile.ts --heap; docs/05 §11; README section 'If the game window goes white or freezes'. After-fix soaks (net, solo): no crash, audio graphs 0-26 (before up to 260), footprint grew 7-12%/h mostly in the GPU process (noise on a shared Mac; the 5%/h criterion not reproduced). Host renderer grows ~30-60 MB/h. T5.2 stays [ ] until the user check.
+- T5.2 NEEDS FROM YOU: a long (>= 1 h) Mac <-> Windows game on the new build, both roles; if the window goes white send crash.log and crash.log.1 from BOTH machines (README section). If RENDER_GONE reason=oom appears on the laptop, the next step is a lower default tier for 8 GB machines.
+- T5.2 out of scope: Level11 with an idle ship accumulates bodies/coins (~30 MB/h heap, tick p95 up to 7.5 ms after 2 h of game time), a level change frees it (fidelity: not changed); other e2e specs that call electron.launch directly (online-screens, persistence, menu-flow) and tools/visual/shot.ts are not muted; a real UNRESPONSIVE hang was not reproduced (HANG_KILL path untested, shares RENDER_GONE path); Windows 8 GB not measured.
