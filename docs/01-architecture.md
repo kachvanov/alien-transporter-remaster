@@ -77,7 +77,7 @@ Layer boundaries are checked by the ESLint `no-restricted-imports` rule in `esli
 
 The original frame is `Anthill.enterFrameHandler`, see `reference/as3/ru/antkarlov/anthill/Anthill.as`:
 ```
-AntG.elapsed = (fixedElapsed ? maxElapsed : min(real, maxElapsed)) * timeScale   // игра ставит fixedElapsed = true, maxElapsed = 0.0333 в PrepareState
+AntG.elapsed = (fixedElapsed ? maxElapsed : min(real, maxElapsed)) * timeScale   // the game sets fixedElapsed = true, maxElapsed = 0.0333 in PrepareState
 update():  AntG.updateInput(); AntG.sounds.update(); state.preUpdate(); state.update(); state.postUpdate();
 render():  cameras draw the entity tree (Label and ElementSimulation have side logic in draw())
 AntG.plugins.update():  plugins in listOfActive order (sorted by priority, see AntPluginManager.sortHandler)
