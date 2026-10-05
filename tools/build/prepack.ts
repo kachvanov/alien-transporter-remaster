@@ -1,6 +1,7 @@
 // Runs before `electron-builder`: makes sure assets/ is present and current (`npm run extract`; its own cache,
 // build/extract/.cache.json, decides what to redo), then builds the icon of the platform (icon.icns / icon.ico).
-// Usage: `tsx tools/build/prepack.ts [--mac | --win]`.
+// Usage: `tsx tools/build/prepack.ts [--mac] [--win] [--no-extract]`. `--no-extract` (used by dist-all.ts, which builds in a
+// temporary folder that shares assets/ with the main checkout) only checks that assets/ exists and makes the icons.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -26,7 +27,7 @@ async function main(): Promise<void> {
   const hasAssets = existsSync(join(root, 'assets', 'manifest.json'));
   const hasCache = existsSync(join(root, 'build', 'extract', '.cache.json'));
   const hasSwf = existsSync(resolveSwfPath(root));
-  const decision = decideExtract(hasAssets, hasCache, hasSwf);
+  const decision = process.argv.includes('--no-extract') ? 'skip' : decideExtract(hasAssets, hasCache, hasSwf);
   console.log(`[prepack] assets=${hasAssets} cache=${hasCache} swf=${hasSwf} -> extract: ${decision}`);
   if (decision !== 'skip') {
     const r = spawnSync('npm', ['run', 'extract'], { stdio: 'inherit', cwd: root });

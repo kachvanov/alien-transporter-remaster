@@ -119,3 +119,10 @@ Measurement: `--perf-log=perf.json` writes once per second the FPS, p50/p95 of t
 - macOS: the dmg opens, the app launches on the M5, there is an icon, fullscreen and Retina 3x work. When local network access is requested, the text from `NSLocalNetworkUsageDescription` is visible. Progress is saved to `~/Library/Application Support/<appName>/save.json`.
 - Windows 10: both the NSIS installer and the portable build launch (SmartScreen: "More info → Run anyway"), Defender Firewall asks for access when hosting. Progress is in `%APPDATA%/<appName>/save.json`. The perf overlay is within budget.
 - Cross-check LAN between the built versions (not dev).
+
+### Automatic local builds (T5.3)
+
+- Builds are made on this Mac, never in the cloud (the build needs the original's assets, which must not leave the machine). One-time setup: `npm run hooks:install` (`git config core.hooksPath .githooks`).
+- After a merge into `main` in the main checkout, `.githooks/post-merge` starts `npm run dist:all` in the background (log: `dist/build.log`) if `src/`, `electron/`, `resources/`, `package.json`, `package-lock.json`, `electron-builder.yml`, `index.html` or `electron.vite.config.ts` changed since the last successful build. Docs/tests/tools-only merges and agent worktrees do not trigger it; `AT_NO_AUTOBUILD=1` skips one merge.
+- `npm run dist:all` builds the committed state of HEAD (`git archive` into a temporary folder), one build at a time; a merge during a build queues exactly one follow-up build. Result: `dist/` holds the dmg (arm64), the Setup and the portable exe (x64) named with the version and the short commit hash, plus `dist/BUILD-INFO.json`; the 2 newest builds are kept. A macOS notification reports success or failure.
+- `npm run dist:status` shows whether a build is running, the last built commit and whether `main` is behind it.

@@ -73,8 +73,8 @@ Then pick an option:
 | What you want | Command | Result |
 |---|---|---|
 | Just play right away | `npm run dev` | the game opens in a window |
-| A Mac app | `npm run build:mac` | `dist/Alien Transporter Remaster-0.1.0-arm64.dmg` |
-| A Windows 10 app | `npm run build:win` | in `dist/`: the installer `…Setup 0.1.0.exe` and the portable `…0.1.0.exe` |
+| A Mac app | `npm run build:mac` | `dist/Alien Transporter Remaster-0.1.0-<hash>-arm64.dmg` |
+| A Windows 10 app | `npm run build:win` | in `dist/`: the installer `…Setup 0.1.0-<hash>.exe` and the portable `…0.1.0-<hash>.exe` |
 
 The Windows installer can also be built on a Mac (on Apple Silicon this requires Rosetta 2: `softwareupdate --install-rosetta`). Building on Windows itself has not been tested yet.
 
