@@ -1,11 +1,10 @@
 # STATUS — state of the work (maintained only by the orchestrator `/orchestrate`)
 
-Updated: 2026-10-05 · Last merge: T5.5 6db99d5
+Updated: 2026-10-05 · Last merge: FIX-6 8821472
 
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| FIX-6 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -183,3 +182,4 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - 2026-10-05 the user reports: they play over Tailscale (addresses 100.x.y.z, no LAN); auto-discovery does not find the host, a manual IP+port join works. FIX-6 started in parallel with T5.5 (no shared files expected: electron/net/discovery*, src/app, docs/03/06). The manual Mac <-> Windows check (§8 item 6) will also run over Tailscale.
 - 2026-10-05 T5.5 merged 6db99d5 (attempt 1; 1244 tests). dist/ layout: latest/ (stable hyphenated names, hard links to archive/<date>_<time>-<hash>/), archive/ keeps the newest build + 1 previous, hidden .state/, build.log trimmed; the old flat dist/ is migrated by the first `npm run dist:all` (foreign files are never deleted); `npm run dist:open` opens dist/latest. Deviation: archive holds 2 folders (latest's build + 1 previous); a build with no files does not replace latest/ (its info goes to .state/last-attempt.json). The merging hook built nothing (tools/ only), so run `npm run dist:all` once to migrate.
 - 2026-10-05 the user's queue: after FIX-6 merges, start T5.2 (white screen) and FIX-7 (client in a network game: dim the pause popup/menu elements too — T5.1 out-of-scope item; needs a flag in the frame and likely a protocol bump, check overlap with T5.2 in src/app/main.ts and src/frame before running them in parallel).
+- 2026-10-05 FIX-6 merged 8821472 (attempt 1; 1270 tests). Cause: the Tailscale interface is a /32 in 100.64.0.0/10, broadcastOf() turned it into the host's own address, so beacons never left. Fix: /31 and /32 interfaces skipped for broadcast; electron/net/tailscale.ts reads online peers from `tailscale status --json` (read-only, 2 s timeout, silent on failure); the host pushes its beacon by unicast to peers every second, a scanning client probes peers, a running host answers probes (UDP 47021 shared socket). Wire format: new datagram type `probe` (old builds ignore it); PROTO_VERSION unchanged. NOT verified on a real tailnet; needs a new build on both machines (a Windows one with Tailscale CLI also works one-way). Manual steps in docs/06 §6. Out of scope: Join screen text has no hint about typing an IP over VPN.
