@@ -1,11 +1,10 @@
 # STATUS — state of the work (maintained only by the orchestrator `/orchestrate`)
 
-Updated: 2026-10-05 · Last merge: FIX-11 9854ec1
+Updated: 2026-10-05 · Last merge: FIX-12 c7f4bae
 
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| FIX-12 volume control | 1 | (worktree) | (set by the agent) | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -205,3 +204,4 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - FIX-11 out of scope: in smooth mode the HUD pill (ShuttleBarLeftBG) shows a faint dark line under its top edge (can be set "smooth": false); FuelIcon is not pixel-art-whitelisted and stays blocky in both modes; the Indicator marker was compared from atlas pages, not in a live scene.
 - 2026-10-05 stop: all queued work done (until FIX-11). Nothing in progress.
 - 2026-10-05 T4.6 closed: the user confirmed the Windows build (Setup/portable exe) was checked on Windows 10. Still open on the user's side: the laptop measurements (T4.3, T4.4) and the long Mac <-> Windows game (T5.2).
+- 2026-10-05 FIX-12 merged c7f4bae (attempt 1): master volume — settings.json, hotkeys -/= and ` / F8, indicator, F2 slider
