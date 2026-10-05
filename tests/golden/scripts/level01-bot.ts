@@ -75,15 +75,17 @@ export class Level01Bot {
     if (this.mode === 'idle') {
       const goal = G.core.getNodes(GoalManagerNode).get(0);
       const portal = G.core.getNodes(PortalNode).get(0);
-      if (cargo != null && shuttle.model.isLanded) {
-        this._route = this.makeRoute(body.x, this.stationPoint(cargo), false);
-        this.target = cargo;
-        this.mode = 'route';
-      } else if (goal != null && goal.goal.isCompleted() && portal != null && portal.portal.isActive) {
+      // (the goal first: a passenger who boards at once after the last delivery is not taken to his station, the pilot
+      // flies to the open portal like a player who has done the level)
+      if (goal != null && goal.goal.isCompleted() && portal != null && portal.portal.isActive) {
         this._route = this.makeRoute(body.x, { x: portal.portal.x, y: portal.portal.y }, true);
         this.target = 'portal';
         this.mode = 'route';
         this.portalFlightAt = aTick;
+      } else if (cargo != null && shuttle.model.isLanded) {
+        this._route = this.makeRoute(body.x, this.stationPoint(cargo), false);
+        this.target = cargo;
+        this.mode = 'route';
       } else {
         return this.snap([]);
       }

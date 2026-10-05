@@ -42,7 +42,7 @@
 |---|---|
 | Сцена | 800×600, `Config.FRAME_RATE = 35` |
 | Физика | Box2DFlash **2.1alpha**; `AntBox2DManager`: `step = 1/40` на кадр, `velocityIterations = 6`, `positionIterations = 15`, `scale = 30` px/м, gravity `(0, 9.81)`, allowSleep по умолчанию |
-| Время | `AntG.elapsed` = реальное время, но не больше `maxElapsed = 0.0333`. Анимации AntActor: `currentFrame += animationSpeed * AntG.timeScale` за апдейт |
+| Время | `AntG.elapsed`: в игре (PrepareState) `fixedElapsed = true`, то есть каждый тик = `maxElapsed = 0.0333` с (не реальное время и не 1/35). Анимации AntActor: `currentFrame += animationSpeed * AntG.timeScale` за апдейт |
 | Архитектура | Фреймворк Anthill: сцена AntEntity/AntActor; ECS «ants» (AntCore/AntSystem/AntNode в стиле Ash); плагины Box2D, эффекты, living lights |
 | Объём кода | ~22.7K строк игры (`ru.alientransporter.*`) и ~20K Anthill (включая debug, который не нужен). Box2D ~14K строк заменяем на box2dweb |
 | Уровни | 20 одноэкранных. Клипы: `LevelNNBack_mc` (scrollFactor 0.25), `LevelNNBG_mc` (0.5), `LevelNNFG_mc` (1.0) кешируются в AntTileMap 8×6 тайлов × `CELL_SIZE = 100` (область 800×600). `LevelNNPhysic_mc` — разметка редактора с экземплярами `*_com` |

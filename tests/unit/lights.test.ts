@@ -465,10 +465,11 @@ describe.skipIf(!hasAssets)('Level13 in the real loop: the Frames carry the ligh
       }
     });
 
-    // the first missile comes after respawnDelay (10 s = 175 ticks) and switches Sensor01 on: from then on one light
+    // the first missile comes after respawnDelay (10 s counted down by 2 * AntG.elapsed = 2 * 0.0333 per tick, i.e. 150 ticks)
+    // and switches Sensor01 on: from then on one light
     expect(lightTicks.length).toBeGreaterThan(100);
-    expect(lightTicks[0]).toBeGreaterThanOrEqual(170);
-    expect(lightTicks[0]).toBeLessThanOrEqual(185);
+    expect(lightTicks[0]).toBeGreaterThanOrEqual(145);
+    expect(lightTicks[0]).toBeLessThanOrEqual(160);
     expect(lightTicks[lightTicks.length - 1]).toBe(329);
   });
 });

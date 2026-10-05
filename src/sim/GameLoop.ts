@@ -205,6 +205,13 @@ export class GameLoop {
     });
     AntG.onOpenUrl = (url) => opts.host.openExternal(url);
     AntG.timeScale = 1;
+    if (initialState !== PrepareState) {
+      // A run that starts from another initial state (tests, dev, replays) has the timing that PrepareState gives the real
+      // game: a fixed AntG.elapsed = 0.0333 s per tick (without it the steering, the fuel and every other time-based
+      // quantity would differ from the game that is played).
+      AntG.fixedElapsed = true;
+      AntG.maxElapsed = 0.0333;
+    }
   }
 
   /** The next frame makes every node teleport (screen or level change). */

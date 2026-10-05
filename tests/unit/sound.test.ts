@@ -407,10 +407,11 @@ describe.skipIf(!hasSounds || !existsSync(resolve(process.cwd(), 'assets/manifes
   () => {
     it('the frames carry the SndEngineGas channel; its pan follows the shuttle', async () => {
       // The shuttle of Player1 holds the gas and steers left and right (the pan follows its x).
-      // (T2.1: the period of the steering is 30 ticks: SensorSystem and MissileSystem changed the update order of the
+      // (FIX-5: the period of the steering is 32 ticks: with the fixed AntG.elapsed = 0.0333 the steering is faster and 30 ticks did not
+      // carry the shuttle far enough to the right. T2.1: the period was 30 ticks: SensorSystem and MissileSystem changed the update order of the
       // systems, and with 35 ticks the flight ended differently: the gas stopped pushing at the speed limit (vy -6) and the sound stopped.)
       const keys = (t: number): InputSnapshot => ({
-        keysDown: Math.floor(t / 30) % 4 < 2 ? [38, 39] : [38, 37],
+        keysDown: Math.floor(t / 32) % 4 < 2 ? [38, 39] : [38, 37],
         mouseX: 0,
         mouseY: 0,
         mouseDown: false,

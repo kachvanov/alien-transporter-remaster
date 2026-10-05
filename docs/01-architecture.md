@@ -77,7 +77,7 @@ tests/                        unit (рядом с кодом или tests/unit),
 
 Оригинальный кадр — `Anthill.enterFrameHandler`, см. `reference/as3/ru/antkarlov/anthill/Anthill.as`:
 ```
-AntG.elapsed = min(real, maxElapsed) * timeScale
+AntG.elapsed = (fixedElapsed ? maxElapsed : min(real, maxElapsed)) * timeScale   // игра ставит fixedElapsed = true, maxElapsed = 0.0333 в PrepareState
 update():  AntG.updateInput(); AntG.sounds.update(); state.preUpdate(); state.update(); state.postUpdate();
 render():  камеры рисуют дерево сущностей (у Label и ElementSimulation в draw() есть побочная логика)
 AntG.plugins.update():  плагины по порядку listOfActive (sort по priority, см. AntPluginManager.sortHandler)
@@ -86,7 +86,7 @@ AntG.plugins.update():  плагины по порядку listOfActive (sort п
 ```
 
 Наш тик (`src/sim/GameLoop.ts`) повторяет этот порядок:
-1. `AntG.elapsed = (1/35) * AntG.timeScale` — фиксированно, для детерминизма. В оригинале при стабильных 35 FPS было ≈ 0.02857.
+1. `AntG.elapsed = (AntG.fixedElapsed ? AntG.maxElapsed : min(1/35, AntG.maxElapsed)) * AntG.timeScale` — реального времени кадра нет, для детерминизма. Игра (PrepareState) включает `fixedElapsed` с `maxElapsed = 0.0333`, поэтому в оригинале и у нас каждый тик игры = **0.0333 с**, а не 1/35 (FIX-5: замер по записи Ruffle показал, что поворот в Hardcore идёт в 1.17 раза быстрее, чем при 1/35; `GameLoop` ставит те же `fixedElapsed`/`maxElapsed` и для запусков, которые стартуют не с `PrepareState`).
 2. `AntG.updateInput(snapshot)` → `AntG.sounds.update()` → `state.preUpdate/update/postUpdate`.
 3. **Точка рендера:** `FrameWriter.write(scene)`. Побочную логику из оригинальных `draw()` (Label, ElementSimulation, MusicManager.draw) вызываем здесь, в том же порядке обхода.
 4. `AntG.plugins.update()` — плагины в порядке `listOfActive` после AVM2-сортировки по приоритету (`sortAS3`). Кандидаты: `AntBox2DManager.update()` (`Step(1/40, 6, 15)` + `ClearForces()`), `AntCore.update()` (системы — тоже в порядке после AVM2-сортировки), `MusicManager`, твины и таски. Фактический порядок определяет код, его нужно залогировать в тесте T1.6 и зафиксировать эталоном.
