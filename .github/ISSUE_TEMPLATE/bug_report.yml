@@ -1,0 +1,52 @@
+name: Сообщить об ошибке
+description: Что-то не запускается, не подключается или ведёт себя не так, как в оригинале
+labels: [bug]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Система
+      options: [macOS (Apple Silicon), Windows 10 x64, Другая]
+    validations:
+      required: true
+  - type: dropdown
+    id: build
+    attributes:
+      label: Как запущена игра
+      options: [Установщик / dmg, Portable exe, "npm run dev"]
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Режим
+      options: [Один игрок, Вдвоём на одном компьютере, По сети — хост, По сети — клиент]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло
+      description: Что вы нажимали и что увидели (белый экран, вылет, зависание, рассинхрон и т.п.). Если можете — как долго шла игра до сбоя и на каком уровне.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Как должно быть
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Версия игры
+      description: Видна в имени файла установщика (например, 0.1.0).
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Логи и скриншоты
+      description: Если в папке данных игры есть `crash.log`, приложите его (папки — в разделе «Сохранения» README). Скриншот тоже поможет.
+    validations:
+      required: false
