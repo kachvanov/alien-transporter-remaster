@@ -5,7 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| — | | | | |
+| T4.2 | 2 | (worktree агента) | .claude/worktrees/… | 2026-10-05 |
 
 ## Ворота
 | Милстоун | статус |
@@ -26,7 +26,7 @@
 `npx electron-vite build && npx tsx tools/perf/measure.ts --level=Level11 --seconds=60 --tier=2x`, затем Level13 (или вручную `electron . --start-level=Level11 --perf-log=perf.json`). Бюджеты `05` §9: RAM ≤ 700 МБ, VRAM ≤ 350 МБ, FPS 60, тик p95 ≤ 4 мс. Проверить установленную сборку: в логе «tier 2x», без 404 на gfx/3x. Запасные ходы, если RAM не уложится: выгружать группу `ui` на время уровня; ленивые passengers/effects; ленивое декодирование музыки (~53 МБ).
 
 ## Заблокировано
-- T4.2 (сверка с Ruffle), попытка 1: инструменты готовы (`npm run shot`, `visual:compare`, `ruffle:ref`, `parity:behavior`; ветка `worktree-agent-af190853285362e42`, коммит 0d2e97b, не смержена, check зелёный 1092), но эталоны Ruffle снять нельзя: macOS ждёт разрешения «Screen & System Audio Recording» для Claude (диалог висит на экране). Нужно: разрешить (или снимать вручную Cmd+Shift+4 → Space → клик по окну Ruffle, PNG в `tests/visual/reference/<сцена>.png`), затем пройти меню в Ruffle мышью и по каждой сцене выполнить `npm run ruffle:ref -- --scene=<имя>` (main-menu, credits, select-level, garage, pause, level-complete, level01..03 реалистично). Для колонки «оригинал» в docs/05 §5 — запись Ruffle `--frame-rate 35`, сценарии 1–7. Потом попытка 2 (разбор расхождений).
+—
 
 ## Журнал
 - 2026-09-29 — пакет документов и настройка оркестрации созданы (Opus). Следующая задача: T0.1.
@@ -155,3 +155,4 @@
 - 2026-10-05 по просьбе пользователя заведена T5.2 (M5, бэклог, приоритет высокий): при долгой сетевой игре окно становится белым и не отвечает, помогает только перезапуск; на Windows-ноутбуке чаще, на Mac реже. Карточка docs/tasks/T5.2-white-screen-freeze.md. Запуск — по команде пользователя; закрывается только после длинной проверки Mac ↔ Windows. Старые тестовые профили в ~/Library/Application Support (33 папки `*-profile*`, 385 МБ) удалены по просьбе пользователя; основные данные не тронуты.
 - 2026-10-05 инструменты T4.2 (ветка worktree-agent-af190853285362e42, 0d2e97b) смержены в main (a184844, check зелёный: 1170 тестов); сама T4.2 остаётся [ ] до эталонов Ruffle и разбора расхождений (попытка 2). Эталоны снимает пользователь в своём Terminal.app (разрешение Screen & System Audio Recording для Terminal).
 - 2026-10-05 логи для T5.2: приложение сейчас вообще не пишет логов (нет crashReporter, нет файла лога; в userData только save.json/settings.json и кэши Chromium; на Mac DiagnosticReports и unified log за 20 ч пусты). Единственные внешние следы на Windows — Просмотр событий (Application Error/Hang) и Reliability Monitor; поэтому T5.2 начинается с crash.log.
+- 2026-10-05 эталоны Ruffle сняты пользователем (8 сцен: main-menu, credits, select-level, garage, level01, pause, level-complete, level02) → tests/visual/reference/ (в .gitignore: графика оригинала, не коммитить). Запущена T4.2 попытка 2: визуальная сверка и разбор расхождений. Поведенческая колонка docs/05 §5 (запись Ruffle `--frame-rate 35`, сценарии 1–7) — отдельный ручной этап, ждёт пользователя.

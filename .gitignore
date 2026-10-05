@@ -25,6 +25,9 @@ vendor/jpexs/
 .claude/worktrees/
 .claude/settings.local.json
 
+# Ruffle screenshots of the original game (authored content of the original — never commit; made by `npm run ruffle:ref`)
+tests/visual/reference/
+
 # test artifacts
 tests/visual/actual/
 tests/visual/diff/
