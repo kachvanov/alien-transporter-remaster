@@ -13,6 +13,7 @@ import { AtlasLoader } from '../render/AtlasLoader';
 import { ClientOverlay } from '../render/ClientOverlay';
 import { ClientOverlayModel } from '../render/ClientOverlayModel';
 import type { ClientOverlayResult } from '../render/ClientOverlayModel';
+import { buildButtonFaces, ClientViewModel, VIEW_ONLY_HINT } from '../render/ClientViewModel';
 import { FramePlayer } from '../render/FramePlayer';
 import { InputCollector } from '../render/InputCollector';
 import { PerfOverlay } from '../render/PerfOverlay';
@@ -315,6 +316,10 @@ async function bootstrap(): Promise<void> {
     // and 0 underruns in 20 s. A noisy network still raises D by itself (D = 1 + 2 sigma / tick: 1.8-1.9 behind the proxy).
     const jitter = new JitterBuffer({ minDelay: 1 });
     const overlayModel = new ClientOverlayModel();
+    // DEVIATION: online (T5.1). The host on a menu screen (no level in the frames): the client only watches, its buttons are muted.
+    const view = new ClientViewModel();
+    renderer.buttonFaces = buildButtonFaces((manifest.frames as unknown as readonly { key: string }[]).map((f) => f.key));
+    root.dataset['viewOnly'] = 'false';
     // The way back is the local game (the renderer reloads): the main menu, or JoinScreen with the reason when the session failed.
     let closeReason: SessionCloseReason | null = null;
     const goToMenu = (): void => {
@@ -366,7 +371,11 @@ async function bootstrap(): Promise<void> {
         tickCostMs = r.frame.tickCost / 100;
         root.dataset['ticks'] = String(r.frame.tick + 1);
         root.dataset['levelGroup'] = String(r.frame.levelGroup);
+        view.push(r.frame.levelGroup);
       }
+      renderer.dimButtons = view.viewOnly;
+      root.dataset['viewOnly'] = String(view.viewOnly);
+      clientOverlay?.setHint(view.viewOnly && !overlayModel.isOpen ? VIEW_ONLY_HINT : null);
       root.dataset['jitterDelay'] = jitter.delayTicks.toFixed(2);
       root.dataset['jitterUnderruns'] = String(jitter.underruns); // (T3.7: the smoothness of the client)
       root.dataset['jitterDropped'] = String(jitter.droppedFrames);

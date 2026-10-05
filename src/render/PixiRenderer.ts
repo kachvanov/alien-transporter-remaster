@@ -17,6 +17,8 @@ import {
   NO_TEXTURE,
 } from '../frame/constants';
 import type { AtlasLoader } from './AtlasLoader';
+import { DIM_ALPHA, dimTint } from './ClientViewModel';
+import type { ButtonFaces } from './ClientViewModel';
 import type { FrameSample } from './FramePlayer';
 import { computeLetterbox, LOGICAL_HEIGHT, LOGICAL_WIDTH } from './Letterbox';
 import { LightRenderer } from './LightRenderer';
@@ -40,6 +42,12 @@ export class PixiRenderer {
   letterbox: Letterbox = computeLetterbox(LOGICAL_WIDTH, LOGICAL_HEIGHT);
   /** Called after the letterbox changed (window resized, DPR changed). */
   onLayout: ((lb: Letterbox) => void) | null = null;
+  /**
+   * DEVIATION: online (T5.1). The network client, while the host is on a menu: the button faces (`buttonFaces`) are drawn muted
+   * and as "up". Both are set by the app only in the client mode; a local game never touches them.
+   */
+  buttonFaces: ButtonFaces | null = null;
+  dimButtons = false;
 
   private readonly _atlas: AtlasLoader;
   private readonly _pool = new Map<number, Sprite>();
@@ -160,7 +168,9 @@ export class PixiRenderer {
         }
         continue;
       }
-      const sf = this._atlas.getFrame(n.texId);
+      const faces = this.dimButtons ? this.buttonFaces : null;
+      const muted = faces !== null && faces.dim[n.texId] === 1;
+      const sf = this._atlas.getFrame(muted ? (faces as ButtonFaces).up[n.texId] as number : n.texId);
       if (sf === null) {
         skipped++;
         continue;
@@ -179,8 +189,9 @@ export class PixiRenderer {
       const f = n.flags;
       if ((f & NODE_HAS_SCALE) !== 0) sprite.scale.set(n.scaleX * sf.baseScale, n.scaleY * sf.baseScale);
       else sprite.scale.set(sf.baseScale);
-      sprite.alpha = (f & NODE_HAS_ALPHA) !== 0 ? n.alpha / 255 : 1;
-      sprite.tint = (f & NODE_HAS_TINT) !== 0 ? n.tint : 0xffffff;
+      sprite.alpha = ((f & NODE_HAS_ALPHA) !== 0 ? n.alpha / 255 : 1) * (muted ? DIM_ALPHA : 1);
+      const tint = (f & NODE_HAS_TINT) !== 0 ? n.tint : 0xffffff;
+      sprite.tint = muted ? dimTint(tint) : tint;
       const blend = (f & NODE_BLEND_MASK) >> NODE_BLEND_SHIFT;
       sprite.blendMode = BLEND_NAMES[blend] ?? 'normal';
       seq.push(sprite);

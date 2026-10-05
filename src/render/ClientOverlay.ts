@@ -19,6 +19,9 @@ const BUTTON_Y = PANEL.y + PANEL.h - 30 - BUTTON_H;
 
 const COLOR_TEXT = 0xffffff;
 const COLOR_SELECTED = 0xffd23c;
+const COLOR_HINT = 0xc8d8e8;
+const HINT_Y = 575;
+const HINT_H = 31;
 
 interface GlyphFont {
   name: string;
@@ -50,6 +53,11 @@ export class ClientOverlay {
   private readonly _opts: ClientOverlayOptions;
   private readonly _view = new Container();
   private readonly _content = new Container();
+  // The hint "WAITING FOR THE HOST" (T5.1): below the overlay of the dialog, which covers it.
+  private readonly _hintView = new Container();
+  private readonly _hintContent = new Container();
+  private _hint: string | null = null;
+  private _hintDrawn: string | null = '';
   private readonly _texIds = new Map<string, number>();
   private readonly _fonts = new Map<string, GlyphFont>();
   private _hits: Hit[] = [];
@@ -57,14 +65,20 @@ export class ClientOverlay {
   private _pressed = -1;
   private _drawn = '';
   private _incomplete = false;
+  private _incompleteHint = false;
+  private _target: Container;
   private _letterbox: Letterbox | null = null;
 
   private constructor(aOpts: ClientOverlayOptions) {
     this._opts = aOpts;
+    this._target = this._content;
     const frames = aOpts.manifest.frames as unknown as readonly { key: string }[];
     for (let i = 0; i < frames.length; i++) this._texIds.set((frames[i] as { key: string }).key, i);
     this._view.visible = false;
     this._view.addChild(this._content);
+    this._hintView.visible = false;
+    this._hintView.addChild(this._hintContent);
+    aOpts.stage.addChild(this._hintView);
     aOpts.stage.addChild(this._view);
   }
 
@@ -103,8 +117,18 @@ export class ClientOverlay {
     }
   }
 
+  /** The hint of the view-only mode (T5.1): a text, or null for none. Drawn by the next `update`. */
+  setHint(aText: string | null): void {
+    this._hint = aText;
+  }
+
+  get hint(): string | null {
+    return this._hint;
+  }
+
   /** Once per displayed frame: places the overlay in the letterbox and redraws it when something changed. */
   update(aLetterbox: Letterbox): void {
+    this.updateHint(aLetterbox);
     const model = this._opts.model;
     this._view.visible = model.isOpen;
     if (!model.isOpen) return;
@@ -116,6 +140,33 @@ export class ClientOverlay {
       this._drawn = state;
       this.redraw();
     }
+  }
+
+  private updateHint(aLetterbox: Letterbox): void {
+    this._hintView.visible = this._hint !== null;
+    if (this._hint === null) {
+      this._hintDrawn = '';
+      return;
+    }
+    this._letterbox = aLetterbox;
+    this._hintView.scale.set(aLetterbox.scale);
+    this._hintView.position.set(aLetterbox.x, aLetterbox.y);
+    if (this._hint !== this._hintDrawn || this._incompleteHint) {
+      this._hintDrawn = this._hint;
+      this.redrawHint(this._hint);
+    }
+  }
+
+  private redrawHint(aText: string): void {
+    for (const child of this._hintContent.removeChildren()) child.destroy();
+    const dialogIncomplete = this._incomplete; // (the flag is shared with the glyph drawing of the dialog)
+    this._incomplete = false;
+    this._target = this._hintContent;
+    this.rect(0, HINT_Y - 6, 800, HINT_H, 0x000000, 0.6);
+    this.text(aText, 400, HINT_Y, COLOR_HINT);
+    this._target = this._content;
+    this._incompleteHint = this._incomplete; // (a glyph was not loaded: the hint is drawn again at the next update)
+    this._incomplete = dialogIncomplete;
   }
 
   private redraw(): void {
@@ -152,7 +203,7 @@ export class ClientOverlay {
     s.setSize(aW, aH);
     s.tint = aColor;
     s.alpha = aAlpha;
-    this._content.addChild(s);
+    this._target.addChild(s);
   }
 
   /** The text in glyphs of font01, centred at `aCx`; `aY` is the top. */
@@ -183,7 +234,7 @@ export class ClientOverlay {
     s.scale.set(sf.baseScale);
     s.position.set(aX, aY);
     s.tint = aTint;
-    this._content.addChild(s);
+    this._target.addChild(s);
   }
 
   private hitAt(aClientX: number, aClientY: number): Hit | null {
