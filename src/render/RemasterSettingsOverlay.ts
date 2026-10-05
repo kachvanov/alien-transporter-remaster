@@ -15,11 +15,14 @@ import type { SettingsMenuModel } from './RemasterSettingsModel';
 /** Panel in the logical stage (800x600). */
 const PANEL = { x: 80, y: 90, w: 640, h: 420 };
 const ROW_TOP = 190;
-const ROW_STEP = 54;
+const ROW_STEP = 48;
 const LABEL_X = 112;
 const VALUE_X = 560;
 const ARROW_DX = 90;
 const BUTTON = 26;
+/** FIX-12: the volume bar under the value of the volume row (logical px); a click or a drag on it sets the volume. */
+const SLIDER_W = 120;
+const SLIDER_H = 6;
 
 const COLOR_TEXT = 0xffffff;
 const COLOR_SELECTED = 0xffd23c;
@@ -32,7 +35,11 @@ interface GlyphFont {
   widths: Map<string, number>;
 }
 
-type HitAction = { kind: 'row'; index: number } | { kind: 'arrow'; index: number; dir: -1 | 1 } | { kind: 'close' };
+type HitAction =
+  | { kind: 'row'; index: number }
+  | { kind: 'arrow'; index: number; dir: -1 | 1 }
+  | { kind: 'slider'; index: number }
+  | { kind: 'close' };
 
 interface Hit {
   x: number;
@@ -55,7 +62,13 @@ export interface OverlayOptions {
 }
 
 function hitKey(a: HitAction): string {
-  return a.kind === 'row' ? 'row' + a.index : a.kind === 'arrow' ? 'arrow' + a.index + ':' + a.dir : 'close';
+  return a.kind === 'row'
+    ? 'row' + a.index
+    : a.kind === 'arrow'
+      ? 'arrow' + a.index + ':' + a.dir
+      : a.kind === 'slider'
+        ? 'slider' + a.index
+        : 'close';
 }
 
 export class RemasterSettingsOverlay {
@@ -67,6 +80,8 @@ export class RemasterSettingsOverlay {
   private _hits: Hit[] = [];
   private _hover: string | null = null;
   private _pressed: string | null = null;
+  /** FIX-12: the row of the slider that is being dragged; null when none. */
+  private _dragSlider: number | null = null;
   private _drawnVersion = -1;
   private _drawnState = '';
   private _incomplete = false;
@@ -122,6 +137,7 @@ export class RemasterSettingsOverlay {
   }
 
   pointerMove(aClientX: number, aClientY: number): void {
+    if (this._dragSlider !== null) this.dragSlider(aClientX);
     const hit = this.hitAt(aClientX, aClientY);
     const key = hit !== null ? hitKey(hit.action) : null;
     if (key !== this._hover) {
@@ -134,6 +150,11 @@ export class RemasterSettingsOverlay {
     const hit = this.hitAt(aClientX, aClientY);
     this._pressed = hit !== null ? hitKey(hit.action) : null;
     this._drawnVersion = -1;
+    if (hit !== null && hit.action.kind === 'slider') {
+      this._opts.model.select(hit.action.index);
+      this._dragSlider = hit.action.index;
+      this.dragSlider(aClientX);
+    }
   }
 
   pointerUp(aClientX: number, aClientY: number): void {
@@ -141,6 +162,11 @@ export class RemasterSettingsOverlay {
     const pressed = this._pressed;
     this._pressed = null;
     this._drawnVersion = -1;
+    if (this._dragSlider !== null) {
+      this.dragSlider(aClientX);
+      this._dragSlider = null;
+      return;
+    }
     if (hit === null || pressed !== hitKey(hit.action)) return;
     const model = this._opts.model;
     const a = hit.action;
@@ -148,6 +174,8 @@ export class RemasterSettingsOverlay {
       this._opts.onClose();
     } else if (a.kind === 'row') {
       model.select(a.index);
+    } else if (a.kind === 'slider') {
+      // (handled on press and drag)
     } else {
       model.select(a.index);
       model.change(a.index, a.dir);
@@ -194,16 +222,35 @@ export class RemasterSettingsOverlay {
       const cy = ROW_TOP + i * ROW_STEP;
       const selected = i === model.selected;
       const color = selected ? COLOR_SELECTED : COLOR_TEXT;
-      this.hit(PANEL.x + 10, cy - 26, PANEL.w - 20, 52, { kind: 'row', index: i });
-      if (selected) this.rect(PANEL.x + 10, cy - 26, PANEL.w - 20, 52, 0x1d3a56, 0.9);
+      this.hit(PANEL.x + 10, cy - 24, PANEL.w - 20, 46, { kind: 'row', index: i });
+      if (selected) this.rect(PANEL.x + 10, cy - 24, PANEL.w - 20, 46, 0x1d3a56, 0.9);
       this.text('font01', row.label, LABEL_X, cy - 18, color, 'left');
       if (row.note !== '') this.text('font02', row.note, LABEL_X, cy + 10, COLOR_NOTE, 'left');
+      if (row.id === 'volume') this.slider(cy + 14, row.value);
       this.button(VALUE_X - ARROW_DX, cy, '<', { kind: 'arrow', index: i, dir: -1 });
       this.button(VALUE_X + ARROW_DX, cy, '>', { kind: 'arrow', index: i, dir: 1 });
       this.text('font01', row.value, VALUE_X, cy - 12, color, 'center');
     }
 
     this.text('font02', 'Up/Down: select    Left/Right: change    Esc or F2: close', 400, PANEL.y + PANEL.h - 36, COLOR_NOTE, 'center');
+  }
+
+  /** FIX-12: the bar of the volume row: the filled part is the volume (`aValue` is the text of the model, 'NN%'). */
+  private slider(aY: number, aValue: string): void {
+    const fraction = Math.max(0, Math.min(1, parseInt(aValue, 10) / 100));
+    const x = VALUE_X - SLIDER_W / 2;
+    this.rect(x, aY, SLIDER_W, SLIDER_H, 0x35506b, 1);
+    if (fraction > 0) this.rect(x, aY, SLIDER_W * fraction, SLIDER_H, COLOR_SELECTED, 1);
+    const index = this._opts.model.rowCount - 1; // (the volume is the last row)
+    this.hit(x - 6, aY - 8, SLIDER_W + 12, SLIDER_H + 16, { kind: 'slider', index });
+  }
+
+  /** The volume that belongs to the pointer position while the slider is pressed. */
+  private dragSlider(aClientX: number): void {
+    const lb = this._letterbox;
+    if (lb === null || this._dragSlider === null) return;
+    const x = windowToLogical(aClientX, 0, lb).x;
+    this._opts.model.setVolume((x - (VALUE_X - SLIDER_W / 2)) / SLIDER_W);
   }
 
   /** A filled rectangle (a white pixel, stretched). */

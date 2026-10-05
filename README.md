@@ -111,6 +111,9 @@ The Windows build does not include the largest image set (3x, for 4K screens), s
 | Pause | **P** or **Esc** |
 | Full screen | **F11** (also Alt+Enter; on Mac also Ctrl+Cmd+F) |
 | Remaster settings | **F2**: "Classic 35 fps" mode, image set auto / 1x / 2x / 3x (a change takes effect after a restart) |
+| Volume down / up | **-** and **=** (the **+** key), also **Numpad -** and **Numpad +**; hold to change faster. Works on every screen, including the main menu and the LAN lobby; a note "Volume 60%" appears for a moment |
+| Mute / unmute | **`** (the key under Esc) or **F8** |
+| Precise volume | **F2** → "Master volume": arrows (Shift = bigger steps), the bar with the mouse, Enter = mute. The volume is remembered between launches |
 | Performance counter | **F3**: FPS, simulation tick time, traffic, network |
 
 Player keys can be changed in the game, in the **Garage**. Progress is saved when you leave the Garage with the Play and Back buttons, as in the original.
@@ -186,7 +189,7 @@ The TEST button on the Host screen does not show whether a firewall is blocking 
 | Windows | `%APPDATA%\Alien Transporter Remaster\` |
 
 - `save.json`: game progress (completed levels, ships and their settings, keys);
-- `settings.json`: remaster settings (F2) and the window position.
+- `settings.json`: remaster settings (F2, including the master volume) and the window position.
 
 **To reset progress:** close the game and delete `save.json` (better to keep a copy first). If the file is corrupted, the game renames it to `save.corrupt-<time>.json` and starts over; the old one stays alongside.
 

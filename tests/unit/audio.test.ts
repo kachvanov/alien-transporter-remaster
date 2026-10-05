@@ -318,6 +318,34 @@ describe('AudioEngine', () => {
     expect(targets.some((c) => c.startsWith('target 1 '))).toBe(true); // the music bus is not muted
   });
 
+  it('FIX-12: the master volume that was set before the engine starts is on the master gain when the context is created', async () => {
+    const ctx = new FakeContext();
+    const engine = new AudioEngine({ createContext: () => ctx as unknown as AudioContext });
+    engine.masterVolume = 0.3; // (the saved setting, applied before the first sound)
+    await engine.init(SOUNDS, source(), () => undefined);
+    engine.apply(frame({ musicTrack: 2, musicVol: 255, oneShots: [shot(0)] }));
+    const master = ctx.gains[0]!;
+    expect(master.gain.value).toBe(0.3);
+    expect(master.connected).toContain(ctx.destination); // the master gain feeds the output...
+    expect(ctx.gains.slice(1).every((g) => !g.connected.includes(ctx.destination))).toBe(true);
+    expect(ctx.gains[1]!.connected).toContain(master); // ...and the sfx and music buses feed the master gain
+    expect(ctx.gains[2]!.connected).toContain(master);
+  });
+
+  it('FIX-12: a change of the master volume is smoothed and clamped; the volumes of the frames are not touched', async () => {
+    const { engine, ctx } = await makeEngine();
+    engine.apply(frame({ musicTrack: 2, musicVol: 255 }));
+    const master = ctx.gains[0]!;
+    engine.masterVolume = 0.5;
+    expect(master.gain.calls.some((c) => c.startsWith('target 0.5 '))).toBe(true);
+    engine.masterVolume = 7;
+    expect(engine.masterVolume).toBe(1);
+    engine.masterVolume = -1;
+    expect(engine.masterVolume).toBe(0);
+    expect(master.gain.value).toBe(0);
+    expect(ctx.gains.at(-1)!.gain.value).not.toBe(0); // the music graph keeps the volume of the frame
+  });
+
   it('a suspended context plays nothing (no burst when it is resumed) and is resumed', async () => {
     const { engine, ctx } = await makeEngine();
     ctx.state = 'suspended';

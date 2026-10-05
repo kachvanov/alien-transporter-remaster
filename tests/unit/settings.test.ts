@@ -11,6 +11,7 @@ import { sanitizeWindowSettings, windowSettingsValue } from '../../electron/wind
 import {
   DEFAULT_NET_PORT,
   DEFAULT_SETTINGS,
+  normalizeVolume,
   parseSettings,
   sanitizeSettingsPatch,
   SettingsStore,
@@ -37,7 +38,7 @@ afterEach(async () => {
 
 describe('settings.json', () => {
   it('defaults: smooth motion, automatic tier, the port of the LAN protocol', () => {
-    expect(parseSettings(undefined)).toEqual({ classic35: false, tier: 'auto', uiScaling: 'pixel', lastJoinAddress: '', netPort: 47020 });
+    expect(parseSettings(undefined)).toEqual({ classic35: false, tier: 'auto', uiScaling: 'pixel', lastJoinAddress: '', netPort: 47020, masterVolume: 1 });
     expect(DEFAULT_NET_PORT).toBe(47020);
     expect(parseSettings({})).toEqual(DEFAULT_SETTINGS);
   });
@@ -52,6 +53,7 @@ describe('settings.json', () => {
       uiScaling: 'smooth',
       lastJoinAddress: '192.168.0.7:50000',
       netPort: 50000,
+      masterVolume: 1,
     });
     expect(sanitizeSettingsPatch({ netPort: 1023 })).toEqual({});
     expect(sanitizeSettingsPatch({ netPort: 65536 })).toEqual({});
@@ -73,7 +75,7 @@ describe('settings.json', () => {
 
     const store = new SettingsStore(api);
     expect(await store.load()).toEqual(DEFAULT_SETTINGS);
-    store.update({ classic35: true, tier: '3x', netPort: 50001, lastJoinAddress: '10.0.0.5' });
+    store.update({ classic35: true, tier: '3x', netPort: 50001, lastJoinAddress: '10.0.0.5', masterVolume: 0.35 });
     store.update({ netPort: 99 }); // refused
     expect(store.value.netPort).toBe(50001);
     await mainDoc.flush(); // (quit)
@@ -83,7 +85,7 @@ describe('settings.json', () => {
       get: () => new JsonDocument(path).readAll(),
       set: () => Promise.resolve({}),
     });
-    expect(await store2.load()).toEqual({ classic35: true, tier: '3x', uiScaling: 'pixel', lastJoinAddress: '10.0.0.5', netPort: 50001 });
+    expect(await store2.load()).toEqual({ classic35: true, tier: '3x', uiScaling: 'pixel', lastJoinAddress: '10.0.0.5', netPort: 50001, masterVolume: 0.35 });
     // the window key is untouched by the settings of the renderer
     expect(sanitizeWindowSettings((await readJson(path) as Record<string, unknown>)['window'])).toEqual({
       bounds: { x: 10, y: 20, width: 1024, height: 768 },
@@ -134,12 +136,12 @@ function makeHost(aInit: Partial<RemasterSettings> = {}): { host: SettingsMenuHo
 const key = (m: SettingsMenuModel, code: string, k = '', shift = false): string => m.handleKey(code, k, shift);
 
 describe('RemasterSettingsModel', () => {
-  it('rows: Smooth motion, Graphics, UI scaling, Fullscreen, Network port', () => {
+  it('rows: Smooth motion, Graphics, UI scaling, Fullscreen, Network port, Master volume', () => {
     const { host } = makeHost();
     const rows = new SettingsMenuModel(host).rows();
-    expect(rows.map((r) => r.id)).toEqual(['smooth', 'graphics', 'uiScaling', 'fullscreen', 'port']);
-    expect(rows.map((r) => r.label)).toEqual(['Smooth motion (60/120 Hz)', 'Graphics', 'UI scaling', 'Fullscreen', 'Network port']);
-    expect(rows.map((r) => r.value)).toEqual(['On', 'Auto', 'Pixel-exact', 'Off', '47020']);
+    expect(rows.map((r) => r.id)).toEqual(['smooth', 'graphics', 'uiScaling', 'fullscreen', 'port', 'volume']);
+    expect(rows.map((r) => r.label)).toEqual(['Smooth motion (60/120 Hz)', 'Graphics', 'UI scaling', 'Fullscreen', 'Network port', 'Master volume']);
+    expect(rows.map((r) => r.value)).toEqual(['On', 'Auto', 'Pixel-exact', 'Off', '47020', '100%']);
   });
 
   it('FIX-11: UI scaling toggles pixel-exact / smooth in both directions; a change asks for a restart', () => {
@@ -250,7 +252,7 @@ describe('RemasterSettingsModel', () => {
     key(m, 'ArrowUp');
     expect(m.selected).toBe(0);
     for (let i = 0; i < 9; i++) key(m, 'ArrowDown');
-    expect(m.selected).toBe(4);
+    expect(m.selected).toBe(5);
     expect(key(m, 'KeyW', 'w')).toBe('handled');
     expect(key(m, 'ArrowUp')).toBe('handled');
   });
@@ -365,5 +367,114 @@ describe('RemasterSettingsOverlay', () => {
     overlay.pointerDown(690, 120);
     overlay.pointerUp(690, 120);
     expect(f.closed.n).toBe(1);
+  });
+});
+
+//---------------------------------------
+// FIX-12: master volume
+//---------------------------------------
+
+describe('FIX-12: master volume', () => {
+  it('normalizeVolume: clamps to 0..1, rounds to whole percent, refuses what is not a finite number', () => {
+    expect(normalizeVolume(0.5)).toBe(0.5);
+    expect(normalizeVolume(-3)).toBe(0);
+    expect(normalizeVolume(7)).toBe(1);
+    expect(normalizeVolume(0.123456)).toBe(0.12);
+    expect(normalizeVolume(0.1 + 0.2)).toBe(0.3);
+    for (const bad of ['0.5', null, undefined, NaN, Infinity, -Infinity, {}, true]) expect(normalizeVolume(bad)).toBeNull();
+  });
+
+  it('default 1 for a missing or corrupt value; out-of-range values are clamped', () => {
+    expect(DEFAULT_SETTINGS.masterVolume).toBe(1);
+    expect(parseSettings({}).masterVolume).toBe(1);
+    expect(parseSettings({ masterVolume: 'loud' }).masterVolume).toBe(1);
+    expect(parseSettings({ masterVolume: null }).masterVolume).toBe(1);
+    expect(parseSettings({ masterVolume: NaN }).masterVolume).toBe(1);
+    expect(parseSettings({ masterVolume: 0.4 }).masterVolume).toBe(0.4);
+    expect(parseSettings({ masterVolume: 0 }).masterVolume).toBe(0);
+    expect(parseSettings({ masterVolume: 5 }).masterVolume).toBe(1);
+    expect(parseSettings({ masterVolume: -1 }).masterVolume).toBe(0);
+    expect(sanitizeSettingsPatch({ masterVolume: 'x' })).toEqual({});
+    expect(sanitizeSettingsPatch({ masterVolume: 0.25 })).toEqual({ masterVolume: 0.25 });
+  });
+
+  it('persistence round trip: the store sends the volume, the file keeps it, a new start reads it', async () => {
+    const path = join(dir, 'settings.json');
+    const mainDoc = new JsonDocument(path, { debounceMs: 500 });
+    const store = new SettingsStore({
+      get: () => mainDoc.readAll(),
+      set: (patch) => mainDoc.merge(sanitizeSettingsPatch(patch)),
+    });
+    await store.load();
+    store.update({ masterVolume: 0.65 });
+    store.update({ masterVolume: 'max' as unknown as number }); // refused
+    expect(store.value.masterVolume).toBe(0.65);
+    await new Promise((r) => setTimeout(r, 0)); // (the main process merges the patches)
+    await mainDoc.flush();
+    expect(((await readJson(path)) as Record<string, unknown>)['masterVolume']).toBe(0.65);
+    const store2 = new SettingsStore({ get: () => new JsonDocument(path).readAll(), set: () => Promise.resolve({}) });
+    expect((await store2.load()).masterVolume).toBe(0.65);
+  });
+
+  it('the row shows the percentage; Left/Right step by 5%, Shift by 20%, clamped at 0 and 100%', () => {
+    const { host, state } = makeHost();
+    const m = new SettingsMenuModel(host);
+    m.select(5);
+    expect(m.rows()[5]).toMatchObject({ id: 'volume', label: 'Master volume', value: '100%' });
+    key(m, 'ArrowRight');
+    expect(state.s.masterVolume).toBe(1);
+    key(m, 'ArrowLeft');
+    expect(state.s.masterVolume).toBe(0.95);
+    expect(m.rows()[5]?.value).toBe('95%');
+    key(m, 'ArrowLeft', '', true);
+    expect(state.s.masterVolume).toBe(0.75);
+    for (let i = 0; i < 10; i++) key(m, 'ArrowLeft', '', true);
+    expect(state.s.masterVolume).toBe(0);
+    expect(m.rows()[5]).toMatchObject({ value: '0%', note: 'Muted (Enter to unmute)' });
+    key(m, 'ArrowRight');
+    expect(state.s.masterVolume).toBe(0.05);
+    for (let i = 0; i < 25; i++) key(m, 'ArrowRight', '', true);
+    expect(state.s.masterVolume).toBe(1);
+  });
+
+  it('many small steps do not drift', () => {
+    const { host, state } = makeHost({ masterVolume: 0.37 });
+    const m = new SettingsMenuModel(host);
+    m.select(5);
+    key(m, 'ArrowRight');
+    expect(state.s.masterVolume).toBe(0.42);
+    for (let i = 0; i < 7; i++) key(m, 'ArrowLeft');
+    expect(state.s.masterVolume).toBe(0.07);
+  });
+
+  it('Enter mutes and the next Enter brings the volume back; a setVolume in between forgets the old one', () => {
+    const { host, state } = makeHost({ masterVolume: 0.6 });
+    const m = new SettingsMenuModel(host);
+    m.select(5);
+    key(m, 'Enter');
+    expect(state.s.masterVolume).toBe(0);
+    key(m, 'Space');
+    expect(state.s.masterVolume).toBe(0.6);
+    key(m, 'Enter');
+    m.setVolume(0.3);
+    expect(state.s.masterVolume).toBe(0.3);
+    state.s.masterVolume = 0; // (saved as 0 by an earlier session)
+    key(m, 'Enter');
+    expect(state.s.masterVolume).toBe(1);
+  });
+
+  it('setVolume (the slider) clamps and ignores garbage; the version grows', () => {
+    const { host, state } = makeHost();
+    const m = new SettingsMenuModel(host);
+    const v = m.version;
+    m.setVolume(0.456);
+    expect(state.s.masterVolume).toBe(0.46);
+    m.setVolume(-1);
+    expect(state.s.masterVolume).toBe(0);
+    m.setVolume(9);
+    expect(state.s.masterVolume).toBe(1);
+    m.setVolume(NaN);
+    expect(state.s.masterVolume).toBe(1);
+    expect(m.version).toBeGreaterThan(v);
   });
 });
