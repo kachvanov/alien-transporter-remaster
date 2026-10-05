@@ -80,7 +80,7 @@ T3.1, T3.2, T3.3, T3.5 can start in parallel with M2.
 | [x] | T4.4 | Graphics tiers and memory budget (Windows) | T2.8 | S | (merge d5948fb; the Windows measurement awaits the laptop)
 | [x] | T4.5 | macOS build (dmg arm64, icon, ad-hoc signing, Info.plist) | T2.8, T3.6 | S | (merge 0b2b11d)
 | [x] | T4.6 | Windows build (NSIS + portable x64; cross-build or GitHub Actions) | T2.8, T3.6 | S | (merge 909f596; the Windows build was checked by the user on 2026-10-05)
-| [x] | T4.7 | User README (in English): installation, LAN, firewall | T4.5, T4.6, T3.7 | S | (merge 70fa5d7; the user's check is pending)
+| [x] | T4.7 | User README (in English): installation, LAN, firewall | T4.5, T4.6, T3.7 | S | (merge 70fa5d7; checked by the user on 2026-10-05)
 
 **✅ M4:** the budgets from `05` §9 are met on both machines; the dmg and exe are installed and work; LAN between the built versions works.
 
