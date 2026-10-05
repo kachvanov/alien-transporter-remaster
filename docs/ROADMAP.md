@@ -75,7 +75,7 @@ T3.1, T3.2, T3.3, T3.5 can start in parallel with M2.
 | | ID | Task | Depends on | Size |
 |---|---|---|---|---|
 | [x] | T4.1 | Input recording and golden replays (headless) | T1.9e (extend as M2 progresses) | M | (merge d6d6153)
-| [x] | T4.2 | Parity check against the original: visual (pixelmatch vs Ruffle) and behavioral (in frames) | T2.8 | M | (merge dfab79f; the visual part is done, the "original" column in docs/05 §5 awaits a Ruffle recording)
+| [x] | T4.2 | Parity check against the original: visual (pixelmatch vs Ruffle) and behavioral (in frames) | T2.8 | M | (merges dfab79f + f5e96f7; visual part done; behaviour column measured for scenarios 1 (equivalent), 2, 5, 6 — see docs/05 §5; 3, 4, 7 need new Ruffle clips)
 | [x] | T4.3 | Simulation optimization without changing golden hashes + perf log | T4.1, T2.8 | M | (merge 900423d; the 1 ms budget is not met in the app, see STATUS)
 | [x] | T4.4 | Graphics tiers and memory budget (Windows) | T2.8 | S | (merge d5948fb; the Windows measurement awaits the laptop)
 | [x] | T4.5 | macOS build (dmg arm64, icon, ad-hoc signing, Info.plist) | T2.8, T3.6 | S | (merge 0b2b11d)
