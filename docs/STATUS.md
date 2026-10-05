@@ -1,11 +1,10 @@
 # STATUS — state of the work (maintained only by the orchestrator `/orchestrate`)
 
-Updated: 2026-10-05 · Last merge: FIX-7 17cb6c8
+Updated: 2026-10-05 · Last merge: FIX-8 0e48d72
 
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| FIX-8 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -197,3 +196,5 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - 2026-10-05 until=T5.6 reached: stopped. FIX-7 (dim the pause popup for the client) is still queued, not started. T5.2 stays open until the user's long Mac <-> Windows check.
 - 2026-10-05 the user rebuilt by hand (`npm run dist:all`, ea4300f, 55 s): dist/latest has the T5.6 graphics, FIX-6, T5.2. The auto-build hook did not fire after T5.6 because assets/ is untracked and tools/extract/** counted as 'tools' -> FIX-8 started (hook/dist:status must watch the generated assets via a fingerprint + tools/extract/**). FIX-7 (dim the pause popup on the client) started in parallel (no shared files). Instruction: stop after these two.
 - 2026-10-05 FIX-7 merged 17cb6c8 (attempt 1; 1309 tests, e2e client-view-only 2/2). No protocol change: the frame header already has the bit0 `paused` flag (G.physics != null && G.gamePause, raised only while the pause popup is up); ClientViewModel.hostPaused/dim, the client dims the Btn* buttons of the pause popup (and the HUD buttons) with the hint WAITING FOR THE HOST; the client P pause request still works; the host look unchanged. DEVIATION: online, docs/03 §4. Out of scope: the game-over popup is not dimmed (G.gamePause is not set for it; would need its texture ids); popup captions/BG are not dimmed, only the Btn* symbols.
+- 2026-10-05 FIX-8 merged 0e48d72 (attempt 1; 1318 tests). The auto build now watches the generated assets: tools/build/dist-assets.ts fingerprint = sha256 over (path, size, content hash) of assets/ with an mtime cache (~0.2 s for 195 files / 219 MB), content-only so an idempotent re-extract does not change it; needsBuild also fires on tools/extract/** (not *.test.ts) and tools/build/{prepack.ts,make-icon.ts,adhocSign.cjs}; the fingerprint is stored in the state on a fully ok build only; dist:status shows 'assets/: same content / CHANGED / not yet recorded'. Migration: a state without a fingerprint and assets older than the last build -> recorded at the next check, no rebuild. After a manual `npm run extract` the hook does not fire (merges only): `dist:status` shows CHANGED and `npx tsx tools/build/dist-all.ts --trigger` builds if needed. A 3x-only change rebuilds both platforms (fingerprint covers all of assets/). The old hook already auto-built 17cb6c8 (FIX-7) at 22:12: dist/latest = FIX-7 + T5.6 + T5.2 + FIX-6.
+- 2026-10-05 stop (the user's instruction): FIX-7 and FIX-8 merged, nothing in progress. Remaining: user checks (T5.2 long game, Tailscale discovery, 3x look, Windows measurements for M4, Mac<->Windows network item 6), the game-over popup is not dimmed on the client (small follow-up if wanted).
