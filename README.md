@@ -26,6 +26,7 @@ The goal of the project is **maximum fidelity to the original**: the same levels
 - [LAN play](#lan-play)
 - [If you can't connect](#if-you-cant-connect)
 - [Saves](#saves)
+- [If the game window goes white or freezes](#if-the-game-window-goes-white-or-freezes)
 - [Credits and rights](#credits-and-rights)
 
 ## What's new compared to the original
@@ -189,6 +190,19 @@ The TEST button on the Host screen does not show whether a firewall is blocking 
 - `settings.json`: remaster settings (F2) and the window position.
 
 **To reset progress:** close the game and delete `save.json` (better to keep a copy first). If the file is corrupted, the game renames it to `save.corrupt-<time>.json` and starts over; the old one stays alongside.
+
+## If the game window goes white or freezes
+
+The game keeps a short diagnostic log, `crash.log`, next to the saves (see the table above). It records crashes and freezes of the game window, a lost graphics process, errors, and every 30 seconds a line with the memory used and the state of the network connection. It contains no names or file paths of yours (home folders are replaced by `~`), and it never grows beyond about 2 MB (when it is full the older part moves to `crash.log.1`).
+
+If the window crashes or stops responding for 10 seconds, the game now replaces it by itself: you land in the main menu (a client on the Join screen with "Connection lost") with a short message; your progress is not touched. A host whose window crashed closes the game for the other player, who can connect again right away.
+
+**If this happens, please send `crash.log` (and `crash.log.1` if it exists) from both computers** (a host and a client), and say roughly how long the game had been running, which level it was, who was the host and the client:
+
+- macOS: open Finder → Go → Go to Folder… → `~/Library/Application Support/Alien Transporter Remaster/`
+- Windows: press Win+R, type `%APPDATA%\Alien Transporter Remaster` and press Enter
+
+The file is plain text; the last lines before the failure are the interesting ones (`RENDER_GONE`, `UNRESPONSIVE`, `CHILD_GONE`, `WEBGL_CONTEXT_LOST`, `RECOVER`).
 
 ## Credits and rights
 

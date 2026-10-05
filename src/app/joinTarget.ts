@@ -55,3 +55,8 @@ export function failureFromHash(aHash: string): JoinFailure | null {
   const f = aHash.slice(LOCAL_HASH.length + 1);
   return FAILURES.find((x) => x === f) ?? null;
 }
+
+/** T5.2: `#local:crashed` is set by the main process when it replaces a window that crashed or hung; the menu says so once. */
+export function noticeFromHash(aHash: string): 'crashed' | null {
+  return aHash === LOCAL_HASH + ':crashed' ? 'crashed' : null;
+}

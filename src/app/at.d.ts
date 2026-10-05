@@ -112,6 +112,12 @@ export interface AtApi {
     /** T4.3: one line of the `--perf-log` file (the main process adds the memory and writes the file); a no-op without the flag. */
     perfLog(entry: Record<string, unknown>): Promise<void>;
   };
+  diag: {
+    /** T5.2: an event for `crash.log` (`name`: CAPITALS_AND_UNDERSCORES; the fields are primitives). Fire and forget, never throws. */
+    report(name: string, fields?: Record<string, string | number | boolean>): void;
+    /** T5.2: the statistics of the renderer (queue sizes, memory, ...), every 5 s; main puts the last ones into the state line. */
+    stats(stats: Record<string, string | number>): void;
+  };
   settings: {
     /** The content of settings.json (src/app/settings.ts `parseSettings` reads it). */
     get(): Promise<Record<string, unknown>>;

@@ -20,12 +20,27 @@ import { PerfOverlay } from '../render/PerfOverlay';
 import { PixiRenderer } from '../render/PixiRenderer';
 import { SettingsMenuModel } from '../render/RemasterSettingsModel';
 import { RemasterSettingsOverlay } from '../render/RemasterSettingsOverlay';
-import { failureFromHash, joinFailureOf, joinHash, localHash, resolveJoinTarget } from './joinTarget';
+import { installErrorReporting, watchCanvas, watchVisibility, type DiagReport } from './diagnostics';
+import { failureFromHash, joinFailureOf, joinHash, localHash, noticeFromHash, resolveJoinTarget } from './joinTarget';
 import { OnlineController } from './OnlineController';
 import { SettingsStore } from './settings';
 import { SimClient } from './SimClient';
 
 const ASSETS_URL = 'app://assets/';
+
+/** T5.2: events for crash.log (the main process writes it); never throws, never blocks. */
+const report: DiagReport = (name, fields) => {
+  try {
+    window.at.diag.report(name, fields);
+  } catch {
+    // (the log is best effort)
+  }
+};
+installErrorReporting(window, report);
+/** The message of the menu that opens after the window was replaced (a crash or a hang; `#local:crashed`, electron/diagnostics.ts). */
+const CRASH_NOTICE_TEXT = 'The game window crashed and was restarted';
+/** How often the statistics of the renderer go to the main process (it writes a state line every 30 s). */
+const DIAG_STATS_MS = 5000;
 
 async function bootstrap(): Promise<void> {
   const flags = window.at.app.flags;
@@ -53,6 +68,8 @@ async function bootstrap(): Promise<void> {
   const atlas = new AtlasLoader(manifest, tier, ASSETS_URL);
   void atlas.loadStartup();
   const renderer = await PixiRenderer.create(document.body, atlas);
+  watchCanvas(renderer.app.canvas, report);
+  watchVisibility(document, report);
   const player = new FramePlayer({ classic });
   const perf = new PerfOverlay(document.body);
 
@@ -157,6 +174,11 @@ async function bootstrap(): Promise<void> {
       }
     },
     onQuality: (smooth) => atlas.setSmooth(smooth),
+    // T5.2: the errors of the worker go to crash.log as well as to the console
+    onLog: (level, msg) => {
+      console[level]('[sim] ' + msg);
+      if (level === 'error') report('WORKER_ERROR', { message: msg.slice(0, 500) });
+    },
     onOnline: (req) => online.handle(req),
     onReplay: (replay) => {
       window.at.dev
@@ -172,8 +194,9 @@ async function bootstrap(): Promise<void> {
   });
   if (sim !== null) online.bind(sim);
   sim?.start();
-  // dev, only with `--perf-log`: lets tools/perf/measure.ts change the level (the unload of the previous level atlas)
-  if (perfLog && sim !== null) {
+  // dev, only with `--perf-log` or `--start-level`: lets tools/perf/measure.ts and soak.ts change the level (the unload of the
+  // previous level atlas)
+  if ((perfLog || flags.startLevel !== null) && sim !== null) {
     const s = sim;
     (window as unknown as { __atDev: { startLevel(level: string): void } }).__atDev = {
       startLevel: (level) => s.command('startLevel', [level]),
@@ -303,6 +326,8 @@ async function bootstrap(): Promise<void> {
   input.attach();
 
   // --- network client (T3.3): ClientSession -> JitterBuffer -> FramePlayer / AudioEngine ---
+  let jitter: JitterBuffer | null = null;
+  let noticeUpdate: ((lb: typeof renderer.letterbox) => void) | null = null;
   let clientKeys: ((keysDown: readonly number[], now: number) => void) | null = null;
   let clientTick: ((now: number) => void) | null = null;
   let clientOverlay: ClientOverlay | null = null;
@@ -314,7 +339,8 @@ async function bootstrap(): Promise<void> {
     // DEVIATION (T3.7): the floor of the delay is 1 tick, not the 1.5 of docs/03 §6. On a quiet LAN the delay settled at the
     // floor (1.50, 43 ms) and the input delay of the client was ~105 ms; with 1 tick it is ~92 ms (the card asks for <= 100)
     // and 0 underruns in 20 s. A noisy network still raises D by itself (D = 1 + 2 sigma / tick: 1.8-1.9 behind the proxy).
-    const jitter = new JitterBuffer({ minDelay: 1 });
+    const jb = new JitterBuffer({ minDelay: 1 });
+    jitter = jb;
     const overlayModel = new ClientOverlayModel();
     // DEVIATION: online (T5.1). The host on a menu screen (no level in the frames): the client only watches, its buttons are muted.
     const view = new ClientViewModel();
@@ -326,9 +352,10 @@ async function bootstrap(): Promise<void> {
       window.location.hash = localHash(joinFailureOf(closeReason));
       window.location.reload();
     };
-    const session = new ClientSession({
+    const cs = new ClientSession({
       onStateChange: (state, reason) => {
         root.dataset['netState'] = state;
+        report('NET_STATE', { state, reason: reason ?? '-' });
         if (reason !== null) root.dataset['netReason'] = reason;
         if (state === 'closed') {
           closeReason = reason;
@@ -340,12 +367,12 @@ async function bootstrap(): Promise<void> {
       },
       onFrame: (frame, bytes) => {
         frameBytes = bytes;
-        jitter.push(frame, performance.now());
+        jb.push(frame, performance.now());
       },
       onNotice: (text) => console.info('[net] host: ' + text),
     });
     const onResult = (result: ClientOverlayResult): void => {
-      if (result === 'yes') session.disconnect();
+      if (result === 'yes') cs.disconnect();
       else if (result === 'no') overlayModel.hide();
       else if (result === 'ok') goToMenu();
     };
@@ -365,7 +392,7 @@ async function bootstrap(): Promise<void> {
     clientKeys = (keysDown, now) => mapper.setKeysDown(keysDown, now);
     clientTick = (now) => {
       // the frames whose tick the playback clock has reached become current: the picture and the sound of each
-      for (const r of jitter.update(now)) {
+      for (const r of jb.update(now)) {
         player.push(r.frame, r.releaseTime, r.spanTicks);
         audio.apply(r.frame);
         tickCostMs = r.frame.tickCost / 100;
@@ -376,11 +403,12 @@ async function bootstrap(): Promise<void> {
       renderer.dimButtons = view.viewOnly;
       root.dataset['viewOnly'] = String(view.viewOnly);
       clientOverlay?.setHint(view.viewOnly && !overlayModel.isOpen ? VIEW_ONLY_HINT : null);
-      root.dataset['jitterDelay'] = jitter.delayTicks.toFixed(2);
-      root.dataset['jitterUnderruns'] = String(jitter.underruns); // (T3.7: the smoothness of the client)
-      root.dataset['jitterDropped'] = String(jitter.droppedFrames);
+      root.dataset['jitterDelay'] = jb.delayTicks.toFixed(2);
+      root.dataset['jitterUnderruns'] = String(jb.underruns); // (T3.7: the smoothness of the client)
+      root.dataset['jitterDropped'] = String(jb.droppedFrames);
+      root.dataset['jitterPending'] = String(jb.pending); // (T5.2: the soak reads it)
       // while an overlay is open the player does not steer the ship
-      session.setInput(overlayModel.isOpen ? 0 : mapper.bits(now));
+      cs.setInput(overlayModel.isOpen ? 0 : mapper.bits(now));
     };
 
     // Esc: "Disconnect?"; while an overlay is open it takes every key and click (capture phase: before the game input).
@@ -389,7 +417,7 @@ async function bootstrap(): Promise<void> {
       (e) => {
         if (overlay?.isOpen === true) return; // (the settings panel has its own gate)
         if (!overlayModel.isOpen) {
-          if (e.code !== 'Escape' || session.state === 'closed') return;
+          if (e.code !== 'Escape' || cs.state === 'closed') return;
           e.preventDefault();
           e.stopImmediatePropagation();
           if (!e.repeat) {
@@ -417,16 +445,101 @@ async function bootstrap(): Promise<void> {
     window.addEventListener('pointerup', (e) => void (gateOverlay(e) && clientOverlay?.pointerUp(e.clientX, e.clientY)), true);
     window.addEventListener('wheel', (e) => void gateOverlay(e), true);
 
-    session.connect(joinTarget.host, joinTarget.port, {
+    cs.connect(joinTarget.host, joinTarget.port, {
       buildHash: manifest.buildHash,
       name: machineName !== '' ? machineName : 'Player 2 (' + window.at.platform + ')',
       ship: shipFromSave(savedGame),
     });
   }
 
+  // --- T5.2: after a crash of the window the menu opens with a message (the bitmap font, once; the client sees JoinScreen instead) ---
+  if (joinTarget === null && noticeFromHash(window.location.hash) === 'crashed') {
+    const noticeModel = new ClientOverlayModel();
+    noticeModel.showMessage(CRASH_NOTICE_TEXT);
+    root.dataset['crashNotice'] = 'open'; // (test hook)
+    let noticeOverlay: ClientOverlay | null = null;
+    const closeNotice = (): void => {
+      noticeModel.hide();
+      root.dataset['crashNotice'] = 'closed';
+      input.releaseAll();
+    };
+    void ClientOverlay.create({
+      stage: renderer.app.stage,
+      atlas,
+      manifest,
+      assets: new FetchAssetSource(ASSETS_URL),
+      model: noticeModel,
+      onResult: () => closeNotice(),
+    })
+      .then((o) => {
+        noticeOverlay = o;
+      })
+      .catch((e: unknown) => console.warn('[diag] notice overlay unavailable:', e));
+    // (while the message is open it takes every key and click, like the overlay of the client)
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (!noticeModel.isOpen) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (!e.repeat && noticeModel.handleKey(e.code) === 'ok') closeNotice();
+      },
+      true,
+    );
+    const gateNotice = (e: Event): boolean => {
+      if (!noticeModel.isOpen) return false;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return true;
+    };
+    window.addEventListener('keyup', (e) => void gateNotice(e), true);
+    window.addEventListener('pointermove', (e) => void (gateNotice(e) && noticeOverlay?.pointerMove(e.clientX, e.clientY)), true);
+    window.addEventListener('pointerdown', (e) => void (gateNotice(e) && noticeOverlay?.pointerDown(e.clientX, e.clientY)), true);
+    window.addEventListener('pointerup', (e) => void (gateNotice(e) && noticeOverlay?.pointerUp(e.clientX, e.clientY)), true);
+    window.addEventListener('wheel', (e) => void gateNotice(e), true);
+    noticeUpdate = (lb) => noticeOverlay?.update(lb);
+  }
+
+  // --- T5.2: the statistics of the renderer for the state line of crash.log (5 s; a timer, not the display loop: it also runs
+  // when the loop does not) ---
+  let diagFrames = 0;
+  let diagLast = performance.now();
+  setInterval(() => {
+    const now = performance.now();
+    const seconds = Math.max(0.001, (now - diagLast) / 1000);
+    const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+    const stats: Record<string, string | number> = {
+      tick: Number(root.dataset['ticks'] ?? '0'),
+      fps: diagFrames / seconds,
+      frames: diagFrames,
+      atlasPages: atlas.pageCount,
+      vramMB: atlas.vramBytes / 1048576,
+      audioGraphs: audio.liveGraphs,
+      netState: root.dataset['netState'] ?? 'local',
+      visibility: document.visibilityState,
+      levelGroup: root.dataset['levelGroup'] ?? '-',
+    };
+    if (heap !== undefined) stats['jsHeapMB'] = heap.usedJSHeapSize / 1048576;
+    if (jitter !== null) {
+      stats['jitterPending'] = jitter.pending;
+      stats['jitterDropped'] = jitter.droppedFrames;
+      stats['jitterUnderruns'] = jitter.underruns;
+      stats['jitterResets'] = jitter.resets;
+    }
+    diagFrames = 0;
+    diagLast = now;
+    root.dataset['diagStats'] = JSON.stringify(stats); // (test hook: tools/perf/soak.ts)
+    try {
+      window.at.diag.stats(stats);
+    } catch {
+      // (the log is best effort)
+    }
+  }, DIAG_STATS_MS);
+
   // --- display loop (display refresh rate) ---
   const loop = (now: number): void => {
     perfWindow.renderFrames++;
+    diagFrames++;
     if (inputDirty) {
       inputDirty = false;
       const snapshot = input.snapshot();
@@ -436,6 +549,7 @@ async function bootstrap(): Promise<void> {
     clientTick?.(now);
     overlay?.update(renderer.letterbox);
     clientOverlay?.update(renderer.letterbox);
+    noticeUpdate?.(renderer.letterbox);
     const sample = player.sample(now);
     if (sample !== null) {
       renderer.render(sample);

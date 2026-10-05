@@ -4,6 +4,9 @@ import { extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, ipcMain, Menu, MessageChannelMain, net, protocol, screen, shell, type MessagePortMain } from 'electron';
 import { resolveAssetFile } from './assetPath';
+import { CRASH_LOG_FILE, CrashLog } from './crashLog';
+import { Diagnostics, homeDirsToHide, type RecoveryCause } from './diagnostics';
+import { recoveryHash, RecoveryBudget, roleOf } from './diagState';
 import { diskTiersOf } from './diskTiers';
 import { encodeFlagsArg, encodeTiersArg, invalidProfileArg, MAX_PROFILE_LENGTH, parseDevFlags, parseProfile } from './flags';
 import { getDiscovery, getLocalIPv4, sanitizeBeaconInfo } from './net/discovery';
@@ -37,6 +40,13 @@ protocol.registerSchemesAsPrivileged([
 // Web Audio may start without a user gesture (the AudioEngine also resumes on the first input). Before ready.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
+// T5.2 (hardening; NOT measured on Windows, see docs/05 §11): a window that is covered by another one or minimized must go on
+// running (the game never wanted to stop: `backgroundThrottling: false`). Chromium on Windows pauses the compositor, and with it
+// requestAnimationFrame, of an occluded window by itself (native window occlusion), which would stop the client's playback loop
+// (input, sound, the jitter buffer). On macOS the same test showed no pause (fps 120 minimized and covered).
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+
 const argv = process.argv.slice(1);
 const flags = parseDevFlags(argv);
 
@@ -53,6 +63,36 @@ const profile = parseProfile(argv);
 if (profile !== null) {
   app.setPath('userData', `${app.getPath('userData')}-profile${profile}`);
 }
+
+//---------------------------------------
+// crash.log (T5.2, electron/crashLog.ts, electron/diagnostics.ts): always on, in userData (the profile one of `--profile=N`)
+//---------------------------------------
+
+const crashLog = new CrashLog(
+  join(app.getPath('userData'), CRASH_LOG_FILE),
+  { version: app.getVersion(), platform: process.platform, arch: process.arch },
+  { homeDirs: homeDirsToHide(), onError: (e) => console.warn('[crash.log] write failed:', e) },
+);
+/** Set when the app is going away (the processes that exit then are not a crash). */
+let quitting = false;
+const recoveryBudget = new RecoveryBudget();
+const diagnostics = new Diagnostics({
+  log: crashLog,
+  getWindow: () => mainWindow,
+  hostStats: () => {
+    const s = hostSession?.server;
+    return s === undefined
+      ? {}
+      : { host_buffered: s.bufferedAmount, host_sent: s.framesSent, host_skipped: s.framesSkipped, host_client: s.hasClient };
+  },
+  isQuitting: () => quitting,
+  recover: (cause, detail) => recoverWindow(cause, detail),
+  stateIntervalMs: Number(process.env['AT_DIAG_STATE_MS']) > 0 ? Number(process.env['AT_DIAG_STATE_MS']) : undefined,
+});
+crashLog.setRoleProvider(() =>
+  roleOf(hostSession !== null, mainWindow !== null && !mainWindow.isDestroyed() ? mainWindow.webContents.getURL() : '', flags.join !== undefined),
+);
+diagnostics.install();
 
 /** Hosts that `app.openExternal` may open (authors from the Credits screen). */
 const EXTERNAL_HOSTS = ['www.zombotron.com', 'www.ahuraster.com'];
@@ -185,6 +225,7 @@ async function createWindow(): Promise<void> {
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
   });
+  diagnostics.attachWindow(win);
 
   // F12: DevTools, only outside a packaged build.
   if (!app.isPackaged) {
@@ -193,12 +234,38 @@ async function createWindow(): Promise<void> {
     });
   }
 
+  loadRenderer(win, '');
+}
+
+/** Loads the page of the game; `aHash` (without `#`) is for the recovery: `local:crashed` / `local:lost` (src/app/joinTarget.ts). */
+function loadRenderer(aWin: BrowserWindow, aHash: string): void {
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
   if (!app.isPackaged && devUrl) {
-    void win.loadURL(devUrl);
+    void aWin.loadURL(aHash === '' ? devUrl : `${devUrl}#${aHash}`);
   } else {
-    void win.loadFile(join(__dirname, '../renderer/index.html'));
+    void aWin.loadFile(join(__dirname, '../renderer/index.html'), aHash === '' ? {} : { hash: aHash });
   }
+}
+
+/**
+ * The safety net (T5.2): the renderer is gone, hangs, or lost the GPU for good. The page is replaced by a fresh one at the menu
+ * (the client: the Join screen with "Connection lost"; the others: the menu with a message), the save is not touched.
+ * The host server goes with the old page (startHost: `render-process-gone` / `did-start-loading`), so the client of a
+ * host that crashed gets `bye` and its slot is free again.
+ */
+function recoverWindow(aCause: RecoveryCause, aDetail: string): void {
+  const win = mainWindow;
+  if (win === null || win.isDestroyed() || quitting) return;
+  const role = roleOf(hostSession !== null, win.webContents.getURL(), flags.join !== undefined);
+  if (!recoveryBudget.take(Date.now())) {
+    crashLog.write('RECOVER_GIVE_UP', { cause: aCause, detail: aDetail });
+    crashLog.flushSync();
+    return;
+  }
+  const hash = recoveryHash(role);
+  crashLog.write('RECOVER', { cause: aCause, detail: aDetail, role, to: hash });
+  crashLog.flushSync();
+  loadRenderer(win, hash);
 }
 
 //---------------------------------------
@@ -392,6 +459,7 @@ function registerIpc(): void {
     const ramMB = app.getAppMetrics().reduce((sum, m) => sum + m.memory.workingSetSize, 0) / 1024; // (KB)
     await perfLog.add(entry, ramMB);
   });
+  diagnostics.registerIpc();
   ipcMain.handle('settings:get', () => settingsDoc.readAll());
   // Only the known, valid keys of the remaster settings pass (the key `window` belongs to this process).
   ipcMain.handle('settings:set', (_event, patch: unknown) => settingsDoc.merge(sanitizeSettingsPatch(patch)));
@@ -417,6 +485,7 @@ function buildMenu(): void {
 }
 
 void app.whenReady().then(async () => {
+  diagnostics.writeStart({ packaged: app.isPackaged, profile: profile ?? undefined, tier: flags.tier ?? undefined });
   registerAssetProtocol();
   initStores();
   registerIpc();
@@ -430,6 +499,9 @@ void app.whenReady().then(async () => {
 app.on('will-quit', () => {
   getDiscovery().dispose();
   void stopHost();
+  diagnostics.dispose();
+  crashLog.write('EXIT');
+  crashLog.flushSync();
 });
 
 app.on('window-all-closed', () => {
@@ -439,6 +511,7 @@ app.on('window-all-closed', () => {
 // The files are written before the app exits: pending settings (debounce) and a save that is being written.
 let flushed = false;
 app.on('before-quit', (event) => {
+  quitting = true;
   if (flushed) return;
   event.preventDefault();
   void Promise.all([saveDoc.flush(), settingsDoc.flush()])
