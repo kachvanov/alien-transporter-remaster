@@ -5,7 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| — | | | | |
+| FIX-5 | 1 | (worktree агента) | .claude/worktrees/… | 2026-10-05 |
 
 ## Ворота
 | Милстоун | статус |
@@ -156,3 +156,4 @@ README (T4.7) и dmg (T4.5) пользователь проверил 2026-10-05
 - 2026-10-05 T4.2 merged dfab79f (попытка 2; 1176 тестов; golden-хэши не менялись). Визуально все 8 сцен в порогах: diff% raw → без намеренных зон: main-menu 2.16→0.27, credits 0.76→0.25, select-level 0.85→0.27, garage 0.28, pause 0.54→0.18, level-complete 2.51→0.30, level01 1.00→0.73, level02 1.46→1.20. Системная находка: AntActor/AntButton width/height = BitmapData (colour bounds + 2 px) как в AntAnimation.makeFromMovieClip, а не size1x (сдвигало подписи «Level N», ButtonSwitch). Правились существующие тесты actor.test.ts/assets.test.ts (их ожидания кодировали старую модель; обоснование — в отчёте). Добавлен dev-флаг `--start-screen=LevelComplete`.
 - T4.2 вне задачи: пустой кадр: наш width 5, в оригинале 4; края обрезки по alpha>0 растра JPEXS могут расходиться на ±1 px; эталоны уровней только Level01/02 (03–20 не снимались).
 - Ждёт пользователя (необязательно для ворот M4?): колонка «оригинал» docs/05 §5 — запись Ruffle `--frame-rate 35` (QuickTime), практичнее сценарии 1, 2, 5, 6.
+- 2026-10-05 пользователь записал клипы Ruffle (A-idle, B-thrust, C-casual-left, D-hardcore-left; 1824x1488, переменная частота кадров, Ruffle `--frame-rate 35`) → tests/parity/ruffle-clips/ (в .gitignore, графика оригинала). Запущена FIX-5: анализ видео и колонка «оригинал» docs/05 §5 (сценарии 1, 2, 5, 6).

@@ -27,6 +27,7 @@ vendor/jpexs/
 
 # Ruffle screenshots of the original game (authored content of the original — never commit; made by `npm run ruffle:ref`)
 tests/visual/reference/
+tests/parity/ruffle-clips/
 
 # test artifacts
 tests/visual/actual/
