@@ -1,11 +1,10 @@
 # STATUS — state of the work (maintained only by the orchestrator `/orchestrate`)
 
-Updated: 2026-10-05 · Last merge: T5.6 7863b72
+Updated: 2026-10-05 · Last merge: FIX-7 17cb6c8
 
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| FIX-7 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 | FIX-8 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
@@ -197,3 +196,4 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - T5.6 out of scope: symbols mixing bitmaps and vectors keep the soft raster (IconFuel/Heart/Magnet/Random/Repair/Trophy, NotifyIconLeft, ColumnBar, MissionBar, ShuttleHull*, *Roller_mc, Shuttle0NBodyPreview, CreditsScreenBG, BtnShip_mc); fixing them needs an SWF patch + JPEXS re-export. 3x VRAM above the 350 MB target (predates T5.6). A new dist build is needed to see the change.
 - 2026-10-05 until=T5.6 reached: stopped. FIX-7 (dim the pause popup for the client) is still queued, not started. T5.2 stays open until the user's long Mac <-> Windows check.
 - 2026-10-05 the user rebuilt by hand (`npm run dist:all`, ea4300f, 55 s): dist/latest has the T5.6 graphics, FIX-6, T5.2. The auto-build hook did not fire after T5.6 because assets/ is untracked and tools/extract/** counted as 'tools' -> FIX-8 started (hook/dist:status must watch the generated assets via a fingerprint + tools/extract/**). FIX-7 (dim the pause popup on the client) started in parallel (no shared files). Instruction: stop after these two.
+- 2026-10-05 FIX-7 merged 17cb6c8 (attempt 1; 1309 tests, e2e client-view-only 2/2). No protocol change: the frame header already has the bit0 `paused` flag (G.physics != null && G.gamePause, raised only while the pause popup is up); ClientViewModel.hostPaused/dim, the client dims the Btn* buttons of the pause popup (and the HUD buttons) with the hint WAITING FOR THE HOST; the client P pause request still works; the host look unchanged. DEVIATION: online, docs/03 §4. Out of scope: the game-over popup is not dimmed (G.gamePause is not set for it; would need its texture ids); popup captions/BG are not dimmed, only the Btn* symbols.
