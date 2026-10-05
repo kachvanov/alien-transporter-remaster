@@ -1,63 +1,63 @@
-# Alien Transporter Remaster — правила для агентов
+# Alien Transporter Remaster — rules for agents
 
-Это ремастер Flash-игры **Alien Transporter v1.3.0** (Anton Karlov, 2016). Он собирается для macOS arm64 и Windows 10 x64 на Electron, TypeScript, PixiJS и box2dweb. Цель — **максимальная верность оригиналу**: та же графика, те же уровни, та же физика. Сверх оригинала добавляется только LAN-мультиплеер и технические улучшения (GPU-рендер, плавность 60/120 Гц, HD-графика).
+This is a remaster of the Flash game **Alien Transporter v1.3.0** (Anton Karlov, 2016). It is built for macOS arm64 and Windows 10 x64 using Electron, TypeScript, PixiJS and box2dweb. The goal is **maximum fidelity to the original**: the same graphics, the same levels, the same physics. Only LAN multiplayer and technical improvements (GPU rendering, smooth 60/120 Hz, HD graphics) are added on top of the original.
 
-Перед любой задачей прочитай:
-1. `docs/00-overview.md` — что делаем и почему.
-2. `docs/ROADMAP.md` — где твоя задача в общем плане и от чего она зависит.
-3. Свою карточку `docs/tasks/<ID>-*.md`.
-4. Документы, на которые ссылается карточка: `01-architecture`, `02-extraction-pipeline`, `03-frame-and-network-protocol`, `04-porting-guide`, `05-verification`.
+Before any task, read:
+1. `docs/00-overview.md` — what we are doing and why.
+2. `docs/ROADMAP.md` — where your task sits in the overall plan and what it depends on.
+3. Your task card `docs/tasks/<ID>-*.md`.
+4. The documents the task card refers to: `01-architecture`, `02-extraction-pipeline`, `03-frame-and-network-protocol`, `04-porting-guide`, `05-verification`.
 
-## Главные правила
+## Main rules
 
-1. **Источник истины — `reference/as3/`** (декомпилированный оригинал). Мы портируем, а не пишем заново. Имена классов, методов и полей, порядок операций, константы, «магические числа» и порядок вызовов сохраняются. Геймплей, баланс, тайминги и формулы не «улучшаем» и не «чиним», даже если выглядит странно.
-2. В шапке каждого портированного файла пиши: `// Port of <путь в reference/as3>` (например `// Port of ru/alientransporter/systems/ShuttleSystem.as`).
-3. **Целочисленная семантика AS3.** Если переменная, поле или параметр объявлены как `:int` или `:uint`, любое присваивание в них усекает значение. В TS пиши `x | 0` (int) или `x >>> 0` (uint) в **каждом** таком месте. Подробности в `docs/04-porting-guide.md`.
-4. `Math.random()` запрещён в `src/engine`, `src/game`, `src/physics`, `src/sim`. Используй только `AntMath.random*()` (сидируемый PRNG).
-5. **Границы слоёв** (ESLint их проверяет):
-   - `src/engine`, `src/physics`, `src/game`, `src/frame`, `src/sim` — чистый TS. Нельзя импортировать `pixi.js`, `electron`, DOM API (`window`, `document`, `AudioContext` и т.п.).
-   - `src/render`, `src/audio` работают только в renderer-процессе.
-   - `electron/` — только main/preload (Node API).
-6. Box2D — npm-пакет `box2dweb@2.1.0-b` (точная версия, SHA-256 файла проверяется тестом). Не патчить (никаких `patch-package`), не копировать в `src/`, не заменять другим движком. Это эталонный Box2D 2.1a.
-7. Новые npm-зависимости добавляй только с обоснованием в отчёте. Версии фиксируй точно (без `^`).
-8. Не делай работу за пределами своей карточки. Если нашёл проблему в другом месте, опиши её в отчёте в разделе «Замечания вне задачи».
-9. Не удаляй и не переписывай тесты, чтобы они «прошли». Если тест неверен, объясни почему в отчёте.
+1. **The source of truth is `reference/as3/`** (the decompiled original). We port; we do not rewrite from scratch. Class, method and field names, order of operations, constants, "magic numbers" and call order are preserved. Gameplay, balance, timings and formulas are not "improved" or "fixed", even if they look odd.
+2. At the top of every ported file write: `// Port of <path in reference/as3>` (for example `// Port of ru/alientransporter/systems/ShuttleSystem.as`).
+3. **AS3 integer semantics.** If a variable, field or parameter is declared as `:int` or `:uint`, every assignment to it truncates the value. In TS write `x | 0` (int) or `x >>> 0` (uint) at **every** such place. Details are in `docs/04-porting-guide.md`.
+4. `Math.random()` is forbidden in `src/engine`, `src/game`, `src/physics`, `src/sim`. Use only `AntMath.random*()` (the seeded PRNG).
+5. **Layer boundaries** (ESLint checks them):
+   - `src/engine`, `src/physics`, `src/game`, `src/frame`, `src/sim` — pure TS. They must not import `pixi.js`, `electron` or DOM APIs (`window`, `document`, `AudioContext`, etc.).
+   - `src/render`, `src/audio` work only in the renderer process.
+   - `electron/` — main/preload only (Node API).
+6. Box2D is the npm package `box2dweb@2.1.0-b` (exact version; the SHA-256 of the file is checked by a test). Do not patch it (no `patch-package`), do not copy it into `src/`, do not replace it with another engine. It is the reference Box2D 2.1a.
+7. Add new npm dependencies only with a justification in the report. Pin versions exactly (no `^`).
+8. Do not do work outside your task card. If you find a problem elsewhere, describe it in the report under "OUT-OF-SCOPE NOTES".
+9. Do not delete or rewrite tests to make them "pass". If a test is wrong, explain why in the report.
 
-## Как организована работа (оркестратор и исполнители)
+## How the work is organized (orchestrator and executors)
 
-- Работу ведёт оркестратор (`/orchestrate`, `.claude/skills/orchestrate/SKILL.md`). Исполнители — субагенты `porter` (`.claude/agents/porter.md`), каждый в своём git worktree в `.claude/worktrees/…`, в своей ветке.
-- **`docs/ROADMAP.md` и `docs/STATUS.md` редактирует только оркестратор.** Исполнитель не трогает их, `docs/tasks/**`, `CLAUDE.md` и `.claude/**`.
-- В worktree папки `node_modules`, `vendor`, `reference`, `assets`, `build` — симлинки на основную копию, общие для всех. Не удалять, `npm ci` не запускать.
-- Путь к SWF берётся из переменной окружения `ORIGINAL_SWF`: она задана в `.claude/settings.json`; запасные варианты — `.env`, затем путь по умолчанию `/Applications/Flash Games/alien-transporter.swf`.
-- Любые инструменты (tsc, eslint, vitest, playwright, electron-builder) обязаны игнорировать `.claude/**`: там лежат worktree других агентов.
+- The work is run by the orchestrator (`/orchestrate`, `.claude/skills/orchestrate/SKILL.md`). The executors are `porter` subagents (`.claude/agents/porter.md`), each in its own git worktree under `.claude/worktrees/…`, on its own branch.
+- **Only the orchestrator edits `docs/ROADMAP.md` and `docs/STATUS.md`.** An executor does not touch them, nor `docs/tasks/**`, `CLAUDE.md` or `.claude/**`.
+- In a worktree the folders `node_modules`, `vendor`, `reference`, `assets`, `build` are symlinks to the main copy, shared by everyone. Do not delete them and do not run `npm ci`.
+- The path to the SWF is taken from the environment variable `ORIGINAL_SWF`: it is set in `.claude/settings.json`; fallbacks are `.env`, then the default path `/Applications/Flash Games/alien-transporter.swf`.
+- All tools (tsc, eslint, vitest, playwright, electron-builder) must ignore `.claude/**`: the worktrees of other agents live there.
 
-## Команды
+## Commands
 
 ```bash
 npm install
-npm run extract        # SWF → reference/ и assets/ (нужны Java 17 и ffmpeg; путь к SWF — env ORIGINAL_SWF)
-npm run dev            # запуск игры в dev-режиме
-npm run check          # tsc --noEmit + eslint + vitest run  ← должен быть зелёным в конце КАЖДОЙ задачи
+npm run extract        # SWF → reference/ and assets/ (needs Java 17 and ffmpeg; the SWF path is the env var ORIGINAL_SWF)
+npm run dev            # run the game in dev mode
+npm run check          # tsc --noEmit + eslint + vitest run  ← must be green at the end of EVERY task
 npm run test:e2e       # Playwright + Electron (smoke)
-npm run viewer         # Dev Asset Viewer (анимации, уровни, оверлеи)
+npm run viewer         # Dev Asset Viewer (animations, levels, overlays)
 npm run build:mac      # dmg arm64
 npm run build:win      # nsis + portable x64
 ```
 
-## Определение «готово» для задачи
+## Definition of "done" for a task
 
-- Все критерии приёмки из карточки выполнены и проверены (команды и вывод — в отчёте).
-- `npm run check` зелёный.
-- Новая логика покрыта тестами. Портированная чистая логика тоже: хотя бы smoke-тест, который её конструирует и вызывает `update()`.
-- Сделан коммит с сообщением `T<ID>: <кратко>`.
-- Отчёт в конце сессии: что сделано; отклонения от оригинала и почему; что осталось или требует внимания; замечания вне задачи.
+- All acceptance criteria from the task card are met and verified (commands and output go in the report).
+- `npm run check` is green.
+- New logic is covered by tests. Ported pure logic too: at least a smoke test that constructs it and calls `update()`.
+- A commit has been made with the message `T<ID>: <short summary>`.
+- Report at the end of the session: what was done; deviations from the original and why; what is left or needs attention; out-of-scope notes.
 
 ## Git
 
-- Коммит на каждую задачу. Автор всегда из глобального git config: **никогда** не используй `--author`, `-c user.name`, `GIT_AUTHOR_*`.
-- Не добавляй в коммиты `Co-Authored-By`, `Claude-Session` и «Generated with Claude Code».
-- В git не попадают: `vendor/original/`, `vendor/jpexs/`, `assets/`, `build/`, `reference/` (они генерируются командой `npm run extract`; ассеты оригинала принадлежат автору и не публикуются).
+- One commit per task. The author is always taken from the global git config: **never** use `--author`, `-c user.name`, `GIT_AUTHOR_*`.
+- Do not add `Co-Authored-By`, `Claude-Session` or "Generated with Claude Code" to commits.
+- Not tracked by git: `vendor/original/`, `vendor/jpexs/`, `assets/`, `build/`, `reference/` (they are generated by `npm run extract`; the original's assets belong to the author and are not published).
 
-## Лицензия и ассеты
+## License and assets
 
-Оригинальные ассеты и код принадлежат Anton Karlov. Проект личный, для собственного использования. Не публикуй сборки и ассеты, не заливай их в публичные репозитории.
+The original assets and code belong to Anton Karlov. The project is personal, for private use. Do not publish builds or assets, and do not push them to public repositories.

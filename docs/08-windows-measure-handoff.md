@@ -1,22 +1,22 @@
-# 08. Замер на Windows-ноутбуке (инструкция для Claude на этом ноутбуке)
+# 08. Measurement on the Windows laptop (instructions for the Claude on that laptop)
 
-Ты — Claude на Windows 10-ноутбуке (8 ГБ). Хозяйка ноутбука помогает проверить сборку игры **Alien Transporter Remaster** (Electron-приложение) и снять цифры производительности. Всё техническое делаешь ты; хозяйка нужна для кликов в окнах Windows (SmartScreen, Брандмауэр) и чтобы **поиграть** (нужны живые нажатия клавиш). Node, npm, Java и исходники **не нужны**: используется готовый установщик.
+You are Claude on a Windows 10 laptop (8 GB). The laptop's owner is helping to check a build of the game **Alien Transporter Remaster** (an Electron app) and to collect performance numbers. You do all the technical work; the owner is needed for clicks in Windows dialogs (SmartScreen, Firewall) and to **play** (live key presses are required). Node, npm, Java and the sources are **not needed**: a ready-made installer is used.
 
-## Правила
+## Rules
 
-- Работай только в `C:\at-measure` и в папке установки игры. Ничего не меняй в системе сверх шагов ниже.
-- **Спрашивай хозяйку** перед установкой, перед запуском игры и до любых изменений настроек Windows. Клики по окнам SmartScreen и Брандмауэра делает **она**, не ты.
-- Не отправляй никакие файлы в интернет. Результаты — только в `C:\at-measure\`, хозяйка сама перешлёт их.
-- Не выдумывай цифры. Чего не измерили — пиши «не измерено».
-- Не получилось дважды подряд — остановись, покажи команду и вывод, спроси хозяйку.
+- Work only in `C:\at-measure` and in the game's install folder. Change nothing in the system beyond the steps below.
+- **Ask the owner** before installing, before launching the game, and before any change to Windows settings. Clicks in the SmartScreen and Firewall dialogs are made by **her**, not you.
+- Do not send any files to the internet. Results go only to `C:\at-measure\`; the owner will forward them herself.
+- Do not invent numbers. What was not measured, write "not measured".
+- If something fails twice in a row, stop, show the command and its output, and ask the owner.
 
-## Что лежит рядом
+## What is next to it
 
-`Alien Transporter Remaster Setup 0.1.0.exe` (≈233 МБ) — установщик. Хозяйка скажет, где он (флешка/папка). Скопируй его в `C:\at-measure\`.
+`Alien Transporter Remaster Setup 0.1.0.exe` (≈233 MB) is the installer. The owner will tell you where it is (a flash drive/folder). Copy it to `C:\at-measure\`.
 
-## Шаг 1. Параметры машины (только чтение)
+## Step 1. Machine parameters (read only)
 
-В PowerShell:
+In PowerShell:
 ```powershell
 New-Item -ItemType Directory -Force C:\at-measure | Out-Null
 Get-CimInstance Win32_Processor | Select-Object Name,NumberOfCores,NumberOfLogicalProcessors
@@ -24,96 +24,96 @@ Get-CimInstance Win32_ComputerSystem | Select-Object @{n='RAM_GB';e={[math]::Rou
 Get-CimInstance Win32_VideoController | Select-Object Name,AdapterRAM,DriverVersion
 (Get-CimInstance Win32_OperatingSystem).Caption
 ```
-Запиши вывод в отчёт. Закрой тяжёлые программы (браузер с кучей вкладок и т.п.) — попроси хозяйку; запиши, что осталось открытым.
+Record the output in the report. Ask the owner to close heavy programs (a browser with lots of tabs, etc.); record what remained open.
 
-## Шаг 2. Установка
+## Step 2. Installation
 
-1. Спроси хозяйку разрешение, запусти установщик `C:\at-measure\Alien Transporter Remaster Setup 0.1.0.exe`.
-2. Windows покажет синее окно SmartScreen: **хозяйка** нажимает «Подробнее» → «Выполнить в любом случае» (сборка не подписана).
-3. Установи с настройками по умолчанию. Найди установленный exe (обычно ярлык «Alien Transporter Remaster» на рабочем столе/в меню Пуск; путь смотри у ярлыка: `(New-Object -ComObject WScript.Shell).CreateShortcut("<путь к .lnk>").TargetPath`). Запомни путь как `$exe`.
+1. Ask the owner for permission and run the installer `C:\at-measure\Alien Transporter Remaster Setup 0.1.0.exe`.
+2. Windows will show the blue SmartScreen window: **the owner** clicks "More info" → "Run anyway" (the build is not signed).
+3. Install with the default settings. Find the installed exe (usually the "Alien Transporter Remaster" shortcut on the desktop/in the Start menu; get the path from the shortcut: `(New-Object -ComObject WScript.Shell).CreateShortcut("<path to .lnk>").TargetPath`). Remember the path as `$exe`.
 
-## Шаг 3. Замер, Level11
+## Step 3. Measurement, Level11
 
-Запусти игру сразу на уровне, с тиром 2x и логом производительности (путь лога **абсолютный**):
+Launch the game straight onto the level, with the 2x tier and a performance log (the log path is **absolute**):
 ```powershell
-$exe = "<путь к Alien Transporter Remaster.exe>"
+$exe = "<path to Alien Transporter Remaster.exe>"
 Start-Process -FilePath $exe -ArgumentList '--start-level=Level11','--tier=2x','--perf-log=C:\at-measure\perf-l11.json'
 ```
-Если игра открылась в главном меню, а не на уровне — флаг не сработал: выбери Level 11 в меню (хозяйка), лог при этом всё равно пишется (потом в отчёте отметь «меню попало в замер»).
+If the game opened on the main menu rather than on the level, the flag did not work: the owner selects Level 11 in the menu; the log is still written (later note in the report "the menu got into the measurement").
 
-Хозяйка **играет 90 секунд**: активно летает, жжёт топливо, взрывает бочки, сажает пассажиров. Если есть второй игрок — пусть нажмёт **W** (входит второй игрок на этом же ноутбуке) и тоже летает. Замер идёт сам, раз в секунду.
+The owner **plays for 90 seconds**: flies actively, burns fuel, blows up barrels, drops off passengers. If there is a second player, have them press **W** (the second player joins on this same laptop) and fly too. The measurement runs by itself, once per second.
 
-Пока играет, **один раз** попроси её нажать **F3** (оверлей производительности) и прочитай/сфотографируй/перепиши строки: FPS, tier, vram, ram. Нужно подтвердить, что tier = **2x**. Потом F3 ещё раз — убрать.
+While she plays, ask her **once** to press **F3** (the performance overlay) and read out/photograph/copy the lines: FPS, tier, vram, ram. You need to confirm that tier = **2x**. Then F3 again to hide it.
 
-Через 90 секунд попроси закрыть игру. Файл `C:\at-measure\perf-l11.json` пишется атомарно после каждой строки, ничего специально сохранять не надо.
+After 90 seconds ask her to close the game. The file `C:\at-measure\perf-l11.json` is written atomically after every line, nothing needs to be saved specially.
 
-## Шаг 4. Замер, Level13
+## Step 4. Measurement, Level13
 
-То же самое:
+The same thing:
 ```powershell
 Start-Process -FilePath $exe -ArgumentList '--start-level=Level13','--tier=2x','--perf-log=C:\at-measure\perf-l13.json'
 ```
-Хозяйка играет 90 секунд (ракеты, сенсоры, летать активно, W для второго игрока по желанию). Закрыть игру.
+The owner plays for 90 seconds (rockets, sensors, fly actively, W for a second player if desired). Close the game.
 
-## Шаг 5. Прочитать цифры
+## Step 5. Read the numbers
 
-Node не нужен, читай через PowerShell:
+Node is not needed, read through PowerShell:
 ```powershell
 foreach ($f in 'perf-l11','perf-l13') {
   $j = Get-Content "C:\at-measure\$f.json" -Raw | ConvertFrom-Json
   "== $f =="; $j.meta | Format-List; $j.summary | ConvertTo-Json -Depth 5
-  "записей: " + $j.entries.Count
+  "entries: " + $j.entries.Count
 }
 ```
-В `summary` смотри: `fps`, `tickP95`, `ramMB`, `vramMB` (у каждого `min/mean/max`). Сравни с бюджетами Windows (тир 2x):
+In `summary` look at: `fps`, `tickP95`, `ramMB`, `vramMB` (each with `min/mean/max`). Compare against the Windows budgets (tier 2x):
 
-| Метрика | Бюджет |
+| Metric | Budget |
 |---|---|
-| FPS | стабильно 60 (min не должен проваливаться заметно ниже) |
-| Тик симуляции p95 | ≤ 4 мс |
-| RAM всего приложения | ≤ 700 МБ |
-| VRAM (оценка) | ≤ 350 МБ |
+| FPS | a stable 60 (min must not drop noticeably below) |
+| Simulation tick p95 | ≤ 4 ms |
+| RAM of the whole app | ≤ 700 MB |
+| VRAM (estimate) | ≤ 350 MB |
 
-Если в `entries` первые секунды — загрузка уровня, это нормально; не выкидывай их молча, но отметь, что именно.
+If the first seconds in `entries` are level loading, that is normal; do not silently discard them, but note exactly which ones.
 
-## Шаг 6. Улики по «белому экрану» (только чтение, ничего не менять)
+## Step 6. Evidence on the "white screen" (read only, change nothing)
 
-Хозяйка видела, что при долгой сетевой игре окно иногда становится белым и не отвечает. Собери факты, чтобы помочь найти причину:
+The owner has seen that during a long network game the window sometimes turns white and stops responding. Gather facts to help find the cause:
 ```powershell
-# события падений приложения за последние 14 дней (Application Error / .NET / WER)
+# application crash events over the last 14 days (Application Error / .NET / WER)
 Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddDays(-14)} -ErrorAction SilentlyContinue |
   Where-Object { $_.Message -match 'Alien Transporter|electron' } |
   Select-Object TimeCreated,Id,ProviderName,@{n='Msg';e={$_.Message.Substring(0,[math]::Min(300,$_.Message.Length))}}
-# что лежит в папке данных игры (только имена и даты; содержимое файлов не читай и не отправляй)
+# what is in the game's data folder (names and dates only; do not read or send the file contents)
 Get-ChildItem "$env:APPDATA\Alien Transporter Remaster" -Recurse -Depth 2 -ErrorAction SilentlyContinue |
   Where-Object { $_.Name -match 'log|crash|dmp|report' } | Select-Object FullName,Length,LastWriteTime
 ```
-(Также `%LOCALAPPDATA%\CrashDumps`, если папка есть.) Запиши, что нашлось; **пустой результат — тоже результат**. Спроси хозяйку: бывало ли так в одиночной игре или только по сети; на хосте или на клиенте; примерно через сколько минут; что делала (сворачивала окно, ноутбук от батареи, выключался экран). Запиши её ответы дословно.
+(Also `%LOCALAPPDATA%\CrashDumps`, if the folder exists.) Record what was found; **an empty result is also a result**. Ask the owner: did this happen in single-player or only over the network; on the host or on the client; after roughly how many minutes; what she was doing (minimized the window, the laptop was off the charger, the screen turned off). Record her answers verbatim.
 
-## Шаг 7. Отчёт
+## Step 7. Report
 
-Создай `C:\at-measure\REPORT.md` и покажи хозяйке. Она перешлёт его вместе с `perf-l11.json` и `perf-l13.json`.
+Create `C:\at-measure\REPORT.md` and show it to the owner. She will forward it together with `perf-l11.json` and `perf-l13.json`.
 
 ```markdown
-# Замер Windows: Alien Transporter Remaster 0.1.0
+# Windows measurement: Alien Transporter Remaster 0.1.0
 
-Дата: …
-## Машина
-(вывод шага 1; что было открыто в фоне)
-## Установка
-Установщик прошёл: да/нет; SmartScreen: …; путь установки: …
-## Level11 (тир 2x, 90 с, игроков: 1/2)
-- tier по F3: …   FPS min/mean/max: …   tickP95: …   RAM max: … МБ   VRAM max: … МБ
-- Попал ли в замер экран меню: да/нет
-- Заметные рывки/лаги на глаз: …
-## Level13 (то же)
+Date: …
+## Machine
+(the output of step 1; what was open in the background)
+## Installation
+The installer ran: yes/no; SmartScreen: …; install path: …
+## Level11 (tier 2x, 90 s, players: 1/2)
+- tier per F3: …   FPS min/mean/max: …   tickP95: …   RAM max: … MB   VRAM max: … MB
+- Did the menu screen get into the measurement: yes/no
+- Noticeable jerks/lags by eye: …
+## Level13 (the same)
 …
-## Бюджет
-FPS 60: ок/нет · тик p95 ≤ 4 мс: ок/нет · RAM ≤ 700 МБ: ок/нет · VRAM ≤ 350 МБ: ок/нет
-## Белый экран: улики
-- Журнал Windows: …
-- Файлы crash/dmp: …
-- Ответы хозяйки: …
-## Проблемы и наблюдения
+## Budget
+FPS 60: ok/no · tick p95 ≤ 4 ms: ok/no · RAM ≤ 700 MB: ok/no · VRAM ≤ 350 MB: ok/no
+## White screen: evidence
+- Windows log: …
+- crash/dmp files: …
+- The owner's answers: …
+## Problems and observations
 …
 ```

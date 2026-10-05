@@ -1,20 +1,20 @@
-# Документация проекта
+# Project documentation
 
-Ремастер Flash-игры Alien Transporter (Electron + TypeScript + PixiJS + box2dweb). Пользовательская инструкция — в [корневом README](../README.md); здесь — внутренняя документация разработки.
+A remaster of the Flash game Alien Transporter (Electron + TypeScript + PixiJS + box2dweb). The user guide is in the [root README](../README.md); this folder holds the internal development documentation.
 
-| Документ | О чём |
+| Document | What it covers |
 |---|---|
-| [00 — Обзор](00-overview.md) | что делаем и почему, главные решения |
-| [01 — Архитектура](01-architecture.md) | слои, процессы, потоки данных |
-| [02 — Извлечение из SWF](02-extraction-pipeline.md) | как из своего SWF получаются ассеты (в репозитории их нет) |
-| [03 — Frame и сеть](03-frame-and-network-protocol.md) | формат кадра, протокол LAN-игры |
-| [04 — Руководство по порту](04-porting-guide.md) | правила переноса AS3 → TypeScript (целочисленная семантика, PRNG и т.д.) |
-| [05 — Проверка](05-verification.md) | тесты, сверка с оригиналом, бюджеты производительности |
-| [06 — Проверка LAN](06-lan-testing.md) | как проверять сетевую игру, результаты замеров |
-| [08 — Замер на Windows](08-windows-measure-handoff.md) | пошаговая инструкция по замеру производительности на ноутбуке |
+| [00 — Overview](00-overview.md) | what we are doing and why, the main decisions |
+| [01 — Architecture](01-architecture.md) | layers, processes, data flows |
+| [02 — SWF extraction](02-extraction-pipeline.md) | how the assets are produced from your own SWF (they are not in the repository) |
+| [03 — Frame and network](03-frame-and-network-protocol.md) | the frame format, the LAN play protocol |
+| [04 — Porting guide](04-porting-guide.md) | the rules for porting AS3 → TypeScript (integer semantics, PRNG, etc.) |
+| [05 — Verification](05-verification.md) | tests, parity check with the original, performance budgets |
+| [06 — LAN verification](06-lan-testing.md) | how to test network play, measurement results |
+| [08 — Windows measurement](08-windows-measure-handoff.md) | a step-by-step guide to measuring performance on a laptop |
 
-## Как велась работа
+## How the work was done
 
-Проект собирался по задачам (карточки в [`tasks/`](tasks/)) с зависимостями из [ROADMAP](ROADMAP.md); текущее состояние — в [STATUS](STATUS.md). Как запускалась работа агентов — [ORCHESTRATION](ORCHESTRATION.md). Правила для агентов — [`../CLAUDE.md`](../CLAUDE.md).
+The project was built task by task (task cards in [`tasks/`](tasks/)) with dependencies from the [ROADMAP](ROADMAP.md); the current state is in [STATUS](STATUS.md). How the agents were run: [ORCHESTRATION](ORCHESTRATION.md). Rules for the agents: [`../CLAUDE.md`](../CLAUDE.md).
 
-> Оригинальные ассеты (графика, звук, уровни) принадлежат Anton Karlov и в репозиторий не входят: их получают командой `npm run extract` из собственного SWF.
+> The original assets (graphics, sound, levels) belong to Anton Karlov and are not part of the repository: they are obtained with the `npm run extract` command from your own SWF.

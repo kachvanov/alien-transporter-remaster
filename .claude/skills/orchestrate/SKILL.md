@@ -1,107 +1,107 @@
 ---
 name: orchestrate
-description: Прораб проекта Alien Transporter Remaster. Ведёт очередь задач из docs/ROADMAP.md, запускает субагентов porter в отдельных git worktree (до N параллельно), проверяет их отчёты, вливает ветки в main, отмечает прогресс в ROADMAP/STATUS и останавливается только там, где нужен человек. Запуск - /orchestrate [N] [until=T<ID>].
+description: Foreman of the Alien Transporter Remaster project. Runs the task queue from docs/ROADMAP.md, launches porter subagents in separate git worktrees (up to N in parallel), checks their reports, merges the branches into main, records progress in ROADMAP/STATUS and stops only where a human is needed. Launch with /orchestrate [N] [until=T<ID>].
 disable-model-invocation: true
-argument-hint: "[параллельно N=2] [until=T<ID>]"
+argument-hint: "[parallel N=2] [until=T<ID>]"
 ---
 
-# /orchestrate — прораб
+# /orchestrate — the orchestrator
 
-Ты оркестратор. **Код сам не пишешь и исходники не читаешь.** Твоя работа: очередь → запуск `porter` → проверка → merge → учёт. Экономь токены (у пользователя план Pro): не открывай большие файлы, читай только отчёты, `git diff --stat` и хвосты логов (`| tail -40`).
+You are the orchestrator. **You do not write code yourself and you do not read the source files.** Your job: queue → launch `porter` → check → merge → bookkeeping. Save tokens (the user is on the Pro plan): do not open large files, read only reports, `git diff --stat` and log tails (`| tail -40`).
 
-Аргументы: `$ARGUMENTS`. Первое число — максимум параллельных исполнителей (по умолчанию **2**). `until=T<ID>` — остановиться после мержа этой задачи.
+Arguments: `$ARGUMENTS`. The first number is the maximum number of parallel executors (default **2**). `until=T<ID>` — stop after this task is merged.
 
-## 0. Подготовка (при каждом запуске)
+## 0. Preparation (on every launch)
 
-1. Ты в основной копии репозитория (не в `.claude/worktrees/...`) на ветке `main`: `git rev-parse --abbrev-ref HEAD` → `main`.
-2. `mkdir -p node_modules vendor reference assets build`. Эти папки симлинкуются в worktree, и у симлинков должна быть цель.
-3. `git status --porcelain`. Если изменены только `docs/STATUS.md` или `docs/ROADMAP.md` — закоммить `orchestrator: sync`. Если есть другие незакоммиченные изменения — спроси пользователя (AskUserQuestion: «закоммитить как есть» / «я разберусь сам»).
-4. Прочитай `docs/STATUS.md` и `docs/ROADMAP.md`.
-5. **Ворота (gates).** Если в STATUS в разделе «Ворота» есть пункт со статусом `ждёт проверки` — спроси пользователя через AskUserQuestion: «Проверил <Mx>? — Всё ок / Есть проблемы (опишу)». При «ок» отметь `пройдено`. При проблемах запиши их в STATUS как новую задачу-исправление `FIX-<n>` (см. §5) и поставь её первой в очередь.
-6. **Восстановление после обрыва.** Для каждой строки таблицы «В работе» в STATUS:
-   - в ветке есть коммит `T<ID>:` (`git log --oneline main..<branch>`) → задача считается завершённой без отчёта. Выполни §3 без отчёта: только `git diff --stat` + `npm run check` после merge;
-   - иначе → `git worktree remove --force <path>`, `git branch -D <branch>`, задачу вернуть в очередь, попытка остаётся той же.
+1. You are in the main copy of the repository (not in `.claude/worktrees/...`) on the `main` branch: `git rev-parse --abbrev-ref HEAD` → `main`.
+2. `mkdir -p node_modules vendor reference assets build`. These folders are symlinked into the worktrees, and the symlinks need a target.
+3. `git status --porcelain`. If only `docs/STATUS.md` or `docs/ROADMAP.md` are modified, commit `orchestrator: sync`. If there are other uncommitted changes, ask the user (AskUserQuestion: "commit as is" / "I'll sort it out myself").
+4. Read `docs/STATUS.md` and `docs/ROADMAP.md`.
+5. **Gates.** If in STATUS the **Gates** section has an item with the status `awaiting check`, ask the user via AskUserQuestion: "Did you check <Mx>? — All OK / There are problems (I'll describe them)". On "OK" mark it `passed`. On problems, record them in STATUS as a new fix task `FIX-<n>` (see §5) and put it first in the queue.
+6. **Recovery after an interruption.** For each row of the **In progress** table in STATUS:
+   - the branch has a `T<ID>:` commit (`git log --oneline main..<branch>`) → the task is considered finished without a report. Do §3 without a report: only `git diff --stat` + `npm run check` after the merge;
+   - otherwise → `git worktree remove --force <path>`, `git branch -D <branch>`, return the task to the queue; the attempt number stays the same.
 
-## 1. Выбор задач
+## 1. Choosing tasks
 
-Задача **готова к запуску**, если:
-- в ROADMAP она не отмечена `[x]`;
-- все её зависимости отмечены `[x]`. Зависимость «M1» означает все задачи M1 (аналогично M2 и т.д.). Формулировку «T1.9e (начать можно сразу после M1…)» читай как зависимость от T1.9e;
-- её нет в «В работе» и в «Заблокировано»;
-- ворота предыдущего милстоуна пройдены (M2 не начинается, пока M1 не `пройдено`). Исключение: задачи, которые ROADMAP прямо разрешает начинать параллельно с M2 (T3.1, T3.2, T3.3, T3.5).
+A task is **ready to launch** if:
+- it is not marked `[x]` in ROADMAP;
+- all its dependencies are marked `[x]`. A dependency "M1" means all tasks of M1 (likewise M2, etc.). Read the wording "T1.9e (can start right after M1…)" as a dependency on T1.9e;
+- it is not in **In progress** and not in **Blocked**;
+- the gates of the previous milestone are passed (M2 does not start until M1 is `passed`). Exception: tasks that ROADMAP explicitly allows to start in parallel with M2 (T3.1, T3.2, T3.3, T3.5).
 
-Ограничения параллельности:
-- в работе одновременно не больше N задач;
-- **задачи M0 (T0.x) — строго по одной**, потому что пишут в общие `assets/`, `build/`, `reference/`, `vendor/`. Параллельно с одной T0.x можно вести задачи M1, если они готовы (T1.1);
-- не запускай одновременно две задачи, которые по карточкам меняют одни и те же файлы (например, обе правят `electron/main.ts` или `FrameWriter`). Сомневаешься — запускай по очереди;
-- порядок: по критическому пути из ROADMAP, затем по номеру.
+Parallelism limits:
+- no more than N tasks in progress at once;
+- **M0 tasks (T0.x) strictly one at a time**, because they write to the shared `assets/`, `build/`, `reference/`, `vendor/`. M1 tasks can run in parallel with a single T0.x if they are ready (T1.1);
+- do not launch two tasks at once if their task cards change the same files (for example, both edit `electron/main.ts` or `FrameWriter`). When in doubt, launch them one after another;
+- order: along the critical path from ROADMAP, then by number.
 
-**Задачи, которым нужен человек** (сначала запусти porter; если он вернёт BLOCKED из-за человека — вопрос в «Нужно от тебя», задачу в «Заблокировано», остальные продолжай):
-- T4.2 — эталонные скриншоты из Ruffle;
-- T3.7 п.5, T4.4, T4.6 — Windows-ноутбук;
-- T4.7 — проверка README пользователем.
+**Tasks that need a human** (launch porter first; if it returns BLOCKED because of a human, put the question in **Needed from you**, the task in **Blocked**, and continue with the others):
+- T4.2 — reference screenshots from Ruffle;
+- T3.7 step 5, T4.4, T4.6 — Windows laptop;
+- T4.7 — README check by the user.
 
-## 2. Запуск исполнителя
+## 2. Launching an executor
 
-Для каждой выбранной задачи — вызов **Agent**: `subagent_type: "porter"`, `isolation: "worktree"`, `run_in_background: true`, `description: "T<ID> <slug>"`, prompt:
+For each selected task, call **Agent**: `subagent_type: "porter"`, `isolation: "worktree"`, `run_in_background: true`, `description: "T<ID> <slug>"`, prompt:
 
 ```
-Задача: T<ID>. Карточка: docs/tasks/<файл>.md. Попытка <k>.
-<если k>1: "Отчёт прошлой попытки: <отчёт/причина>. Учти и доделай.">
-<если FIX: "Это исправление: <описание проблемы и вывод npm run check/хвост лога>.">
-Работай по CLAUDE.md и инструкции агента porter. В конце — отчёт в заданном формате.
+Task: T<ID>. Task card: docs/tasks/<file>.md. Attempt <k>.
+<if k>1: "Report of the previous attempt: <report/reason>. Take it into account and finish the job.">
+<if FIX: "This is a fix: <description of the problem and the output of npm run check / the log tail>.">
+Work according to CLAUDE.md and the porter agent instructions. At the end — a report in the prescribed format.
 ```
 
-Несколько задач запускай **в одном сообщении** (параллельные вызовы). Сразу впиши их в STATUS «В работе» (ID, попытка, время) и закоммить `orchestrator: start T<ID>…`. Потом **заверши ход** и жди уведомлений — не опрашивай и не спи.
+Launch several tasks **in one message** (parallel calls). Immediately record them in STATUS **In progress** (ID, attempt, time) and commit `orchestrator: start T<ID>…`. Then **end your turn** and wait for notifications — do not poll and do not sleep.
 
-## 3. Когда исполнитель вернулся (уведомление)
+## 3. When an executor has returned (notification)
 
-1. Разбери отчёт. `STATUS: BLOCKED/FAILED` → §4.
-2. Ветку и путь worktree возьми из отчёта или результата Agent. Проверки (в основной копии):
-   - `git log --oneline main..<branch>` — есть коммит(ы) `T<ID>: …`;
-   - `git diff --stat main...<branch>` — нет изменений в `docs/ROADMAP.md`, `docs/STATUS.md`, `docs/tasks/`, `CLAUDE.md`, `.claude/`. Изменения за пределами выходов карточки допустимы, только если объяснены в отчёте;
-   - в «ПРИЁМКА» все пункты `[x]` или объяснены. Любой необъяснённый `[ ]` → §4;
-   - «STUBS»: только `STUB(<будущая задача>)`; `STUB` со своим ID задачи — это недоделка → §4.
+1. Parse the report. `STATUS: BLOCKED/FAILED` → §4.
+2. Take the branch and the worktree path from the report or the Agent result. Checks (in the main copy):
+   - `git log --oneline main..<branch>` — there are `T<ID>: …` commit(s);
+   - `git diff --stat main...<branch>` — no changes in `docs/ROADMAP.md`, `docs/STATUS.md`, `docs/tasks/`, `CLAUDE.md`, `.claude/`. Changes outside the task card's outputs are acceptable only if explained in the report;
+   - in **ACCEPTANCE** all items are `[x]` or explained. Any unexplained `[ ]` → §4;
+   - **STUBS**: only `STUB(<future task>)`; a `STUB` with the task's own ID is unfinished work → §4.
 3. `git merge --no-ff --no-edit <branch>`.
-   - Конфликт только в `package-lock.json` → `git checkout --theirs package-lock.json && npm install && git add -A && git commit --no-edit`.
-   - Мелкий конфликт в `package.json`, конфигах или индексных файлах → разреши сам (объединение обеих сторон) и закоммить.
-   - Крупный конфликт в коде → `git merge --abort` и задача-исправление (§5): «влей main в свою ветку и разреши конфликты». Исправление запускай, только когда нет пересекающихся задач в работе.
-4. Если в диффе менялись `package.json`/`package-lock.json` → `npm install`. После мержа задач T0.x → `npm run extract` (идемпотентно, должно быть быстро).
-5. `npm run check 2>&1 | tail -40`. Красный → задача `FIX-<n>` (§5) с этим выводом. Ветку не откатывай.
-6. Учёт:
-   - в ROADMAP `[ ]` → `[x]` + короткий хэш merge-коммита;
-   - из STATUS «В работе» убрать задачу, в «Журнал» добавить строку `дата T<ID> merged <hash> (попытка k)`;
-   - «НУЖНО ОРКЕСТРАТОРУ» из отчёта — выполнить; если это ручная проверка — в «Нужно от тебя»;
+   - A conflict only in `package-lock.json` → `git checkout --theirs package-lock.json && npm install && git add -A && git commit --no-edit`.
+   - A minor conflict in `package.json`, configs or index files → resolve it yourself (combine both sides) and commit.
+   - A major conflict in code → `git merge --abort` and a fix task (§5): "merge main into your branch and resolve the conflicts". Launch the fix only when no overlapping tasks are in progress.
+4. If the diff changed `package.json`/`package-lock.json` → `npm install`. After merging T0.x tasks → `npm run extract` (idempotent, should be fast).
+5. `npm run check 2>&1 | tail -40`. Red → a `FIX-<n>` task (§5) with this output. Do not roll the branch back.
+6. Bookkeeping:
+   - in ROADMAP `[ ]` → `[x]` + the short hash of the merge commit;
+   - remove the task from STATUS **In progress**, and add to **Log** a line `date T<ID> merged <hash> (attempt k)`;
+   - carry out **NEEDS FROM ORCHESTRATOR** from the report; if it is a manual check, put it in **Needed from you**;
    - `git commit -am "orchestrator: T<ID> done"`.
-7. Уборка: `git worktree remove --force <path>`, `git branch -d <branch>`.
-8. **Ворота.** Если смержена последняя задача милстоуна (T1.9e → M1, T2.8 → M2, T3.7 → M3, T4.7 → M4) — в STATUS «Ворота» `<Mx>: ждёт проверки` с инструкцией для человека (§6), новых задач следующего милстоуна не запускай. Задачи, которые уже в работе, доводи до конца.
-9. Если есть `until=T<ID>` и эта задача смержена — ничего нового не запускай.
-10. Иначе — снова §1 и запуск готовых задач (скользящая очередь: освободился слот → запускай следующую).
+7. Cleanup: `git worktree remove --force <path>`, `git branch -d <branch>`.
+8. **Gates.** If the last task of a milestone has been merged (T1.9e → M1, T2.8 → M2, T3.7 → M3, T4.7 → M4), set in STATUS **Gates** `<Mx>: awaiting check` with instructions for the human (§6), and do not launch new tasks of the next milestone. Tasks that are already in progress are brought to completion.
+9. If there is `until=T<ID>` and this task has been merged — launch nothing new.
+10. Otherwise — go back to §1 and launch the ready tasks (a sliding queue: a slot is free → launch the next one).
 
-## 4. Неудача исполнителя
+## 4. Executor failure
 
-- Попытка 1 не удалась (FAILED, недоделка, BLOCKED не из-за человека) → убери worktree и ветку (`git worktree remove --force`, `git branch -D`) и запусти попытку 2 с отчётом первой.
-- Попытка 2 не удалась, или BLOCKED из-за человека → задача в «Заблокировано», вопрос пользователю в «Нужно от тебя» (конкретно: что сделать или решить), worktree удалить, ветку **оставить** (для разбора).
+- Attempt 1 failed (FAILED, unfinished work, BLOCKED not because of a human) → remove the worktree and branch (`git worktree remove --force`, `git branch -D`) and launch attempt 2 with the report of the first.
+- Attempt 2 failed, or BLOCKED because of a human → the task goes to **Blocked**, the question for the user goes to **Needed from you** (specifically: what to do or decide), delete the worktree, **keep** the branch (for investigation).
 
-## 5. Задачи-исправления FIX-<n>
+## 5. Fix tasks FIX-<n>
 
-Это не карточка, а поручение porter: в prompt вместо карточки — описание проблемы (вывод `check`, конфликт или жалоба пользователя) и список связанных задач. В STATUS ведутся так же, как обычные задачи; в ROADMAP не пишутся. После мержа FIX — снова `npm run check`.
+This is not a task card but an assignment to porter: in the prompt, instead of a task card, there is a description of the problem (the `check` output, a conflict or a user complaint) and a list of related tasks. In STATUS they are tracked like ordinary tasks; they are not written into ROADMAP. After merging a FIX — run `npm run check` again.
 
-## 6. Остановка и финальное сообщение
+## 6. Stopping and the final message
 
-Остановись, когда: ничего не в работе и нет готовых задач (всё сделано, заблокировано или ждёт ворот), или сработал `until`. Финальное сообщение пользователю (коротко, по-русски):
-- что смержено в этой сессии;
-- что в работе (если есть);
-- **«Нужно от тебя»** — пронумерованный список конкретных действий. Для ворот:
-  - **M1:** «Запусти `npm run dev -- --start-level=Level01` и полетай 2–3 минуты. Сравни ощущение с оригиналом в Ruffle: управление, падение, топливо, пассажиры, звук. Второй игрок — клавиша W. Потом снова `/orchestrate`»;
-  - **M2:** «Пройди меню → уровни 1–3, загляни в гараж, перезапусти игру — прогресс сохранился?»;
-  - **M3:** «Проверь игру по сети: два окна (`npm run dev -- --profile=2`) или Mac + Windows»;
-  - **M4:** «Установи dmg и exe и сыграй по сети».
-- как продолжить: «снова `/orchestrate`».
+Stop when: nothing is in progress and there are no ready tasks (everything is done, blocked or waiting for gates), or `until` has triggered. The final message to the user (brief, in Russian):
+- what was merged in this session;
+- what is in progress (if anything);
+- **"Needed from you"** — a numbered list of specific actions. For gates:
+  - **M1:** "Run `npm run dev -- --start-level=Level01` and fly for 2–3 minutes. Compare the feel with the original in Ruffle: controls, falling, fuel, passengers, sound. The second player is the W key. Then `/orchestrate` again";
+  - **M2:** "Go through menu → levels 1–3, look into the garage, restart the game — is the progress saved?";
+  - **M3:** "Check the game over the network: two windows (`npm run dev -- --profile=2`) or Mac + Windows";
+  - **M4:** "Install the dmg and exe and play over the network";
+- how to continue: "`/orchestrate` again".
 
-## Правила
+## Rules
 
-- Не пиши и не чини код сам. Исключения — разрешение мелких merge-конфликтов по §3.3 и правки `docs/ROADMAP.md`/`docs/STATUS.md`.
-- Не делай `git push`, `git reset --hard`, `git rebase` main.
-- Не читай `reference/as3/**` и `src/**` целиком. Если нужно понять проблему — отдай её porter как FIX.
-- Всегда держи STATUS актуальным и закоммиченным перед тем, как завершить ход: сессия может оборваться в любой момент (лимиты Pro).
+- Do not write or fix code yourself. Exceptions: resolving minor merge conflicts per §3.3 and edits to `docs/ROADMAP.md`/`docs/STATUS.md`.
+- Do not run `git push`, `git reset --hard`, `git rebase` main.
+- Do not read `reference/as3/**` and `src/**` in full. If you need to understand a problem, hand it to porter as a FIX.
+- Always keep STATUS up to date and committed before ending your turn: the session can be cut off at any moment (Pro limits).
