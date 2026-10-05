@@ -5,7 +5,7 @@ Updated: 2026-10-04 · Last merge: FIX(M3) 2b4167a
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| — | | | | |
+| T5.5 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -177,3 +177,4 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - T5.3 out of scope: old unversioned builds in dist/ (Alien Transporter Remaster-0.1.0-arm64.dmg, mac-arm64/, win-unpacked/, older .exe) are not rotated — delete by hand; the macOS notification banner was not seen by the agent; a SIGKILL during a build can leave a ~1 GB tmp folder.
 - 2026-10-05 Windows kit ~/Desktop/at-win-measure/ refreshed: Setup 0.1.0-49ec902.exe (with the fixed 0.0333 s tick) + English INSTRUCTIONS-for-Claude.md (docs/08).
 - 2026-10-05 user pushed main (33b848a). Release v0.1.0 created on GitHub (tag on 33b848a, no binaries): https://github.com/kachvanov/alien-transporter-remaster/releases/tag/v0.1.0. Notes mention the known white-screen issue (T5.2) and the unmeasured parity scenarios.
+- 2026-10-05 at the user's request dist/ was cleaned by the orchestrator (old unversioned builds, mac-arm64/, win-unpacked/, builder-debug.yml removed: 2.8 GB -> 834 MB; the 49ec902 build and the auto-build state files kept) and T5.5 was created/started: a tidy layout (dist/latest with stable names, dist/archive/<date>-<hash>, hard links, migration).
