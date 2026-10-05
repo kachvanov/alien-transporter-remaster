@@ -14,6 +14,8 @@
     "visual:compare": "tsx tools/visual/compare.ts",
     "ruffle:ref": "tsx tools/visual/ruffle-reference.ts",
     "parity:behavior": "tsx tools/parity/behavior.ts",
+    "parity:video": "tsx tools/parity/video-compare.ts",
+    "parity:video:track": "tsx tools/parity/video.ts",
     "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && eslint . && vitest run",
     "test": "vitest",
     "test:e2e": "playwright test",

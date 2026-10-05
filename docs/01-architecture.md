@@ -77,7 +77,7 @@ Layer boundaries are checked by the ESLint `no-restricted-imports` rule in `esli
 
 The original frame is `Anthill.enterFrameHandler`, see `reference/as3/ru/antkarlov/anthill/Anthill.as`:
 ```
-AntG.elapsed = min(real, maxElapsed) * timeScale
+AntG.elapsed = (fixedElapsed ? maxElapsed : min(real, maxElapsed)) * timeScale   // игра ставит fixedElapsed = true, maxElapsed = 0.0333 в PrepareState
 update():  AntG.updateInput(); AntG.sounds.update(); state.preUpdate(); state.update(); state.postUpdate();
 render():  cameras draw the entity tree (Label and ElementSimulation have side logic in draw())
 AntG.plugins.update():  plugins in listOfActive order (sorted by priority, see AntPluginManager.sortHandler)
@@ -86,7 +86,7 @@ AntG.plugins.update():  plugins in listOfActive order (sorted by priority, see A
 ```
 
 Our tick (`src/sim/GameLoop.ts`) repeats this order:
-1. `AntG.elapsed = (1/35) * AntG.timeScale` — fixed, for determinism. In the original at a stable 35 FPS it was ≈ 0.02857.
+1. `AntG.elapsed = (AntG.fixedElapsed ? AntG.maxElapsed : min(1/35, AntG.maxElapsed)) * AntG.timeScale` — there is no real frame time, for determinism. The game (PrepareState) turns `fixedElapsed` on with `maxElapsed = 0.0333`, so in the original and in ours every game tick = **0.0333 s**, not 1/35 (FIX-5: measuring a Ruffle recording showed Hardcore steering is 1.17 times faster than with 1/35; `GameLoop` sets the same `fixedElapsed`/`maxElapsed` for runs that do not start from `PrepareState`).
 2. `AntG.updateInput(snapshot)` → `AntG.sounds.update()` → `state.preUpdate/update/postUpdate`.
 3. **Render point:** `FrameWriter.write(scene)`. The side logic from the original `draw()` methods (Label, ElementSimulation, MusicManager.draw) is called here, in the same traversal order.
 4. `AntG.plugins.update()` — plugins in `listOfActive` order after the AVM2 sort by priority (`sortAS3`). Candidates: `AntBox2DManager.update()` (`Step(1/40, 6, 15)` + `ClearForces()`), `AntCore.update()` (systems — also in the order after the AVM2 sort), `MusicManager`, tweens and tasks. The actual order is determined by the code; it must be logged in the T1.6 test and fixed as the reference.

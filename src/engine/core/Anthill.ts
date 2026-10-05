@@ -139,9 +139,11 @@ export class Anthill {
   /** One frame of the game (the body of `enterFrameHandler`). */
   tick(aSnapshot: InputSnapshot): void {
     AntG.simTimeMs += TICK_MS;
-    // DEVIATION: the original measures the frame time (min(real, maxElapsed), or maxElapsed with
-    // fixedElapsed) and multiplies it by timeScale; the port is deterministic: a fixed step.
-    AntG.elapsed = TICK_SECONDS;
+    // The original measures the frame time and takes min(real, maxElapsed), or maxElapsed with fixedElapsed (the game
+    // sets it in PrepareState: every tick of the game is then 0.0333 s, whatever the real frame time), and multiplies it
+    // by timeScale. DEVIATION: the port is deterministic, a real frame time is not measured: without fixedElapsed the step
+    // is the nominal 1/35 s (cut to maxElapsed).
+    AntG.elapsed = AntG.fixedElapsed ? AntG.maxElapsed : Math.min(TICK_SECONDS, AntG.maxElapsed);
     AntG.elapsed *= AntG.timeScale;
     this.update(aSnapshot);
     this.render();

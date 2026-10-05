@@ -28,7 +28,9 @@ const ready = hasAssets && existsSync(resolve(assetsRoot, 'sounds.json'));
 // 1914 and the level complete screen comes 84 ticks later (the fade of MenuSystem), at 1998. T2.3: the effects (the snow of
 // Level01, the dust, the engines) draw from the PRNG now, so the passengers wait and walk otherwise: the deliveries are at
 // 683 and 969, the portal takes the shuttle at 1283 and the level complete screen comes at 1367 (the bot counts a delivery
-// also when the next passenger boards at once). The budget of 2300 ticks of T1.9e is enough as before.
+// also when the next passenger boards at once). FIX-5: AntG.elapsed is the fixed 0.0333 s of the original (it was 1/35): the
+// deliveries are at 632 and 923, the portal takes the shuttle at 1255; the pilot flies to the open portal before it takes the
+// next passenger. The budget of 2300 ticks of T1.9e is enough as before.
 const TICKS = 2300;
 
 interface Run {

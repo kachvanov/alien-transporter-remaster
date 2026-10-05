@@ -58,7 +58,18 @@ export interface Metrics {
   angleHardcore: number;
 }
 
-async function scenario(casual: boolean, keys: (n: number) => number[], ticks: number): Promise<{ y: number[]; angle: number[]; fuel: number[]; ground: number[]; spawnTick: number }> {
+export interface Run {
+  x: number[];
+  y: number[];
+  angle: number[];
+  fuel: number[];
+  ground: number[];
+  spawnTick: number;
+}
+
+/** Level01 from the spawn of P1: per tick since the spawn the position (px), angle (degrees), fuel and ground contacts; `keys(n)` are the keys held at tick n. */
+export async function scenario(casual: boolean, keys: (n: number) => number[], ticks: number): Promise<Run> {
+  const x: number[] = [];
   const y: number[] = [];
   const angle: number[] = [];
   const fuel: number[] = [];
@@ -74,6 +85,7 @@ async function scenario(casual: boolean, keys: (n: number) => number[], ticks: n
       if (s === null) return snap([]);
       if (spawnTick < 0) spawnTick = t;
       const n = t - spawnTick;
+      x.push(s.physic.body.x);
       y.push(s.physic.body.y);
       angle.push(s.physic.body.angle);
       fuel.push(s.stats.fuel);
@@ -81,7 +93,7 @@ async function scenario(casual: boolean, keys: (n: number) => number[], ticks: n
       return snap(keys(n));
     },
   });
-  return { y, angle, fuel, ground, spawnTick };
+  return { x, y, angle, fuel, ground, spawnTick };
 }
 
 /** Smallest p > 0 with seq[i] == seq[i+p] for all i; -1 when none. */

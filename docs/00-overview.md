@@ -42,7 +42,7 @@ User decisions (fixed):
 |---|---|
 | Stage | 800×600, `Config.FRAME_RATE = 35` |
 | Physics | Box2DFlash **2.1alpha**; `AntBox2DManager`: `step = 1/40` per frame, `velocityIterations = 6`, `positionIterations = 15`, `scale = 30` px/m, gravity `(0, 9.81)`, allowSleep by default |
-| Time | `AntG.elapsed` = real time, but no more than `maxElapsed = 0.0333`. AntActor animations: `currentFrame += animationSpeed * AntG.timeScale` per update |
+| Time | `AntG.elapsed`: in the game (PrepareState) `fixedElapsed = true`, so every tick = `maxElapsed = 0.0333` s (neither real time nor 1/35). AntActor animations: `currentFrame += animationSpeed * AntG.timeScale` per update |
 | Architecture | The Anthill framework: an AntEntity/AntActor scene; the "ants" ECS (AntCore/AntSystem/AntNode, Ash style); Box2D plugins, effects, living lights |
 | Code size | ~22.7K lines of game code (`ru.alientransporter.*`) and ~20K of Anthill (including debug, which is not needed). Box2D, ~14K lines, is replaced with box2dweb |
 | Levels | 20 single-screen ones. Clips: `LevelNNBack_mc` (scrollFactor 0.25), `LevelNNBG_mc` (0.5), `LevelNNFG_mc` (1.0) are cached in an AntTileMap of 8×6 tiles × `CELL_SIZE = 100` (an 800×600 area). `LevelNNPhysic_mc` is the editor markup with `*_com` instances |
