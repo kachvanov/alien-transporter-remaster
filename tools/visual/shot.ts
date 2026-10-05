@@ -7,8 +7,9 @@
 // `webContents.capturePage()` of the 800x600 area (on Retina 1600x1200), scaled to 800x600 with sharp (lanczos3),
 // exactly as the Ruffle references are (`tools/visual/ruffle-reference.ts`).
 //
-// Scenes: main-menu, credits, select-level, garage, pause, level01..level20.
-// Not reachable without a play-through: level-complete (needs a landed ship in the portal) -- take it by hand.
+// Scenes: main-menu, credits, select-level, garage, pause, level-complete, level01..level20.
+// level-complete is made by the dev flag `--start-screen=LevelComplete` (the screen at once, with the values of a fresh save: no
+// play-through; the reference of Ruffle was taken with zero values as well, so only the layout is compared).
 
 import { rmSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -19,7 +20,7 @@ import { _electron as electron } from '@playwright/test';
 import type { ElectronApplication, Page } from '@playwright/test';
 import sharp from 'sharp';
 
-export const STATIC_SCENES = ['main-menu', 'credits', 'select-level', 'garage', 'pause'] as const;
+export const STATIC_SCENES = ['main-menu', 'credits', 'select-level', 'garage', 'pause', 'level-complete'] as const;
 export const LEVEL_SCENES: readonly string[] = Array.from({ length: 20 }, (_, i) => 'level' + String(i + 1).padStart(2, '0'));
 export const ALL_SCENES: readonly string[] = [...STATIC_SCENES, ...LEVEL_SCENES];
 
@@ -139,6 +140,12 @@ async function reach(scene: string, s: Session, settleMs: number): Promise<void>
       return;
     case 'select-level':
       return openSelect(s, settleMs);
+    case 'level-complete':
+      // the screen builds itself with tasks and pauses (stars, columns, missions, buttons)
+      await poll(() => lastScreen(s), (v) => v === 'LevelComplete', 30_000, 'screen LevelComplete').catch(() => undefined);
+      await poll(() => sprites(s), (n) => n >= 4, 30_000, 'level complete sprites');
+      await sleep(Math.max(settleMs, 6000));
+      return;
     case 'garage':
       await openSelect(s, settleMs);
       await clickTo(s, 70, 400, 'GarageScreen');
@@ -177,7 +184,8 @@ export async function takeShots(opts: ShotOptions): Promise<{ scene: string; fil
   for (const scene of opts.scenes) {
     const profile = `shot${Date.now() % 1e9}`;
     const level = /^level(\d+)$/.exec(scene);
-    const s = await launch(level !== null ? [`--start-level=${level[1]}`] : [], profile);
+    const extra = level !== null ? [`--start-level=${level[1]}`] : scene === 'level-complete' ? ['--start-screen=LevelComplete'] : [];
+    const s = await launch(extra, profile);
     let userData = '';
     try {
       userData = await s.app.evaluate(({ app }) => app.getPath('userData'));

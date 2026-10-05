@@ -20,7 +20,7 @@ export type SimIn =
   | { t: 'simPort' }
   /** The answer of the renderer to a request of the screens of the LAN game (T3.4, game/online/OnlineBridge.ts). */
   | { t: 'online'; ev: OnlineEvent }
-  /** Commands: `freeze` [bool] (the settings panel), dev: `startLevel` [levelName], `setTimeScale` [k], `recordStart`, `recordStop`. */
+  /** Commands: `freeze` [bool] (the settings panel), dev: `startLevel` [levelName], `showScreen` [screenName], `setTimeScale` [k], `recordStart`, `recordStop`. */
   | { t: 'cmd'; name: string; args?: unknown[] };
 
 /** worker -> renderer */

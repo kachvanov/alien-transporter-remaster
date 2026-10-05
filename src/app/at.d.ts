@@ -17,6 +17,8 @@ export interface DevFlags {
   join?: string;
   /** `--host-start` (T3.2, dev): start hosting at once (the Host screen without the menu), on the port of the settings. */
   hostStart?: boolean;
+  /** `--start-screen=LevelComplete` (T4.2, dev): a screen made at once, without the menu (tools/visual/shot.ts takes the screens that need a play-through this way). */
+  startScreen?: string;
   /** `--perf-log=perf.json` (T4.3, dev): the file (relative to the working directory of the process) that the measurements go to. */
   perfLog?: string;
 }

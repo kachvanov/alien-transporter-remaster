@@ -360,6 +360,23 @@ export class GameLoop {
 
         break;
       }
+      case 'showScreen': {
+        // `--start-screen=LevelComplete` (T4.2, dev): the screen at once, as the menu shows it after the fade (the screens
+        // that cannot be reached without a play-through are taken for the visual comparison this way).
+        const menu = G.core?.getSystem(MenuSystem) ?? null;
+        const name = String(aArgs[0]);
+        if (menu === null) {
+          host.log('warn', 'showScreen(' + name + '): no menu');
+        } else if (!menu.hasScreen(name)) {
+          host.log('warn', 'showScreen(' + name + '): no such screen');
+        } else {
+          menu.makeScreenNow(name);
+          this.requestSceneReset();
+          host.log('info', 'screen ' + name + ' shown');
+        }
+
+        break;
+      }
       case 'recordStart':
         this.recordStart();
         break;

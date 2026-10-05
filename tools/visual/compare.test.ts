@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PNG } from 'pngjs';
 import { describe, expect, it } from 'vitest';
-import { compareImages, limitFor, renderReport, runCompare } from './compare';
+import { compareImages, ignoreFor, limitFor, renderReport, runCompare } from './compare';
 
 function solid(w: number, h: number, rgb: [number, number, number]): PNG {
   const p = new PNG({ width: w, height: h });
@@ -30,6 +30,25 @@ describe('visual compare', () => {
     const r = compareImages(a, b);
     expect(r.diffPixels).toBe(25);
     expect(r.percent).toBe(25);
+  });
+
+  it('ignored areas are not counted and their area is taken off the whole', () => {
+    const a = solid(10, 10, [0, 0, 0]);
+    const b = solid(10, 10, [0, 0, 0]);
+    for (let i = 0; i < 20; i++) b.data[i * 4] = 255; // the first two rows differ
+    const r = compareImages(a, b, 0.1, [[0, 0, 10, 1]]); // the first row is ignored
+    expect(r.diffPixels).toBe(10);
+    expect(r.rawPercent).toBe(20);
+    expect(r.ignoredPercent).toBe(10);
+    expect(r.percent).toBeCloseTo((10 / 90) * 100, 6);
+    // an area outside the picture is clipped
+    expect(compareImages(a, a, 0.1, [[5, 5, 100, 100]]).ignoredPercent).toBe(25);
+  });
+
+  it('ignoreFor: levels share one entry, an unknown scene has none', () => {
+    expect(ignoreFor('level07')).toBe(ignoreFor('level01'));
+    expect(ignoreFor('level01').length).toBeGreaterThan(0);
+    expect(ignoreFor('nothing')).toEqual([]);
   });
 
   it('throws on a size mismatch', () => {

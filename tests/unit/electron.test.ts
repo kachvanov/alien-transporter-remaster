@@ -29,6 +29,15 @@ describe('command line flags', () => {
     expect(parseDevFlags(['--start-level=']).startLevel).toBeNull();
   });
 
+  it('--start-screen (T4.2) is a dev flag, a plain screen name only', () => {
+    expect(parseDevFlags(['--start-screen=LevelComplete']).startScreen).toBe('LevelComplete');
+    expect(parseDevFlags([]).startScreen).toBeUndefined();
+    expect(parseDevFlags(['--start-screen=../x']).startScreen).toBeUndefined();
+    expect(decodeFlagsArg([encodeFlagsArg({ startLevel: null, tier: null, classic: false, startScreen: 'LevelComplete' })]).startScreen).toBe(
+      'LevelComplete',
+    );
+  });
+
   it('--profile=N accepts short ids only', () => {
     expect(parseProfile(['--profile=2'])).toBe('2');
     expect(parseProfile(['--profile=../x'])).toBeNull();
