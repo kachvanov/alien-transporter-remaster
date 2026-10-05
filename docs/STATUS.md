@@ -5,7 +5,7 @@ Updated: 2026-10-04 · Last merge: FIX(M3) 2b4167a
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| — | | | | |
+| T5.3 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
