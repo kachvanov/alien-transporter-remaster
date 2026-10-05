@@ -82,3 +82,18 @@ Needed: both computers on the same Wi-Fi network; on Windows, Java 17 and ffmpeg
 - The client name in `hello` is `os.hostname()` (it used to be hardcoded as `Player 2 (darwin)`); the host name in the beacon is already substituted
   in `electron/main.ts` (`sanitizeBeaconInfo`, an empty name is replaced with `os.hostname()`).
 - Test: `DISCOVERY_PROTO` (electron/net/discovery.ts) equals `PROTO_VERSION` (src/net/protocol.ts).
+
+## 6. Over Tailscale (FIX-6)
+
+Symptom (reported by the user): two machines on one tailnet; the Join screen never lists the host, but typing `100.x.y.z:47020` by hand connects.
+Cause: the Tailscale interface is a point-to-point `/32`, there is no broadcast address, so the UDP beacon (`03` §7) never left the host.
+Fix: unicast to the peers found with `tailscale status --json` (host pushes beacons, client sends probes, host answers probes) - `03` §7, code in `electron/net/tailscale.ts` and `discovery.ts`.
+
+Verified by tests (`tests/unit/tailscale.test.ts`): classification of `/32` interfaces and 100.64.0.0/10, parsing a sample `tailscale status --json`, the fake CLI (success, fallback, missing, failing, timeout, no re-entrancy), unicast push and probe/answer between two local sockets on 127.0.0.1 without any broadcast. The real CLI call was run on a Mac without Tailscale running (empty list, silent, ~2 s in the background).
+**Not** verified (no tailnet in the build environment): real traffic over the Tailscale interface, the macOS Local Network prompt for 100.x, the Windows firewall profile of the Tailscale adapter.
+
+Manual check with a friend over Tailscale (both on the new build, both connected to the tailnet, `tailscale status` shows the other one online):
+1. Host: Online → Host game. The screen must list the `100.x.y.z` address. The Host may press TEST (`OK` for the 100.x address).
+2. Client: Online → Join game. Within 1-3 s (the first peer list takes up to 2 s) the host should appear in the list with its `100.x` address. Join.
+3. If the host does not appear: on the client run `tailscale status` (the host must be online, not "idle; offline"), then `npx tsx tools/net/host-probe.ts <host-100.x-address>` (must print `result : ok`). If this works, only discovery is blocked: on Windows set the Defender rule for the game to "Public networks" (UDP 47021), on macOS allow incoming connections.
+4. Manual entry still works in every case: Join → type `100.x.y.z` (the port is added automatically; the last address is remembered).

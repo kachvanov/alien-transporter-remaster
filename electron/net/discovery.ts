@@ -1,8 +1,12 @@
 // LAN discovery (docs/03-frame-and-network-protocol.md §7): the host sends a UDP beacon once a second, a client
 // listens on the same port and keeps a list of the games it has heard of. No Electron here: runs (and is tested)
 // in plain Node. main.ts only wires it to IPC.
+// FIX-6: point-to-point networks (Tailscale, 100.64.0.0/10) have no broadcast, so on top of the broadcast the host
+// pushes the beacon to the known peers by unicast, a scanning client sends them a probe, and a host answers a probe
+// with a beacon (`peers` option; the peers come from `tailscale.ts`).
 import { createSocket, type RemoteInfo, type Socket } from 'node:dgram';
 import { hostname, networkInterfaces, type NetworkInterfaceInfo } from 'node:os';
+import { isPointToPoint, TailscalePeers } from './tailscale';
 
 /** UDP port of beacons and scan. */
 export const DISCOVERY_PORT = 47021;
@@ -42,6 +46,19 @@ export interface DiscoveryOptions {
   targets?: () => string[];
   /** Address the scan socket binds to. */
   bindAddress?: string;
+  /**
+   * Unicast peers (Tailscale): the host pushes the beacon to them, a scanning client probes them. Synchronous: the
+   * last known list. Default: none.
+   */
+  peers?: () => string[];
+  /** UDP port the peers listen on (default `port`; differs only in tests, where two instances share one machine). */
+  peerPort?: number;
+  /** Called to refresh the peers in the background (a beacon / probe tick); never awaited, may be slow. */
+  refreshPeers?: () => Promise<void>;
+  /** The running host answers a probe (a unicast datagram on the discovery port) with a beacon. Default: false. */
+  answerProbes?: boolean;
+  /** How often a scanning client probes the peers. */
+  probeIntervalMs?: number;
   beaconIntervalMs?: number;
   /** A game that has been silent this long disappears from the list. */
   ttlMs?: number;
@@ -89,6 +106,8 @@ export function broadcastAddresses(ifaces: NodeJS.Dict<NetworkInterfaceInfo[]> =
   for (const infos of Object.values(ifaces)) {
     for (const i of infos ?? []) {
       if (!isUsableIPv4(i)) continue;
+      // a /31 or /32 (Tailscale, other VPNs) has no broadcast address: its peers are reached by unicast (FIX-6)
+      if (isPointToPoint(i)) continue;
       const b = broadcastOf(i.address, i.netmask);
       if (b !== null && !list.includes(b)) list.push(b);
     }
@@ -114,6 +133,24 @@ export function parseBeacon(data: Buffer): BeaconInfo | null {
   if (status !== 'waiting' && status !== 'full') return null;
   if (proto !== DISCOVERY_PROTO) return null;
   return { buildHash, hostName: hostName.slice(0, 64), port, status };
+}
+
+/** A scanning client asks the hosts it cannot hear by broadcast to answer. */
+export function encodeProbe(): Buffer {
+  return Buffer.from(JSON.stringify({ game: DISCOVERY_GAME, proto: DISCOVERY_PROTO, probe: true }), 'utf8');
+}
+
+/** Is the datagram a probe of this game and protocol. */
+export function isProbe(data: Buffer): boolean {
+  let o: unknown;
+  try {
+    o = JSON.parse(data.toString('utf8'));
+  } catch {
+    return false;
+  }
+  if (typeof o !== 'object' || o === null || Array.isArray(o)) return false;
+  const r = o as Record<string, unknown>;
+  return r['game'] === DISCOVERY_GAME && r['proto'] === DISCOVERY_PROTO && r['probe'] === true;
 }
 
 export function encodeBeacon(info: BeaconInfo): Buffer {
@@ -149,12 +186,21 @@ export class LanDiscovery {
   private readonly ttlMs: number;
   private readonly minUpdateIntervalMs: number;
   private readonly onError: (error: Error) => void;
+  private readonly peers: () => string[];
+  private readonly peerPort: number;
+  private readonly refreshPeers: () => Promise<void>;
+  private readonly answerProbes: boolean;
+  private readonly probeIntervalMs: number;
+
+  /** One socket on the discovery port: the scan reads beacons from it, a host answers probes on it. */
+  private listener: Socket | null = null;
+  private listenerReady: Promise<void> | null = null;
+  private probeTimer: ReturnType<typeof setInterval> | null = null;
 
   private beaconSocket: Socket | null = null;
   private beaconTimer: ReturnType<typeof setInterval> | null = null;
   private beaconInfo: BeaconInfo | null = null;
 
-  private scanSocket: Socket | null = null;
   private scanTimer: ReturnType<typeof setInterval> | null = null;
   private scanning = false;
   private localBuildHash = '';
@@ -173,6 +219,11 @@ export class LanDiscovery {
     this.ttlMs = options.ttlMs ?? 3000;
     this.minUpdateIntervalMs = options.minUpdateIntervalMs ?? 250;
     this.onError = options.onError ?? (() => undefined);
+    this.peers = options.peers ?? (() => []);
+    this.peerPort = options.peerPort ?? this.port;
+    this.refreshPeers = options.refreshPeers ?? (() => Promise.resolve());
+    this.answerProbes = options.answerProbes ?? false;
+    this.probeIntervalMs = options.probeIntervalMs ?? 1000;
   }
 
   //---------------------------------------
@@ -203,6 +254,11 @@ export class LanDiscovery {
       this.sendBeacon();
     });
     this.beaconTimer = setInterval(() => this.sendBeacon(), this.beaconIntervalMs);
+    this.refreshPeersQuietly();
+    if (this.answerProbes) {
+      // a host that cannot listen still sends beacons: the error is only reported
+      this.ensureListener().catch((e: unknown) => this.onError(e instanceof Error ? e : new Error(String(e))));
+    }
   }
 
   stopBeacon(): void {
@@ -212,6 +268,7 @@ export class LanDiscovery {
     this.beaconSocket = null;
     this.beaconInfo = null;
     if (socket !== null) closeQuietly(socket);
+    this.releaseListenerIfUnused();
   }
 
   private sendBeacon(): void {
@@ -226,16 +283,23 @@ export class LanDiscovery {
     }
     if (!bound) return;
     const msg = encodeBeacon(info);
-    for (const target of new Set(this.targets())) {
+    this.refreshPeersQuietly();
+    const sent = new Set<string>();
+    const sendTo = (target: string, port: number): void => {
+      if (sent.has(`${target}:${port}`)) return;
+      sent.add(`${target}:${port}`);
       try {
         // (a failing interface — EHOSTUNREACH, macOS "Local Network" denied — must not stop the others)
-        socket.send(msg, this.port, target, (err) => {
+        socket.send(msg, port, target, (err) => {
           if (err !== null && err !== undefined) this.onError(err);
         });
       } catch (e) {
         this.onError(e instanceof Error ? e : new Error(String(e)));
       }
-    }
+    };
+    for (const target of this.targets()) sendTo(target, this.port);
+    // unicast to the peers of a point-to-point network (Tailscale), where the broadcast does not go
+    for (const peer of this.peers()) sendTo(peer, this.peerPort);
   }
 
   //---------------------------------------
@@ -250,19 +314,83 @@ export class LanDiscovery {
    * Starts listening. Resolves when the socket is bound; rejects with a readable error when it cannot be
    * (the port is taken without SO_REUSEADDR). `localBuildHash`: the games with another one are `buildHashMatches: false`.
    */
-  startScan(localBuildHash: string): Promise<void> {
+  async startScan(localBuildHash: string): Promise<void> {
     this.localBuildHash = localBuildHash;
-    if (this.scanning) return Promise.resolve();
+    if (this.scanning) return;
     this.scanning = true;
+    try {
+      await this.ensureListener();
+    } catch (e) {
+      this.stopScan();
+      const err = e as NodeJS.ErrnoException;
+      const why = err.code === 'EADDRINUSE' ? `UDP port ${this.port} is busy` : err.message;
+      throw new Error(`Cannot search for LAN games: ${why}`, { cause: e });
+    }
+    if (!this.scanning || this.scanTimer !== null) return; // stopScan() came while the socket was being bound
+    this.scanTimer = setInterval(() => this.prune(), Math.max(10, Math.min(250, this.ttlMs / 4)));
+    // peers that are not on a broadcast network (Tailscale): ask them directly, they answer with a beacon
+    this.refreshPeersQuietly();
+    this.sendProbes();
+    this.probeTimer = setInterval(() => this.sendProbes(), this.probeIntervalMs);
+  }
+
+  stopScan(): void {
+    this.scanning = false;
+    if (this.scanTimer !== null) clearInterval(this.scanTimer);
+    this.scanTimer = null;
+    if (this.probeTimer !== null) clearInterval(this.probeTimer);
+    this.probeTimer = null;
+    if (this.emitTimer !== null) clearTimeout(this.emitTimer);
+    this.emitTimer = null;
+    this.games.clear();
+    this.dirty = false;
+    this.releaseListenerIfUnused();
+  }
+
+  private sendProbes(): void {
+    const socket = this.listener;
+    if (socket === null || !this.scanning) return;
+    try {
+      socket.address();
+    } catch {
+      return; // not bound yet
+    }
+    this.refreshPeersQuietly();
+    const msg = encodeProbe();
+    for (const peer of new Set(this.peers())) {
+      try {
+        socket.send(msg, this.peerPort, peer, (err) => {
+          if (err !== null && err !== undefined) this.onError(err);
+        });
+      } catch (e) {
+        this.onError(e instanceof Error ? e : new Error(String(e)));
+      }
+    }
+  }
+
+  private refreshPeersQuietly(): void {
+    try {
+      this.refreshPeers().catch(() => undefined);
+    } catch {
+      // the peer source must never break the discovery
+    }
+  }
+
+  /** The socket on the discovery port, created once for the scan and/or the probe answers of the host. */
+  private ensureListener(): Promise<void> {
+    if (this.listenerReady !== null) return this.listenerReady;
     const socket = createSocket({ type: 'udp4', reuseAddr: true });
-    this.scanSocket = socket;
-    return new Promise<void>((resolve, reject) => {
+    this.listener = socket;
+    const ready = new Promise<void>((resolve, reject) => {
       let bound = false;
-      socket.on('error', (e: NodeJS.ErrnoException) => {
+      socket.on('error', (e) => {
         if (!bound) {
-          this.stopScan();
-          const why = e.code === 'EADDRINUSE' ? `UDP port ${this.port} is busy` : e.message;
-          reject(new Error(`Cannot search for LAN games: ${why}`));
+          if (this.listener === socket) {
+            this.listener = null;
+            this.listenerReady = null;
+          }
+          closeQuietly(socket);
+          reject(e);
         } else {
           this.onError(e);
         }
@@ -272,21 +400,18 @@ export class LanDiscovery {
         bound = true;
         resolve();
       });
-      this.scanTimer = setInterval(() => this.prune(), Math.max(10, Math.min(250, this.ttlMs / 4)));
     });
+    this.listenerReady = ready;
+    return ready;
   }
 
-  stopScan(): void {
-    this.scanning = false;
-    if (this.scanTimer !== null) clearInterval(this.scanTimer);
-    this.scanTimer = null;
-    if (this.emitTimer !== null) clearTimeout(this.emitTimer);
-    this.emitTimer = null;
-    const socket = this.scanSocket;
-    this.scanSocket = null;
+  /** Closes the listener when neither the scan nor the probe answers of a running host need it. */
+  private releaseListenerIfUnused(): void {
+    if (this.scanning || (this.answerProbes && this.beaconSocket !== null)) return;
+    const socket = this.listener;
+    this.listener = null;
+    this.listenerReady = null;
     if (socket !== null) closeQuietly(socket);
-    this.games.clear();
-    this.dirty = false;
   }
 
   /** The current list (fresh copy), the order of the first appearance. */
@@ -303,6 +428,12 @@ export class LanDiscovery {
   }
 
   private onDatagram(data: Buffer, rinfo: RemoteInfo): void {
+    if (this.answerProbes && this.beaconInfo !== null && this.listener !== null && isProbe(data)) {
+      this.listener.send(encodeBeacon(this.beaconInfo), rinfo.port, rinfo.address, (err) => {
+        if (err !== null && err !== undefined) this.onError(err);
+      });
+      return;
+    }
     if (!this.scanning) return;
     const info = parseBeacon(data);
     if (info === null) return;
@@ -377,7 +508,16 @@ let shared: LanDiscovery | null = null;
 
 /** The one discovery of the process. `onError` is used by the first call only. */
 export function getDiscovery(onError?: (e: Error) => void): LanDiscovery {
-  shared ??= new LanDiscovery(onError !== undefined ? { onError } : {});
+  if (shared === null) {
+    // FIX-6: the Tailscale peers (read-only `tailscale status --json`, in the background) are probed / pushed to by unicast
+    const tailscale = new TailscalePeers();
+    shared = new LanDiscovery({
+      peers: () => tailscale.addresses(),
+      refreshPeers: () => tailscale.refresh(),
+      answerProbes: true,
+      ...(onError !== undefined ? { onError } : {}),
+    });
+  }
   return shared;
 }
 
