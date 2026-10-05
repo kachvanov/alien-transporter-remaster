@@ -1,121 +1,121 @@
-# 05 — Проверка: тесты, сверка с оригиналом, бюджеты
+# 05 — Verification: tests, parity checks against the original, budgets
 
-## 1. Всегда: `npm run check`
+## 1. Always: `npm run check`
 
-`tsc --noEmit` (strict, `noImplicitOverride`, `noUncheckedIndexedAccess`) + `eslint` (включая границы слоёв и запрет `Math.random`/`Date`/`performance` в симуляции) + `vitest run`. Задача не сдаётся с красным `check`.
+`tsc --noEmit` (strict, `noImplicitOverride`, `noUncheckedIndexedAccess`) + `eslint` (including layer boundaries and the ban on `Math.random`/`Date`/`performance` in the simulation) + `vitest run`. A task is not handed in with a red `check`.
 
-## 2. Извлечение (M0)
+## 2. Extraction (M0)
 
 - `tools/extract/*.test.ts`:
-  - 20 уровней;
-  - точные счётчики объектов (см. `02` §7);
-  - все обязательные параметры на месте;
-  - у каждого символа из whitelist есть кадры во всех тирах;
-  - нет символов из blacklist;
-  - число звуков = 55;
-  - у каждого шрифта есть PNG и глифы.
-- Оверлей уровней: `build/extract/debug/levelNN-overlay.png` + автотест «центры GroundBox на зелёной разметке» (допуск 2 px).
-- Asset Viewer (`npm run viewer`): глазами проверить contact sheet — нет пустых или сдвинутых кадров, анимации проигрываются. Отдельная вкладка показывает уровень: 3 слоя + оверлей объектов.
+  - 20 levels;
+  - exact object counts (see `02` §7);
+  - all required parameters are present;
+  - every symbol in the whitelist has frames in all tiers;
+  - no symbols from the blacklist;
+  - number of sounds = 55;
+  - every font has a PNG and glyphs.
+- Level overlay: `build/extract/debug/levelNN-overlay.png` + an automated test "GroundBox centres lie on the green markup" (tolerance 2 px).
+- Asset Viewer (`npm run viewer`): check the contact sheet by eye — no empty or shifted frames, animations play. A separate tab shows a level: 3 layers + an object overlay.
 
-## 3. Движок и игра: юнит-тесты
+## 3. Engine and game: unit tests
 
-- Для каждой портированной чистой логики — тесты на значения: AntMath PRNG (эталон первых 10 значений при сиде 12345), AntSignal, AntEntity-трансформы, AntActor-анимация (play/stop/loop/reverse, дробный `animationSpeed`), AntCore и семейства, Frame round-trip, protocol, jitter-буфер.
-- Для систем — smoke: собрать минимальный мир (или загрузить уровень headless), прогнать N тиков, проверить инварианты. Пример: «корабль без газа падает и касается земли за ≤ 100 тиков на Level01».
+- For every ported piece of pure logic — tests on values: AntMath PRNG (reference: the first 10 values at seed 12345), AntSignal, AntEntity transforms, AntActor animation (play/stop/loop/reverse, fractional `animationSpeed`), AntCore and its families, Frame round-trip, protocol, jitter buffer.
+- For systems — smoke tests: build a minimal world (or load a level headless), run N ticks, check invariants. Example: "a ship without thrust falls and touches the ground within ≤ 100 ticks on Level01".
 
-## 4. Golden replays — детерминизм и «физика та же после оптимизаций» (T4.1)
+## 4. Golden replays — determinism and "same physics after optimisations" (T4.1)
 
-- **Запись.** В dev-сборке F9 включает и выключает запись. Воркер пишет `{ seed, level, casualMode, inputs: [[tick, keysDownFlashCodes...], ...] }` (RLE: только тики, где набор клавиш изменился) в `tests/golden/replays/<level>-<name>.json`. Плюс скриптовые реплеи (`tests/golden/scripts/*.ts`), которые генерируют ввод программно: «висеть на газу», «лететь вправо и сесть», «врезаться в стену».
-- **Прогон (Node, без окна).** `src/sim/headless.ts`: загрузить JSON-данные ассетов (без картинок), `AntMath.seed(seed)`, стартовать уровень напрямую (dev-вход `GameState.debugStartLevel(name)`), подавать ввод по тикам. Каждые 35 тиков — sha256 по всем телам в порядке `world.GetBodyList()` (x, y, angle, linVel.x, linVel.y, angVel как Float64) плюс ключевые числа игры (топливо и корпус каждого шаттла, монеты, пассажиры в трюме, счёт цели).
-- **Эталоны** — `tests/golden/expected/<replay>.json` (массив хэшей). Обновляются только командой `npm run golden:update` и только с обоснованием в отчёте («порт исправлен: …»). В T4.3 (оптимизация) обновлять эталоны **запрещено**.
-- **Первый реплей на каждый уровень** — скриптовый «спавн → 10 с без ввода → 10 с газ» (минимум). По мере прохождения добавляются записанные.
+- **Recording.** In the dev build F9 toggles recording. The worker writes `{ seed, level, casualMode, inputs: [[tick, keysDownFlashCodes...], ...] }` (RLE: only the ticks where the set of keys changed) to `tests/golden/replays/<level>-<name>.json`. Plus scripted replays (`tests/golden/scripts/*.ts`) that generate input programmatically: "hang on thrust", "fly right and land", "crash into a wall".
+- **Run (Node, no window).** `src/sim/headless.ts`: load the JSON asset data (no images), `AntMath.seed(seed)`, start the level directly (dev entry `GameState.debugStartLevel(name)`), feed input by tick. Every 35 ticks — a sha256 over all bodies in `world.GetBodyList()` order (x, y, angle, linVel.x, linVel.y, angVel as Float64) plus key game numbers (fuel and hull of each shuttle, coins, passengers in the hold, goal score).
+- **References** — `tests/golden/expected/<replay>.json` (an array of hashes). Updated only with the command `npm run golden:update` and only with a justification in the report ("port fixed: ..."). In T4.3 (optimisation) updating the references is **forbidden**.
+- **First replay for each level** — a scripted "spawn → 10 s without input → 10 s thrust" (at minimum). Recorded ones are added as the game is played through.
 
-## 5. Сверка с оригиналом по поведению (в кадрах)
+## 5. Behaviour parity check against the original (in frames)
 
-Ruffle при лагах замедляется, поэтому меряем в **кадрах/тиках**, а не в секундах. Оригинал — запись экрана Ruffle (`--frame-rate 35`, Retina 2x, QuickTime; частота кадров записи переменная: кадр пишется при изменении картинки, время кадра = pts, тик = 1/35 с). Клипы лежат в `tests/parity/ruffle-clips/` (в репозиторий не попадают: это графика оригинала): **A** — Level01 без ввода ~13 с; **B** — Casual, ↑ ~4 с до потолка, затем отпущен, падение на площадку; **C** — Casual, ↑+←; **D** — Hardcore, ↑+←. У нас: `npm run parity:behavior` (Node, без окна, Level01, сид 12345; шаттл со спавна) и `npm run parity:video` (тот же ввод со стоянки против записи).
+Ruffle slows down when it lags, so we measure in **frames/ticks**, not in seconds. The original is a Ruffle screen recording (`--frame-rate 35`, Retina 2x, QuickTime; the recording frame rate is variable: a frame is written when the picture changes, frame time = pts, tick = 1/35 s). The clips live in `tests/parity/ruffle-clips/` (not committed to the repository: they are the original's graphics): **A** — Level01 with no input, ~13 s; **B** — Casual, ↑ for ~4 s up to the ceiling, then released, fall onto the pad; **C** — Casual, ↑+←; **D** — Hardcore, ↑+←. On our side: `npm run parity:behavior` (Node, no window, Level01, seed 12345; shuttle from spawn) and `npm run parity:video` (the same input from the pad against the recording).
 
-| # | Сценарий | Метрика | Допуск | оригинал (Ruffle) | наш |
+| # | Scenario | Metric | Tolerance | original (Ruffle) | ours |
 |---|---|---|---|---|---|
-| 1 | Level01, спавн P1, без ввода | тиков до первого касания земли | ±1 тик | **не измерено в спавне**: шаттл закрыт затемнением и эффектом появления и виден уже на площадке (y 304.0 во всех кадрах, где он различим). Эквивалент: свободное падение с потолка на площадку (клип B, 160 px): **47.6 тика**, ±0.5 тика; кривая падения совпадает с нашей, rms 0.6 px | 1 (шаттл появляется на площадке, y 303.00 → 305.38 за 9 тиков). Эквивалент: **47.9 тика** (160.2 px). Разница 0.3 тика: **в допуске** |
-| 2 | Level01, шаттл на площадке, полный газ 35 тиков (от нажатия ↑) | высота подъёма в px | ±2 px | **62.3 px** (клип B), ±1.2 px | **62.2 px** (тот же протокол); со спавна (шаттл ещё падает): 55.5. Разница 0.1 px: **в допуске** |
-| 3 | Непрерывный газ с полным баком | тиков до пустого бака | ±1 тик | не измерялось (клипа нет) | 1200 (расход 0.00083 за тик = `fuelRate` 0.025 × `AntG.elapsed` 0.0333; `parity:behavior` печатает 1225.7, потому что из 50 тиков замера расход идёт в 49; до FIX-5 было 1428.6) |
-| 4 | Пассажир идёт к шаттлу | px за 35 тиков | ±1 px | не измерялось (клипа нет) | 11.88 (от первого тика движения первого пассажира в прохождении Level01 пилотом; скорость нарастает, число зависит от того, какой пассажир идёт первым и с какой фазы) |
-| 5 | `Coin_mc` | период анимации в тиках | точно | **28.97 тика** (5 монет, 82 вспышки блика, разброс монет 0.08; отдельные интервалы 25.1–30.0 из-за шага экрана 8.3 мс). Это 29 тиков при ходе Ruffle 99.9% от 35 к/с | 29 — **точно** |
-| 6 | Casual vs Hardcore | угол наклона через 35 тиков «влево» (газ + влево, шаттл со стоянки) | ±1° | Casual (клип C) **−32.4°**; Hardcore (клип D) **−57.1°** | Casual **−32.1°**; Hardcore **−58.3°** (со спавна: −31.3° / −59.6°). Casual: разница 0.2°, **в допуске**. Hardcore: 1.2°, **на границе, см. ниже** |
-| 7 | Взрыв бочки рядом с шаттлом | урон корпусу | точно | не измерялось (клипа нет) | не измерено; по коду `ShuttleSystem` каждый удар (`hasHit`) снимает 0.21 корпуса |
+| 1 | Level01, spawn P1, no input | ticks until first ground contact | ±1 tick | **not measured at spawn**: the shuttle is hidden by the fade-in and the spawn effect and is already visible on the pad (y 304.0 in all frames where it is distinguishable). Equivalent: free fall from the ceiling onto the pad (clip B, 160 px): **47.6 ticks**, ±0.5 tick; the fall curve matches ours, rms 0.6 px | 1 (the shuttle appears on the pad, y 303.00 → 305.38 over 9 ticks). Equivalent: **47.9 ticks** (160.2 px). Difference 0.3 tick: **within tolerance** |
+| 2 | Level01, shuttle on the pad, full thrust for 35 ticks (from pressing ↑) | climb height in px | ±2 px | **62.3 px** (clip B), ±1.2 px | **62.2 px** (same protocol); from spawn (shuttle still falling): 55.5. Difference 0.1 px: **within tolerance** |
+| 3 | Continuous thrust with a full tank | ticks until the tank is empty | ±1 tick | not measured (no clip) | 1200 (consumption 0.00083 per tick = `fuelRate` 0.025 × `AntG.elapsed` 0.0333; `parity:behavior` prints 1225.7 because, of the 50 measurement ticks, consumption applies in 49; before FIX-5 it was 1428.6) |
+| 4 | Passenger walks to the shuttle | px per 35 ticks | ±1 px | not measured (no clip) | 11.88 (from the first tick of the first passenger's movement in a Level01 run flown by a pilot; the speed ramps up, so the number depends on which passenger walks first and from which phase) |
+| 5 | `Coin_mc` | animation period in ticks | exact | **28.97 ticks** (5 coins, 82 glint flashes, coin spread 0.08; individual intervals 25.1–30.0 due to the 8.3 ms screen step). This is 29 ticks at a Ruffle speed of 99.9% of 35 fps | 29 — **exact** |
+| 6 | Casual vs Hardcore | tilt angle after 35 ticks of "left" (thrust + left, shuttle from the pad) | ±1° | Casual (clip C) **−32.4°**; Hardcore (clip D) **−57.1°** | Casual **−32.1°**; Hardcore **−58.3°** (from spawn: −31.3° / −59.6°). Casual: difference 0.2°, **within tolerance**. Hardcore: 1.2°, **at the limit, see below** |
+| 7 | Barrel explosion near the shuttle | hull damage | exact | not measured (no clip) | not measured; per the `ShuttleSystem` code each hit (`hasHit`) removes 0.21 of the hull |
 
-### Как измерено (`tools/parity/video.ts`, `video-compare.ts`)
+### How it was measured (`tools/parity/video.ts`, `video-compare.ts`)
 
-- **Сцена** вырезается ffmpeg (смещение 112,140; 1600×1200: ровно 2 px записи на логический px; калибровка по скриншоту Ruffle `level01.png`). **Шаттл** ищется по цвету (оранжевый корпус и лапы, тёмные тёплые тона, чёрное стекло): шаблон нетронутого шаттла (из конца клипа A) совмещается с гладкими цветовыми полями кадра по положению и углу (шаг уточнения 0.1 px и 0.1°). Кадры с красной вспышкой попадания (оценка шаблона < 0.3) отбрасываются, дыры закрывает линейная интерполяция. **Монета**: моменты появления блика (бело-жёлтые пиксели) → средний интервал.
-- **Начало отсчёта.** Нажатие клавиш на записи не видно, видно только движение. Поэтому те же клавиши проигрываются у нас (60 тиков покоя, затем клавиши; метрики считаются от нажатия), а момент нулевого тика на записи находится подгонкой сдвига по времени (метод наименьших квадратов) по всей кривой первых ~45 тиков. Невязка (rms) показывает, согласуются ли кривые целиком: B подъём 0.68 px; C 1.5 px и 1.1°; D 1.1 px и 0.57°; падение 0.6 px. Подгонка по подъёму и по углу даёт нулевой тик с разницей: C 2 тика (клавиша ← нажата позже ↑: человек), D 0.8 тика. Проверка скорости без модели (начало не нужно): время подъёма с 5 до 40 px: B 19.2 против 18.7 тика, C 20.6 против 19.8, D 20.5 против 20.7.
-- **Погрешность.** Позиция шаттла ±0.25 px (0.5 px записи). Кадры показываются по обновлению экрана 120 Гц, поэтому время кадра ±8 мс = ±0.3 тика: при скорости подъёма 3.4 px/тик это ±1 px, при скорости поворота 1.1°/тик ±0.3° (плюс ±0.5° оценки угла).
-- **Hardcore (клип D) на границе допуска.** Кривая угла совпадает с нашей до 33-го тика (≤ 0.6°); на 34–37-м тике шаттл ударяется в левую стену (красная вспышка: кадры отброшены, значение на 35-м тике интерполировано), и после удара у нас шаттл уходит в стену на 1.5–2 px дальше, чем на записи (x −48 против −46). Разница 1.2° на 35-м тике лежит внутри погрешности этого интервала (±1.5°), поэтому строго подтвердить ±1° нельзя; на 30-м тике (до удара) −53.1° против −52.9° (0.2°). Чтобы подтвердить строго, переснять без стены (ниже).
+- **Scene** is cropped out by ffmpeg (offset 112,140; 1600×1200: exactly 2 recording px per logical px; calibrated against the Ruffle screenshot `level01.png`). **Shuttle** is located by colour (orange hull and legs, dark warm tones, black glass): a template of the untouched shuttle (from the end of clip A) is aligned to the smooth colour fields of the frame by position and angle (refinement step 0.1 px and 0.1°). Frames with the red hit flash (template score < 0.3) are discarded, and the gaps are filled by linear interpolation. **Coin**: moments when the glint appears (white-yellow pixels) → mean interval.
+- **Time origin.** Key presses are not visible in the recording, only the motion is. So the same keys are played back on our side (60 ticks of rest, then the keys; metrics are counted from the key press), and the moment of tick zero in the recording is found by fitting a time shift (least squares) over the whole curve of the first ~45 ticks. The residual (rms) shows whether the curves agree as a whole: B climb 0.68 px; C 1.5 px and 1.1°; D 1.1 px and 0.57°; fall 0.6 px. Fitting by climb and by angle gives a tick-zero that differs: C by 2 ticks (the ← key was pressed later than ↑: a human), D by 0.8 tick. A speed check without a model (no origin needed): climb time from 5 to 40 px: B 19.2 vs 18.7 ticks, C 20.6 vs 19.8, D 20.5 vs 20.7.
+- **Uncertainty.** Shuttle position ±0.25 px (0.5 recording px). Frames are shown on the 120 Hz screen refresh, so frame time is ±8 ms = ±0.3 tick: at a climb speed of 3.4 px/tick that is ±1 px, at a rotation speed of 1.1°/tick ±0.3° (plus ±0.5° from the angle estimate).
+- **Hardcore (clip D) at the tolerance limit.** The angle curve matches ours up to tick 33 (≤ 0.6°); on ticks 34–37 the shuttle hits the left wall (red flash: frames discarded, the value at tick 35 interpolated), and after the hit our shuttle goes 1.5–2 px further into the wall than in the recording (x −48 vs −46). The 1.2° difference at tick 35 lies within the uncertainty of this interval (±1.5°), so ±1° cannot be strictly confirmed; at tick 30 (before the hit) it is −53.1° vs −52.9° (0.2°). To confirm strictly, re-record without a wall (below).
 
-### Находка FIX-5: `AntG.elapsed`
+### Finding FIX-5: `AntG.elapsed`
 
-Первая сверка показала, что поворот в Hardcore у оригинала в 1.17 раза быстрее нашего (кривая угла D опережала нашу на 2.4 тика, расхождение 3–6°). Причина: оригинал в `PrepareState` ставит `AntG.fixedElapsed = true` и `AntG.maxElapsed = 0.0333`, поэтому каждый тик игры равен **0.0333 с** (`Anthill.enterFrameHandler`), а порт брал 1/35 = 0.02857 с. Исправлено (`src/engine/core/Anthill.ts`, `src/sim/GameLoop.ts`): `AntG.elapsed` берётся из `fixedElapsed`/`maxElapsed`, как в оригинале. Вместе меняются все величины на `AntG.elapsed`: поворот (`steeringSpeed`), расход топлива (бак на 1200 тиков вместо 1428), задержки и таймеры (`respawnDelay` ракет 150 тиков вместо 175, задержки пассажиров и т. п.). После исправления углы совпали с записью (rms угла Hardcore 0.57°). Эталоны `tests/golden` пересчитаны (23 файла), сценарии `level01-deliver`, `level11-barrels`, `level13-sensor` записаны заново пилотом.
+The first parity check showed that the original's Hardcore turn is 1.17 times faster than ours (the angle curve of D led ours by 2.4 ticks, a discrepancy of 3–6°). Cause: in `PrepareState` the original sets `AntG.fixedElapsed = true` and `AntG.maxElapsed = 0.0333`, so every game tick equals **0.0333 s** (`Anthill.enterFrameHandler`), while the port used 1/35 = 0.02857 s. Fixed (`src/engine/core/Anthill.ts`, `src/sim/GameLoop.ts`): `AntG.elapsed` is taken from `fixedElapsed`/`maxElapsed`, as in the original. All quantities that depend on `AntG.elapsed` change together: turning (`steeringSpeed`), fuel consumption (a tank lasts 1200 ticks instead of 1428), delays and timers (rocket `respawnDelay` 150 ticks instead of 175, passenger delays, etc.). After the fix the angles matched the recording (Hardcore angle rms 0.57°). The `tests/golden` references were recomputed (23 files); the scenarios `level01-deliver`, `level11-barrels`, `level13-sensor` were re-recorded by a pilot.
 
-### Что переснять, чтобы закрыть остальное
+### What to re-record to close the rest
 
-- **#6 строго (±1°)**: Hardcore и Casual, Level01, шаттл на старте, зажать **↑ и → одновременно** ~1.5 с и отпустить (справа от старта свободно, стены нет, красной вспышки нет). Угол на 35-м тике тогда определяется только рулением. Параметры записи те же.
-- **#3**: Level01, Casual, зажать ↑ до пустого бака (шаттл висит у потолка; ~34 с = 1200 тиков), запись до гашения пламени и ещё 3 с. Начало отсчёта — первое движение, конец — исчезновение пламени (в `video.ts` для этого нужно добавить счёт пикселей пламени под шаттлом).
-- **#4**: Level01, посадить шаттл на площадку рядом с пассажиром и записать 6 с, как пассажир идёт к шаттлу.
-- **#7**: Level01, ударить шаттлом о бочку (или взрыв бочки рядом) и записать HUD (индикатор корпуса слева сверху) до и после.
-- **#1 в исходной постановке** (спавн) записью не измерить: затемнение и эффект появления закрывают первые тики шаттла; эквивалент (падение) уже сверен.
+- **#6 strictly (±1°)**: Hardcore and Casual, Level01, shuttle at the start, hold **↑ and → together** for ~1.5 s and release (the area to the right of the start is clear, there is no wall, no red flash). The angle at tick 35 is then determined by steering alone. Same recording parameters.
+- **#3**: Level01, Casual, hold ↑ until the tank is empty (the shuttle hangs at the ceiling; ~34 s = 1200 ticks), record until the flame goes out and 3 s more. The time origin is the first movement, the end is the flame disappearing (in `video.ts` this requires adding a count of flame pixels below the shuttle).
+- **#4**: Level01, land the shuttle on the pad next to a passenger and record 6 s of the passenger walking to the shuttle.
+- **#7**: Level01, hit a barrel with the shuttle (or a barrel explosion nearby) and record the HUD (the hull indicator at top left) before and after.
+- **#1 as originally posed** (spawn) cannot be measured by a recording: the fade-in and the spawn effect cover the shuttle's first ticks; the equivalent (the fall) has already been checked.
 
-Колонка «наш» заполняется командами `npm run parity:behavior` (со спавна, Node, без окна, Level01, сид 12345; `tools/parity/behavior.ts`) и `npm run parity:video` (со стоянки, против записи). Метрики `parity:behavior` считаются от первого тика, в котором шаттл P1 есть в игре. Эталонные значения нашей версии, привязанные хэшами, — в tests/golden (T4.1).
+The "ours" column is filled in by the commands `npm run parity:behavior` (from spawn, Node, no window, Level01, seed 12345; `tools/parity/behavior.ts`) and `npm run parity:video` (from the pad, against the recording). The `parity:behavior` metrics are counted from the first tick in which the P1 shuttle is present in the game. The reference values of our version, pinned by hashes, are in tests/golden (T4.1).
 
-## 6. Визуальная сверка с Ruffle (T4.2)
+## 6. Visual parity check against Ruffle (T4.2)
 
-- Эталоны: скриншоты из Ruffle (окно 800×600 логических, на Retina снимок 1600×1200 → уменьшить до 800×600 с `sharp`, kernel `lanczos3`) → `tests/visual/reference/<scene>.png`. Сцены: главное меню, выбор уровня, гараж, credits, пауза, экран завершения уровня, Level01–Level20 в первый кадр после появления.
-- Наш снимок: `npm run shot -- --scene=<scene>` запускает Electron скрыто, тир 1x, `webContents.capturePage()` области 800×600 → `tests/visual/actual/`.
-- Сравнение: `pixelmatch` (threshold 0.1). Отчёт `tests/visual/report.html` — три картинки рядом (эталон / наш / diff) и diff%.
-- Критерий: статические экраны ≤ 3% отличающихся пикселей. Уровни ≤ 6%: случайные элементы (пассажиры, эффекты) у Ruffle и у нас разные, поэтому уровни дополнительно смотрит человек. Всё, что выше порога, разбирается: сдвиг origin, неверный blend, не тот кадр.
+- References: screenshots from Ruffle (800×600 logical window; on Retina the capture is 1600×1200 → downscale to 800×600 with `sharp`, kernel `lanczos3`) → `tests/visual/reference/<scene>.png`. Scenes: main menu, level select, garage, credits, pause, level-complete screen, Level01–Level20 on the first frame after spawn.
+- Our capture: `npm run shot -- --scene=<scene>` launches Electron hidden, tier 1x, `webContents.capturePage()` of the 800×600 area → `tests/visual/actual/`.
+- Comparison: `pixelmatch` (threshold 0.1). The report `tests/visual/report.html` shows three images side by side (reference / ours / diff) and the diff%.
+- Criterion: static screens ≤ 3% differing pixels. Levels ≤ 6%: random elements (passengers, effects) differ between Ruffle and ours, so levels are additionally reviewed by a human. Everything above the threshold is investigated: origin shift, wrong blend, wrong frame.
 
-## 7. E2E (Playwright + Electron, T0.1/T1.7 и дальше)
+## 7. E2E (Playwright + Electron, T0.1/T1.7 onwards)
 
-`tests/e2e/smoke.spec.ts`: запуск → главное меню видно (canvas не пустой, есть кадры `Frame`) → старт Level01 (dev-флаг `--start-level=Level01`) → 10 с скриптового ввода → пауза (P) → выход. Ошибок в консоли renderer/worker/main быть не должно.
+`tests/e2e/smoke.spec.ts`: launch → main menu visible (canvas not empty, `Frame` frames present) → start Level01 (dev flag `--start-level=Level01`) → 10 s of scripted input → pause (P) → exit. There must be no errors in the renderer/worker/main console.
 
-## 8. Сеть (T3.x)
+## 8. Network (T3.x)
 
-- **Автоматически (Node):**
-  - `electron/net/wsServer.ts` поднимается в тесте без Electron; клиент `ws` делает handshake → `welcome`;
-  - `buildHash` не совпал → `reject: version`;
-  - второй клиент → `reject: full`;
-  - Frame проходит насквозь байт в байт;
-  - ввод с `seq` меньше последнего отброшен.
-- Jitter-буфер: синтетические времена прихода (равномерно, джиттер ±15 мс, пропуск 5 кадров, пачка из 10) → проверка выбранной задержки и отсутствия «прыжков назад».
-- `tools/net/latency-proxy.ts`: TCP-прокси с задержкой 30±15 мс для ручного прогона.
-- **Вручную, по чек-листу:**
-  1. два экземпляра на одном Маке (`npm run dev -- --profile=2`), host и join по `127.0.0.1`;
-  2. автопоиск показывает хост ≤ 2 с;
-  3. клиент закрыт посреди уровня → хост продолжает, P2 снят, уведомление;
-  4. хост закрыт → у клиента «Connection lost», возврат в меню;
-  5. то же через latency-proxy;
-  6. Mac ↔ Windows по Wi-Fi (оба направления: хостит Мак, хостит Windows).
+- **Automated (Node):**
+  - `electron/net/wsServer.ts` is brought up in a test without Electron; a `ws` client does the handshake → `welcome`;
+  - `buildHash` mismatch → `reject: version`;
+  - a second client → `reject: full`;
+  - a Frame passes through byte for byte;
+  - input with a `seq` lower than the last one is dropped.
+- Jitter buffer: synthetic arrival times (even, jitter ±15 ms, a gap of 5 frames, a burst of 10) → check the chosen delay and the absence of "jumps back".
+- `tools/net/latency-proxy.ts`: a TCP proxy with a 30±15 ms delay for manual runs.
+- **Manually, by checklist:**
+  1. two instances on one Mac (`npm run dev -- --profile=2`), host and join via `127.0.0.1`;
+  2. auto-discovery shows the host within ≤ 2 s;
+  3. client closed mid-level → the host continues, P2 is removed, a notification appears;
+  4. host closed → the client shows "Connection lost" and returns to the menu;
+  5. the same through latency-proxy;
+  6. Mac ↔ Windows over Wi-Fi (both directions: Mac hosts, Windows hosts).
 
-## 9. Бюджеты производительности (T4.3/T4.4)
+## 9. Performance budgets (T4.3/T4.4)
 
-Замер: `--perf-log=perf.json` пишет раз в секунду FPS, p50/p95 времени тика, размер Frame, `process.getProcessMemoryInfo()` (всех процессов), оценку VRAM (сумма байтов загруженных текстур). Сценарии: Level11 (много взрывов бочек) и Level13 (ракеты, сенсоры), по 60 с скриптового ввода, вдвоём.
+Measurement: `--perf-log=perf.json` writes once per second the FPS, p50/p95 of tick time, Frame size, `process.getProcessMemoryInfo()` (all processes), and a VRAM estimate (the sum of bytes of loaded textures). Scenarios: Level11 (many barrel explosions) and Level13 (rockets, sensors), 60 s of scripted input each, two players.
 
-| Метрика | Windows-ноутбук (тир 2x) | MacBook M5 Pro (тир 3x) |
+| Metric | Windows laptop (tier 2x) | MacBook M5 Pro (tier 3x) |
 |---|---|---|
-| FPS рендера | стабильно 60 | стабильно 120 |
-| Тик симуляции p95 | ≤ 4 мс | ≤ 4 мс (было 1 мс, ослаблено 2026-10-04: см. ниже) |
-| RAM всего приложения | ≤ 700 МБ | ≤ 1.2 ГБ |
-| VRAM (оценка) | ≤ 350 МБ | ≤ 900 МБ |
-| Загрузка уровня | ≤ 1 с | ≤ 0.5 с |
-| Сеть (хост → клиент) | ≤ 500 КБ/с | — |
-| Задержка ввода клиента (LAN) | ≤ 100 мс | — |
+| Render FPS | steady 60 | steady 120 |
+| Simulation tick p95 | ≤ 4 ms | ≤ 4 ms (was 1 ms, relaxed 2026-10-04: see below) |
+| Total app RAM | ≤ 700 MB | ≤ 1.2 GB |
+| VRAM (estimate) | ≤ 350 MB | ≤ 900 MB |
+| Level load | ≤ 1 s | ≤ 0.5 s |
+| Network (host → client) | ≤ 500 KB/s | — |
+| Client input latency (LAN) | ≤ 100 ms | — |
 
-**Как мерить (T4.3).**
-- В приложении: `electron . --start-level=Level11 --perf-log=perf.json` (путь относительно рабочей папки процесса). Раз в секунду (35 тиков) в файл идёт строка: `fps`, `simFps`, `tickP50/P95/P99/Max/Mean` (мс), доли `plugins.update`, `physics.step`, `core.systems`, `frameWriter`, `elementSimulation`, `antLight` (мс на тик, вложенные: `plugins.update` содержит физику и системы), размер Frame и `ramMB` всех процессов; в файле есть и `summary` (min/mean/max по секундам). Замер делает `src/sim/perfProbe.ts` (только читает часы, игру не меняет: тест `perf-probe.test.ts`).
-- Без окна: `npx tsx tools/perf/profile.ts --replays=level11-barrels,level13-sensor --ticks=2100` (p50/p95 и доли подсистем, по системам отдельно; `--frame-hash` печатает sha256 потока всех кадров: после оптимизации он не должен меняться; `--alloc` — аллокации; `--throttle=4` пересчитывает числа в «CPU ×4 медленнее»). CPU-профиль: `node --import tsx --cpu-prof tools/perf/profile.ts` и `node tools/perf/cpuprof-top.mjs <файл>`.
-- T4.4, память и тиры: `npx electron-vite build && npx tsx tools/perf/measure.ts --level=Level11 --seconds=60 --tier=2x` — то же приложение с сценарным вводом (газ и повороты по фиксированному шаблону), печатает память процессов по типам (на macOS ещё `footprint`: он видит графическую память, которую `workingSetSize` не показывает), оценку VRAM (`vramMB`: сумма `w×h×4` загруженных страниц атласов; она же в F3 и в `--perf-log`) и итог `summary`. `--then=Level13` меняет уровень посередине (атлас прежнего уровня должен выгрузиться), `--lose-context` теряет и возвращает WebGL-контекст. Страница атласа уходит на GPU сразу после декодирования, а её `ImageBitmap` закрывается: открытый битмап держит полную RGBA-копию страницы в RAM renderer-процесса до сборки мусора (на 3x это ~565 МБ стартовых групп). Тиры, которых нет в сборке (на Windows нет `gfx/3x`), main находит по файлам на диске и автовыбор их не берёт.
-- Тики подряд (Node) в 3-4 раза быстрее, чем в приложении: воркер просыпается раз в 28.6 мс, ядро успевает «остыть» (частота, кэши). Бюджет `Тик симуляции p95` меряется по `--perf-log` в приложении, а не по Node.
-- Решение пользователя 2026-10-04: бюджет тика на Mac ослаблен с 1 до 4 мс (как на Windows). Причина: в приложении p95 равен 2.62 мс (Level11) и 2.02 мс (Level13) при периоде тика 28.6 мс (запас больше 10 раз), а в Node при прогретом ядре 0.58 и 0.44 мс; разница объясняется остыванием ядра между тиками, а не кодом. Цифра в 1 мс была выбрана до первого замера.
+**How to measure (T4.3).**
+- In the app: `electron . --start-level=Level11 --perf-log=perf.json` (the path is relative to the process working directory). Once per second (35 ticks) a line goes into the file: `fps`, `simFps`, `tickP50/P95/P99/Max/Mean` (ms), the shares `plugins.update`, `physics.step`, `core.systems`, `frameWriter`, `elementSimulation`, `antLight` (ms per tick, nested: `plugins.update` contains physics and systems), the Frame size and `ramMB` of all processes; the file also has a `summary` (min/mean/max over the seconds). The measurement is done by `src/sim/perfProbe.ts` (it only reads clocks and does not change the game: test `perf-probe.test.ts`).
+- Without a window: `npx tsx tools/perf/profile.ts --replays=level11-barrels,level13-sensor --ticks=2100` (p50/p95 and subsystem shares, per system separately; `--frame-hash` prints the sha256 of the stream of all frames: it must not change after an optimisation; `--alloc` — allocations; `--throttle=4` rescales the numbers to "CPU ×4 slower"). CPU profile: `node --import tsx --cpu-prof tools/perf/profile.ts` and `node tools/perf/cpuprof-top.mjs <file>`.
+- T4.4, memory and tiers: `npx electron-vite build && npx tsx tools/perf/measure.ts --level=Level11 --seconds=60 --tier=2x` — the same app with scripted input (thrust and turns following a fixed pattern); it prints process memory by type (on macOS also `footprint`: it sees the graphics memory that `workingSetSize` does not show), the VRAM estimate (`vramMB`: the sum of `w×h×4` of the loaded atlas pages; the same figure is in F3 and in `--perf-log`) and a final `summary`. `--then=Level13` switches the level midway (the previous level's atlas must be unloaded), `--lose-context` loses and restores the WebGL context. An atlas page goes to the GPU right after decoding and its `ImageBitmap` is closed: an open bitmap keeps a full RGBA copy of the page in the renderer process's RAM until garbage collection (on 3x that is ~565 MB for the starting groups). Tiers that are not in the build (on Windows there is no `gfx/3x`) are found by main from the files on disk, and auto-selection does not pick them.
+- Back-to-back ticks (Node) run 3-4 times faster than in the app: the worker wakes up once every 28.6 ms, so the core has time to "cool down" (frequency, caches). The `Simulation tick p95` budget is measured from `--perf-log` in the app, not in Node.
+- User decision 2026-10-04: the tick budget on Mac was relaxed from 1 to 4 ms (same as Windows). Reason: in the app p95 is 2.62 ms (Level11) and 2.02 ms (Level13) with a tick period of 28.6 ms (a margin of more than 10x), and in Node with a warm core 0.58 and 0.44 ms; the difference is explained by the core cooling down between ticks, not by the code. The 1 ms figure was chosen before the first measurement.
 
-## 10. Сборки (T4.5/T4.6)
+## 10. Builds (T4.5/T4.6)
 
-- macOS: dmg открывается, приложение запускается на M5, есть иконка, работают fullscreen и Retina 3x. При запросе доступа к локальной сети текст из `NSLocalNetworkUsageDescription` виден. Прогресс сохраняется в `~/Library/Application Support/<appName>/save.json`.
-- Windows 10: и NSIS-установщик, и portable запускаются (SmartScreen: «Подробнее → Выполнить в любом случае»), Defender Firewall спрашивает доступ при хостинге. Прогресс — в `%APPDATA%/<appName>/save.json`. Perf overlay в пределах бюджета.
-- Кросс-проверка LAN между собранными версиями (не dev).
+- macOS: the dmg opens, the app launches on the M5, there is an icon, fullscreen and Retina 3x work. When local network access is requested, the text from `NSLocalNetworkUsageDescription` is visible. Progress is saved to `~/Library/Application Support/<appName>/save.json`.
+- Windows 10: both the NSIS installer and the portable build launch (SmartScreen: "More info → Run anyway"), Defender Firewall asks for access when hosting. Progress is in `%APPDATA%/<appName>/save.json`. The perf overlay is within budget.
+- Cross-check LAN between the built versions (not dev).
