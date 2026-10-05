@@ -5,7 +5,7 @@ Updated: 2026-10-04 · Last merge: FIX(M3) 2b4167a
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| T5.3 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
+| — | | | | |
 
 ## Gates
 | Milestone | status |
@@ -173,3 +173,6 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - FIX-5 out of scope: level11-barrels replay now ends with the shuttle dead around tick 1250 (fuel burns 17% faster), so T4.3 perf runs on it (--ticks=2100) see a dead shuttle at the end; parity:behavior #4 is unstable by construction; the tracker loses frames in the red hit flash and has no flame detection yet (needed for #3); other users of AntG.elapsed (particles, camera shake) are checked only by tests. The old T4.2 note "AntG.elapsed init 0.02 vs 0.028" is resolved: the real value is 0.0333.
 - Optional re-records for strict parity (user decides): Hardcore and Casual with UP+RIGHT 1.5 s without hitting a wall (#6), hold UP until the tank is empty (#3), passenger walk (#4), barrel hit with HUD visible (#7). Concrete instructions are in docs/05 §5.
 - 2026-10-05 T5.4 complete: docs/05 translated (4a4fb34); a leftover Russian comment in docs/01 fixed by the orchestrator. The only Cyrillic left in tracked files is the test-data key 'ц' (Russian keyboard layout) in tests/unit/render.test.ts. The repository is English-only. Next: T5.3 (local auto builds), then the user pushes main, then the v0.1.0 release (no binaries).
+- 2026-10-05 T5.3 merged 49ec902 (attempt 1; 1227 tests). `npm run dist:all` builds dmg arm64 + Setup/portable x64 from a `git archive` snapshot of HEAD (names carry the short hash; first real run: 55 s, dmg 368 MB, exes 233 MB); `.githooks/post-merge` starts a detached build after merges into main that touch src/electron/resources/package*.json/electron-builder.yml (lock + one queued slot, osascript notification), `npm run dist:status`, `AT_NO_AUTOBUILD=1` skips one merge. The hook is enabled in the main copy (`npm run hooks:install`, done by the orchestrator at the user's request); first manual build 49ec902 done. Every electron-builder call has `--publish never`. docs/05 §10 has the note; README only shows `<hash>` in file names.
+- T5.3 out of scope: old unversioned builds in dist/ (Alien Transporter Remaster-0.1.0-arm64.dmg, mac-arm64/, win-unpacked/, older .exe) are not rotated — delete by hand; the macOS notification banner was not seen by the agent; a SIGKILL during a build can leave a ~1 GB tmp folder.
+- 2026-10-05 Windows kit ~/Desktop/at-win-measure/ refreshed: Setup 0.1.0-49ec902.exe (with the fixed 0.0333 s tick) + English INSTRUCTIONS-for-Claude.md (docs/08).

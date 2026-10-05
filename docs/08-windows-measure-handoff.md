@@ -12,7 +12,7 @@ You are Claude on a Windows 10 laptop (8 GB). The laptop's owner is helping to c
 
 ## What is next to it
 
-`Alien Transporter Remaster Setup 0.1.0.exe` (≈233 MB) is the installer. The owner will tell you where it is (a flash drive/folder). Copy it to `C:\at-measure\`.
+`Alien Transporter Remaster Setup 0.1.0-<hash>.exe` (≈233 MB; the hash is the build commit) is the installer. The owner will tell you where it is (a flash drive/folder). Copy it to `C:\at-measure\`.
 
 ## Step 1. Machine parameters (read only)
 
@@ -28,7 +28,7 @@ Record the output in the report. Ask the owner to close heavy programs (a browse
 
 ## Step 2. Installation
 
-1. Ask the owner for permission and run the installer `C:\at-measure\Alien Transporter Remaster Setup 0.1.0.exe`.
+1. Ask the owner for permission and run the installer `C:\at-measure\Alien Transporter Remaster Setup 0.1.0-<hash>.exe`.
 2. Windows will show the blue SmartScreen window: **the owner** clicks "More info" → "Run anyway" (the build is not signed).
 3. Install with the default settings. Find the installed exe (usually the "Alien Transporter Remaster" shortcut on the desktop/in the Start menu; get the path from the shortcut: `(New-Object -ComObject WScript.Shell).CreateShortcut("<path to .lnk>").TargetPath`). Remember the path as `$exe`.
 
