@@ -10,9 +10,11 @@ import { FRAME_PAUSED, NO_LEVEL_GROUP } from '../../src/frame/constants';
 import { readFrame } from '../../src/frame/FrameReader';
 import {
   buildButtonFaces,
+  buildGameOverMarks,
   ClientViewModel,
   DIM_ALPHA,
   dimTint,
+  frameHasGameOverPopup,
   VIEW_ONLY_AFTER_FRAMES,
   VIEW_ONLY_HINT,
 } from '../../src/render/ClientViewModel';
@@ -86,6 +88,68 @@ describe('ClientViewModel: the pause popup of the host', () => {
     m.reset();
     expect(m.dim).toBe(false);
     expect(m.hostPaused).toBe(false);
+  });
+});
+
+// FIX-9: the game over popup of the host (no header flag: G.gamePause is not raised for it; read from the title node).
+describe('ClientViewModel: the game over popup of the host', () => {
+  it('the popup turns the dim look on and off at once, with a level present and the pause flag clear', () => {
+    const m = new ClientViewModel(3);
+    m.push(7, 0, false);
+    expect(m.hostGameOver).toBe(false);
+    expect(m.dim).toBe(false);
+    m.push(7, 0, true);
+    expect(m.hostGameOver).toBe(true);
+    expect(m.dim).toBe(true);
+    expect(m.hostPaused).toBe(false);
+    expect(m.viewOnly).toBe(false);
+    m.push(7, 0, true);
+    expect(m.dim).toBe(true);
+    m.push(7, 0, false); // the host restarted (the popup is gone): the normal look returns with the very next frame
+    expect(m.hostGameOver).toBe(false);
+    expect(m.dim).toBe(false);
+  });
+
+  it('is independent of the pause popup and of the menu mode; the argument is optional; reset() clears it', () => {
+    const m = new ClientViewModel(2);
+    m.push(7, FRAME_PAUSED, true);
+    expect(m.dim).toBe(true);
+    m.push(7, 0, true); // (the pause popup closed, the game over popup stays)
+    expect(m.hostPaused).toBe(false);
+    expect(m.dim).toBe(true);
+    m.push(7); // (a frame without the popup)
+    expect(m.dim).toBe(false);
+    m.push(7, 0, true);
+    m.reset();
+    expect(m.hostGameOver).toBe(false);
+    expect(m.dim).toBe(false);
+    m.push(NO_LEVEL_GROUP, 0, true);
+    m.push(NO_LEVEL_GROUP, 0, false); // (the host left to a menu: the menu mode takes over after its delay)
+    expect(m.dim).toBe(true);
+    expect(m.hostGameOver).toBe(false);
+  });
+});
+
+describe('game over popup marks', () => {
+  const keys = [
+    'GameOverPopupBG_mc#0', // 0 (shared with the confirm popup of the level select: not a mark)
+    'GameOverTextEN_mc#0', // 1
+    'ConfirmTextEN_mc#0', // 2
+    'Player1GameOver_mc#0', // 3 (the blinker of a player, not the popup)
+    'GameOverTextRU_mc#0', // 4 (another language of the texts)
+    'BtnRestart_mc#0', // 5
+  ];
+  const marks = buildGameOverMarks(keys);
+
+  it('marks only the title clip of the popup', () => {
+    expect([...marks]).toEqual([0, 1, 0, 0, 1, 0]);
+  });
+
+  it('frameHasGameOverPopup finds the title among the nodes', () => {
+    expect(frameHasGameOverPopup([], marks)).toBe(false);
+    expect(frameHasGameOverPopup([{ texId: 0 }, { texId: 2 }, { texId: 3 }, { texId: 5 }], marks)).toBe(false);
+    expect(frameHasGameOverPopup([{ texId: 0 }, { texId: 1 }, { texId: 5 }], marks)).toBe(true);
+    expect(frameHasGameOverPopup([{ texId: 0xffff }], marks)).toBe(false); // (a node without a texture)
   });
 });
 
@@ -176,4 +240,54 @@ describe.skipIf(!hasAssets)('levelGroup of the frames of a host', () => {
     expect(view.dim).toBe(false);
     expect(f.levelGroup).toBe(1);
   }, 60_000);
+
+  // FIX-9: the real game over of the host: the last life is lost (the dev command crashShuttle), the popup appears in the frames
+  // with no header flag; its buttons are muted faces; restarting from the popup (Restart) brings the normal look back.
+  it('game over: the title of the popup is in the frames (paused flag clear), the buttons are muted; the host leaves it -> normal', async () => {
+    const manifest = JSON.parse(readFileSync(resolve(process.cwd(), 'assets', 'manifest.json'), 'utf8')) as Manifest;
+    const keys = (manifest.frames as unknown as readonly { key: string }[]).map((f) => f.key);
+    const faces = buildButtonFaces(keys);
+    const marks = buildGameOverMarks(keys);
+    const view = new ClientViewModel();
+    const run = await runHeadless({ seed: 1, ticks: 150 });
+    run.loop.command('startLevel', ['1']);
+    const tickFrame = (aKeys: number[]): ReturnType<typeof readFrame> => {
+      const snap = emptyInputSnapshot();
+      snap.keysDown = aKeys;
+      const f = readFrame(run.loop.tick(snap) as ArrayBuffer);
+      view.push(f.levelGroup, f.flags, frameHasGameOverPopup(f.nodes, marks));
+      return f;
+    };
+    const dimNodes = (f: ReturnType<typeof readFrame>): number => f.nodes.filter((n) => faces.dim[n.texId] === 1).length;
+    let f = tickFrame([]);
+    for (let i = 0; i < 90; i++) f = tickFrame([]);
+    expect(f.levelGroup).toBe(1);
+    expect(view.dim).toBe(false);
+    const hud = dimNodes(f);
+
+    run.loop.command('crashShuttle');
+    let seen = -1;
+    for (let i = 0; i < 200 && seen < 0; i++) {
+      f = tickFrame([]);
+      if (view.hostGameOver) seen = i;
+    }
+    expect(seen).toBeGreaterThanOrEqual(0);
+    for (let i = 0; i < 60; i++) f = tickFrame([]); // (the popup has slid in)
+    expect(f.levelGroup).toBe(1); // (the level stays loaded)
+    expect((f.flags & FRAME_PAUSED) !== 0).toBe(false); // (G.gamePause is not raised for the popup: why FIX-7 does not cover it)
+    expect(view.hostGameOver).toBe(true);
+    expect(view.hostPaused).toBe(false);
+    expect(view.dim).toBe(true);
+    expect(dimNodes(f)).toBeGreaterThanOrEqual(hud + 2); // Main menu, Restart
+
+    // The host presses Restart (Enter / the selected button): the popup goes, the level is loaded again, the look is normal.
+    for (let i = 0; i < 3; i++) tickFrame([13]);
+    let normal = false;
+    for (let i = 0; i < 400 && !normal; i++) {
+      f = tickFrame([]);
+      normal = !view.dim && f.levelGroup === 1;
+    }
+    expect(normal).toBe(true);
+    expect(view.hostGameOver).toBe(false);
+  }, 90_000);
 });

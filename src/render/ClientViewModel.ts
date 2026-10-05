@@ -11,6 +11,14 @@
 // state. It is read from the header too, from the `paused` flag (FRAME_PAUSED, bit0; GameLoop: `G.physics != null && G.gamePause`,
 // which the original sets exactly while the pause popup is up: GameScreen.onClickPause / onTakeFocus -> showPausePopup, and
 // clears when it closes), so the protocol does not change. Unlike the menu mode it has no debounce: both edges are immediate.
+//
+// FIX-9: the game over popup (Main menu / Restart, GameScreen.showGameOverPopup, shown by UISystem.onGameOver when the last
+// life is lost) is the third state. The original does NOT raise `G.gamePause` for it (the world keeps running behind the fade;
+// GameScreen.onGameOverClickToMenu / ...Restart only clear it) and the level stays loaded, so neither header field sees it. It
+// is read from the nodes of the frame instead, with no protocol change: the title of the popup (the clip `GameOverTextEN_mc`,
+// Text 'GameOverText_visual') is drawn only by GameOverPopupView. (The background `GameOverPopupBG_mc` is shared with the
+// ConfirmPopupView of the level select menu, so it is not a mark.) The node is in the frame from the `show()` of the popup (it
+// slides in from below the screen) until its `kill()` at the end of the slide out, so both edges follow the frames at once.
 
 import { FRAME_PAUSED, NO_LEVEL_GROUP } from '../frame/constants';
 
@@ -32,6 +40,7 @@ export class ClientViewModel {
   private _noLevelFrames = 0;
   private _viewOnly = false;
   private _hostPaused = false;
+  private _hostGameOver = false;
 
   constructor(aAfterFrames: number = VIEW_ONLY_AFTER_FRAMES) {
     this._after = aAfterFrames;
@@ -47,17 +56,23 @@ export class ClientViewModel {
     return this._hostPaused;
   }
 
-  /** true: the client cannot press what it sees (a host menu or the host's pause popup): muted buttons and the hint. */
+  /** true: the host's game over popup is on the screen (its title is among the nodes of the frame). */
+  get hostGameOver(): boolean {
+    return this._hostGameOver;
+  }
+
+  /** true: the client cannot press what it sees (a host menu, the host's pause or game over popup): muted buttons and the hint. */
   get dim(): boolean {
-    return this._viewOnly || this._hostPaused;
+    return this._viewOnly || this._hostPaused || this._hostGameOver;
   }
 
   /**
    * `levelGroup` and the header `flags` of every Frame that becomes current. A level turns the menu mode off at once, no level
-   * turns it on after a while; the pause flag follows the frame as it is.
+   * turns it on after a while; the pause flag and the game over popup (FIX-9) follow the frame as they are.
    */
-  push(aLevelGroup: number, aFlags = 0): void {
+  push(aLevelGroup: number, aFlags = 0, aGameOverPopup = false): void {
     this._hostPaused = (aFlags & FRAME_PAUSED) !== 0;
+    this._hostGameOver = aGameOverPopup;
     if (aLevelGroup === NO_LEVEL_GROUP) {
       if (this._noLevelFrames < this._after) {
         this._noLevelFrames++;
@@ -75,7 +90,32 @@ export class ClientViewModel {
     this._noLevelFrames = 0;
     this._viewOnly = false;
     this._hostPaused = false;
+    this._hostGameOver = false;
   }
+}
+
+/**
+ * FIX-9: the texIds that only the game over popup draws: the frames of the title clip `GameOverText*_mc` (one per language of
+ * the texts; the keys of manifest.frames are `<symbol>#<index>`). 1 for such a texId, 0 for the others.
+ */
+export function buildGameOverMarks(aKeys: readonly string[]): Uint8Array {
+  const marks = new Uint8Array(aKeys.length);
+  for (let i = 0; i < aKeys.length; i++) {
+    if (/^GameOverText[A-Za-z]*_mc#\d+$/.test(aKeys[i] as string)) {
+      marks[i] = 1;
+    }
+  }
+  return marks;
+}
+
+/** FIX-9: true when a node of the frame is the title of the game over popup (`marks` of buildGameOverMarks). */
+export function frameHasGameOverPopup(aNodes: ArrayLike<{ texId: number }>, aMarks: Uint8Array): boolean {
+  for (let i = 0; i < aNodes.length; i++) {
+    if (aMarks[(aNodes[i] as { texId: number }).texId] === 1) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** The button faces of the manifest: which texIds are muted and which texId is the "up" face of a button. */

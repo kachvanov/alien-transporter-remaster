@@ -22,6 +22,7 @@ import type { ShipLook } from '../game/data/GameData';
 import { FONT_DATA_NAMES } from '../game/Fonts';
 import { G } from '../game/G';
 import { Ground } from '../game/map/Ground';
+import { ShuttleNode } from '../game/nodes/ShuttleNode';
 import type { OnlineEvent, OnlineRequest } from '../game/online/OnlineBridge';
 import { OnlineBridge } from '../game/online/OnlineBridge';
 import { RemotePlayer } from '../game/online/RemotePlayer';
@@ -365,6 +366,26 @@ export class GameLoop {
           host.log('info', 'level ' + name + ' started');
         }
 
+        break;
+      }
+      case 'crashShuttle': {
+        // FIX-9 (dev, tests): the last life is lost and every shuttle takes a fatal hit: the real path to the game over popup
+        // (ShuttleSystem -> UISystem.onShuttleRemoved -> onGameOver -> GameScreen.showGameOverPopup), not a shortcut to it.
+        if (!(this._anthill?.state instanceof GameState) || (G.levelManager?.currentLevelNumber ?? 0) <= 0) {
+          host.log('warn', 'crashShuttle: not in a level');
+          break;
+        }
+
+        G.gameData.resetLives(PlayerData.PLAYER1, 0);
+        G.gameData.resetLives(PlayerData.PLAYER2, 0);
+        const shuttles = G.core.getNodes(ShuttleNode);
+        for (let i = 0; i < shuttles.numNodes; i++) {
+          const node = shuttles.get(i) as ShuttleNode;
+          node.stats.hull = 0.1;
+          node.model.hasHit = true;
+        }
+
+        host.log('info', 'crashShuttle: ' + shuttles.numNodes + ' shuttle(s)');
         break;
       }
       case 'showScreen': {
