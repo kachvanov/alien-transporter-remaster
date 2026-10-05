@@ -28,6 +28,13 @@ function portIsFree(port: number): Promise<boolean> {
 const read = (page: Page, key: string): Promise<string> =>
   page.evaluate((k) => document.documentElement.dataset[k] ?? '', key);
 
+// A key must be held across a tick to be seen by the game (the sim reads the held keys once per tick).
+async function tapKey(page: Page, key: string): Promise<void> {
+  await page.keyboard.down(key);
+  await page.waitForTimeout(150);
+  await page.keyboard.up(key);
+}
+
 async function setSize(app: ElectronApplication): Promise<void> {
   await app.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]!.setContentSize(800, 600);
@@ -112,6 +119,66 @@ test('client: the host in the main menu -> view only (a click does nothing); the
     await page2.waitForTimeout(2500);
     expect(await read(page2, 'viewOnly')).toBe('false');
     await page2.screenshot({ path: test.info().outputPath('client-level-normal.png') });
+  } finally {
+    for (const a of apps.reverse()) await a.close().catch(() => undefined);
+  }
+});
+
+// FIX-7 (DEVIATION: online): the pause popup of the host is driven by the host; the client sees it dimmed (data-host-paused, the
+// muted faces and the hint) while the host has it open, and the normal look returns the moment the host resumes. The client can
+// still ask for the pause with P.
+test('client: the host pauses inside a level -> the popup is dimmed (data-host-paused); resume -> normal; P of the client pauses', async () => {
+  test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
+  const stamp = Date.now() % 1e9;
+  const apps: ElectronApplication[] = [];
+  try {
+    const host = await launchApp({
+      args: ['.', '--host-start', '--start-level=1', `--profile=e2e-fix7h-${stamp}`],
+      env: cleanEnv(),
+    });
+    apps.push(host);
+    const hostPage = await host.firstWindow();
+    await hostPage.waitForSelector('canvas');
+    await setSize(host);
+    await expect.poll(() => read(hostPage, 'ticks').then(Number), { timeout: 30_000 }).toBeGreaterThan(40);
+    const client = await launchApp({
+      args: ['.', `--join=127.0.0.1:${PORT}`, `--profile=e2e-fix7c-${stamp}`],
+      env: cleanEnv(),
+    });
+    apps.push(client);
+    const page = await client.firstWindow();
+    const problems: string[] = [];
+    page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
+    await page.waitForSelector('canvas');
+    await setSize(client);
+    await expect.poll(() => read(page, 'netState'), { timeout: 20_000 }).toBe('playing');
+    await expect.poll(() => read(page, 'levelGroup'), { timeout: 10_000 }).toBe('1');
+    await page.waitForTimeout(2000);
+    expect(await read(page, 'hostPaused')).toBe('false');
+    expect(await read(page, 'viewOnly')).toBe('false');
+    await page.screenshot({ path: test.info().outputPath('client-level-before-pause.png') });
+
+    // The host pauses: the popup is dimmed on the client; the host itself is not (it has no such attribute).
+    await tapKey(hostPage, 'KeyP');
+    await expect.poll(() => read(page, 'hostPaused'), { timeout: 5000 }).toBe('true');
+    expect(await read(page, 'viewOnly')).toBe('false');
+    expect(await read(hostPage, 'hostPaused')).toBe('');
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: test.info().outputPath('client-pause-dimmed.png') });
+    await hostPage.screenshot({ path: test.info().outputPath('host-pause.png') });
+
+    // The host resumes: the normal look returns.
+    await tapKey(hostPage, 'KeyP');
+    await expect.poll(() => read(page, 'hostPaused'), { timeout: 5000 }).toBe('false');
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: test.info().outputPath('client-after-resume.png') });
+
+    // The client asks for the pause with P (T3.6): the host pauses, the client sees its popup dimmed too.
+    await tapKey(page, 'KeyP');
+    await expect.poll(() => read(page, 'hostPaused'), { timeout: 5000 }).toBe('true');
+    await tapKey(hostPage, 'KeyP');
+    await expect.poll(() => read(page, 'hostPaused'), { timeout: 5000 }).toBe('false');
+    expect(problems).toEqual([]);
   } finally {
     for (const a of apps.reverse()) await a.close().catch(() => undefined);
   }
