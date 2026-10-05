@@ -29,6 +29,8 @@ interface ChannelGraph {
   source: AudioBufferSourceNode;
   panner: StereoPannerNode;
   gain: GainNode;
+  /** The source has played to its end (`onended` ran): nothing more will come out of the graph. */
+  ended: boolean;
 }
 
 export interface AudioEngineOptions {
@@ -54,6 +56,8 @@ export class AudioEngine {
   /** channelId -> soundId of `_channels` (input of diffLoops). */
   private readonly _active = new Map<number, number>();
   private _music: ChannelGraph | null = null;
+  /** Graphs that were created and not disconnected yet (T5.2: a leak of audio nodes would show here). */
+  private readonly _live = new Set<ChannelGraph>();
   /** soundId -> the sound is looped (sounds.json `loop`). */
   private readonly _loopFlags = new Map<number, boolean>();
   private _destinationGain: GainNode | null = null;
@@ -173,6 +177,11 @@ export class AudioEngine {
     this.applyMusic(ctx, aFrame.musicTrack, volumeFromU8(aFrame.musicVol));
   }
 
+  /** Graphs (source + panner + gain) that are alive: playing, or fading out (T5.2: crash.log, the soak). */
+  get liveGraphs(): number {
+    return this._live.size;
+  }
+
   /** Number of the channels of the loop list that have a graph (tests, debugging). */
   get channelCount(): number {
     return this._channels.size;
@@ -244,13 +253,23 @@ export class AudioEngine {
     panner.connect(gain);
     gain.connect(bus);
     source.start(now);
-    return { soundId: aSoundId, source, panner, gain };
+    const graph: ChannelGraph = { soundId: aSoundId, source, panner, gain, ended: false };
+    // T5.2: a sound that is not looped ends by itself, long before the frames drop its channel. `stopGraph` would then set an
+    // `onended` that never runs (the event has fired already) and the graph would stay connected and counted for ever.
+    source.onended = () => {
+      graph.ended = true;
+    };
+    this._live.add(graph);
+    return graph;
   }
 
   private playOneShot(ctx: AudioContext, aSoundId: number, aVolume: number, aPan: number): void {
     const graph = this.createGraph(ctx, this._sfxBus as GainNode, aSoundId, aVolume, aPan, false);
     if (graph != null) {
-      graph.source.onended = () => this.disconnect(graph);
+      graph.source.onended = () => {
+        graph.ended = true;
+        this.disconnect(graph);
+      };
     }
   }
 
@@ -318,7 +337,7 @@ export class AudioEngine {
   /** Fades the graph out in `aFade` s and stops it. */
   private stopGraph(aGraph: ChannelGraph, aFade: number): void {
     const ctx = this._ctx;
-    if (ctx == null) {
+    if (ctx == null || aGraph.ended) {
       this.disconnect(aGraph);
       return;
     }
@@ -327,7 +346,10 @@ export class AudioEngine {
     g.cancelScheduledValues(now);
     g.setValueAtTime(g.value, now);
     g.linearRampToValueAtTime(0, now + aFade);
-    aGraph.source.onended = () => this.disconnect(aGraph);
+    aGraph.source.onended = () => {
+      aGraph.ended = true;
+      this.disconnect(aGraph);
+    };
     try {
       aGraph.source.stop(now + aFade + 0.005);
     } catch {
@@ -336,6 +358,7 @@ export class AudioEngine {
   }
 
   private disconnect(aGraph: ChannelGraph): void {
+    this._live.delete(aGraph);
     aGraph.source.disconnect();
     aGraph.panner.disconnect();
     aGraph.gain.disconnect();

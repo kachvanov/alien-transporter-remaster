@@ -68,7 +68,8 @@ async function main(): Promise<void> {
   const env = Object.fromEntries(
     Object.entries(process.env).filter((e): e is [string, string] => e[1] !== undefined && e[0] !== 'ELECTRON_RUN_AS_NODE'),
   );
-  const args = ['.', `--start-level=${level}`, `--perf-log=${out}`];
+  // (muted: nothing reaches the speakers, the AudioContext still runs; `--audio` lets the sound out)
+  const args = ['.', ...(process.argv.includes('--audio') ? [] : ['--mute-audio']), `--start-level=${level}`, `--perf-log=${out}`];
   if (tier !== '') args.push(`--tier=${tier}`);
   const app = await electron.launch({ args, env });
   try {

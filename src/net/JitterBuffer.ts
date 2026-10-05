@@ -13,6 +13,8 @@
 //   (an underrun holds the last frame).
 // - More than `overflowFrames` frames waiting (the network caught up after a stall) -> the clock jumps to the
 //   target, the older frames are dropped (their one-shots too: playing them all at once would be worse).
+// - The queue is bounded even when `update()` is not called (T5.2: a hidden / occluded window stops requestAnimationFrame, and
+//   the frames go on arriving at 35 Hz): beyond `maxPending` frames `push()` drops the oldest ones.
 // - A frame whose tick is not newer than the latest one means that the host restarted its simulation -> restart.
 
 import type { FrameData } from '../frame/types';
@@ -29,6 +31,8 @@ export interface JitterBufferOptions {
   initialDelay?: number;
   /** More frames than this waiting in the queue: drop the old ones. */
   overflowFrames?: number;
+  /** More frames than this waiting even without `update()` calls: `push()` drops the oldest, keeping `overflowFrames + 1`. */
+  maxPending?: number;
   /** How often D is recomputed, ms. */
   recalcMs?: number;
   /** Number of the arrival intervals kept for sigma. */
@@ -55,6 +59,7 @@ export class JitterBuffer {
   private readonly _minDelay: number;
   private readonly _maxDelay: number;
   private readonly _overflow: number;
+  private readonly _maxPending: number;
   private readonly _recalcMs: number;
   private readonly _window: number;
   private readonly _minIntervals: number;
@@ -81,6 +86,7 @@ export class JitterBuffer {
     this._maxDelay = aOptions.maxDelay ?? 3;
     this._delay = aOptions.initialDelay ?? 2;
     this._overflow = aOptions.overflowFrames ?? 6;
+    this._maxPending = Math.max(aOptions.maxPending ?? this._overflow * 3, this._overflow + 2);
     this._recalcMs = aOptions.recalcMs ?? 1000;
     this._window = aOptions.intervalWindow ?? 70;
     this._minIntervals = aOptions.minIntervals ?? 10;
@@ -154,6 +160,13 @@ export class JitterBuffer {
     this._latestTick = aFrame.tick;
     this._lastArrival = aNow;
     this._queue.push(aFrame);
+    if (this._queue.length > this._maxPending) {
+      // Nobody plays the frames (the page is not drawn): the memory must not grow. `update()` finds more than `overflow`
+      // frames waiting and jumps the clock to the newest.
+      const drop = this._queue.length - (this._overflow + 1);
+      this._dropped += drop;
+      this._queue.splice(0, drop);
+    }
   }
 
   /** Advances the playback clock to `aNow` and returns the frames that have become current, oldest first. */

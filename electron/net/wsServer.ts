@@ -111,6 +111,12 @@ export class HostServer {
     return this._framesSkipped;
   }
 
+  /** Bytes waiting in the socket of the client (T5.2: the state line of crash.log); 0 without a client. */
+  get bufferedAmount(): number {
+    const slot = this._slot;
+    return slot !== null && slot.state === 'playing' ? slot.ws.bufferedAmount : 0;
+  }
+
   /** What was sent to the client since the server started: bytes, average and peak KB/s (T3.7). */
   get traffic(): TrafficStats {
     return this._traffic.stats;

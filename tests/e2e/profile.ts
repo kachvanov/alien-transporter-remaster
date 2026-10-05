@@ -13,7 +13,9 @@ export async function launchApp(opts: { args: string[]; env: Record<string, stri
   const arg = opts.args.find((a) => a.startsWith('--profile='));
   if (arg === undefined) throw new Error('launchApp: no --profile= in the arguments (the run would use the userData of the player)');
   const profile = arg.slice('--profile='.length);
-  const app = await electron.launch(opts);
+  // Muted: the e2e runs must not play the game's sound on the machine of the developer (AT_E2E_AUDIO=1 lets it out).
+  const mute = process.env['AT_E2E_AUDIO'] === '1' || opts.args.includes('--mute-audio') ? [] : ['--mute-audio'];
+  const app = await electron.launch({ ...opts, args: [...opts.args, ...mute] });
   const userData = await app.evaluate(({ app: a }) => a.getPath('userData'));
   if (!userData.endsWith(`-profile${profile}`)) {
     await app.close();

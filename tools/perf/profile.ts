@@ -10,6 +10,8 @@
 // `--pace=MS` waits MS between two ticks (the worker's rhythm, 28 = 35 Hz): a cold core is slower than a loop of back-to-back ticks.
 // `--spin=MS` with `--pace`: the last MS of every wait is a busy loop (an experiment: it shows how much a warm core helps).
 // `--alloc` prints the allocation sites (V8 sampling heap profiler, the objects that were collected included) by function.
+// `--heap=N` (T5.2, hypothesis (d), growth in the simulation): every N ticks prints the heap that is alive after a full GC; needs
+// `node --expose-gc` (`NODE_OPTIONS=--expose-gc npx tsx ...`). A flat line over hours of game time means the simulation does not grow.
 // `--throttle=K` only prints the numbers as if the CPU were K times slower (the approximation of the DevTools throttling).
 
 import { createHash } from 'node:crypto';
@@ -93,7 +95,14 @@ async function runOne(aName: string, aTicks: number, aFrameHash: boolean, aPaceM
   const callSum = new Map<string, number>();
   const hash = aFrameHash ? createHash('sha256') : null;
   let wrapped = false;
+  const heapEvery = Number(arg('heap', '0'));
+  const gc = (globalThis as unknown as { gc?: () => void }).gc;
   for (let i = 0; i < aTicks; i++) {
+    if (heapEvery > 0 && i % heapEvery === 0 && gc !== undefined) {
+      gc();
+      gc();
+      console.log(`[heap] ${aName} tick ${i} (${(i / 35 / 60).toFixed(0)} min of game): ${(process.memoryUsage().heapUsed / 1048576).toFixed(1)} MB alive`);
+    }
     const keys = input(i);
     // --pace=28: sleep like the worker does between two ticks (the loop wakes every 4 ms, a tick is due every 28.6 ms): the core
     // goes idle, its caches and its clock go cold, and a tick is slower than in a loop that runs the ticks back to back

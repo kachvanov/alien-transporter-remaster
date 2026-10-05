@@ -143,3 +143,57 @@ dist/
 - A platform that failed in the newest build is absent from `latest/` (the failure is in its `BUILD-INFO.json`; the earlier build of that platform stays in `archive/`, it is not carried over). A build that produced no file at all does not touch `latest/`; its result is in `.state/last-attempt.json` (`dist:status` shows it).
 - Rotation: `latest` + 1 previous build; older archive folders and unfinished `.partial` folders are removed. Only folders named `<date>-<hash>` are ever removed.
 - The first `dist:all` after the T5.3 flat layout moves the loose files of that layout (names produced by `dist:all`) into these places and removes older ones; any other file in `dist/` is left alone.
+
+## 11. Long play: white screen, `crash.log`, soak (T5.2)
+
+Symptom (user, 2026-10-05): during a long network game the window turns white and stops responding; more often on the Windows laptop (8 GB). **Root cause: not found.** In 60-minute soaks on the Mac nothing crashed, hung or lost the GPU. What was measured and fixed is below; the user's long game on the new build (both machines) decides whether the problem is closed.
+
+### Diagnostics that are always on (`electron/crashLog.ts`, `electron/diagnostics.ts`, `src/app/diagnostics.ts`)
+
+`<userData>/crash.log` (rotation at 1 MB into `crash.log.1`, async writes, no personal data: home folders are scrubbed). A line: `ISO-time role(host|client|local) vVERSION platform/arch EVENT key=value ...`. Events: `START` (machine, Electron, GPU feature status), `STATE` every 30 s (RAM per process type, `main_lag_max` = the longest stall of the main process's event loop, `renderer_age` = seconds since the renderer last reported, host socket buffer, and the renderer's statistics: tick, fps, jitter queue / drops / underruns, atlas pages, VRAM estimate, live audio graphs, JS heap, visibility), `RENDER_GONE` (reason, exitCode), `UNRESPONSIVE` / `RESPONSIVE` / `HANG_KILL`, `CHILD_GONE` (type GPU ...), `GPU_INFO_UPDATE`, `WEBGL_CONTEXT_LOST/RESTORED`, `PAGE_ERROR`, `PAGE_REJECTION`, `WORKER_ERROR`, `MAIN_UNCAUGHT`, `NET_STATE`, `VISIBILITY`, `WINDOW` (show/hide/minimize/...), `POWER` (suspend/resume/lock), `DISPLAY` changes, `RECOVER`, `EXIT`. Reading it: a `STATE` line with a growing `renderer_age` and no `RENDER_GONE` is a hang; `RENDER_GONE reason=oom` is memory; `CHILD_GONE type=GPU` is the GPU process.
+
+### Safety net (does not replace the fix)
+
+`render-process-gone`, `unresponsive` for 10 s (`HANG_KILL` crashes the renderer on purpose, then the same path), or a GPU process that is gone and a WebGL context that does not come back within 6 s: the window loads a fresh page (`#local:crashed` = the menu with the message "The game window crashed and was restarted" in the bitmap font; a client gets `#local:lost` = the Join screen with "Connection lost"). The save is not touched. A host whose window is replaced stops its server (the client gets `bye host_quit`, the port is free). At most 3 recoveries a minute (a loop guard). A GPU process that is killed is normally repaired without a reload: the context is lost and restored within ~1 s and the game goes on (measured).
+
+### Fixes
+
+- `JitterBuffer.push` is bounded (`maxPending` = 18 frames, drops the oldest; test `net-backpressure.test.ts`). Before: the queue was drained only by `update()`, which is called from `requestAnimationFrame`; a window whose rAF stops (Windows native occlusion; not measured on Windows) queued 126 000 frames per hour at ~20-45 KB each (decoded `FrameData`).
+- `main.ts`: `disable-backgrounding-occluded-windows` (+ `CalculateNativeWinOcclusion` off on Windows) so that a covered window keeps running, as `backgroundThrottling: false` always intended. **Hardening, not measured on Windows.**
+- `AudioEngine`: a graph of a non-looped sound in the loop list ended by itself, and `stopGraph` then set an `onended` that never fired: the graph stayed connected. Now it is disconnected at once. `liveGraphs` is in the statistics.
+
+### Tools
+
+`tools/perf/soak.ts` (host + client / through `tools/net/proxy.ts` / solo; scripted input, level changes, hide/cover experiments, `footprint` per process on macOS, slope after warm-up; windows are muted by default, `--audio` unmutes), `tools/perf/heap-diff.ts` (what grows in the simulation between two heap snapshots), `profile.ts --heap=N` (heap after GC every N ticks). Tests: `crash-log.test.ts`, `net-backpressure.test.ts`, `tests/e2e/crash-recovery.spec.ts` (renderer crash, GPU kill, host and client).
+
+### Measured (Mac M5 Pro, tier 2x, 120 Hz, level change every 3 min, muted; the machine was under memory pressure, so the working set shrinks and grows: the footprint is the figure that counts)
+
+| Run (60 min, before the audio fix) | footprint all processes, slope after 10 min | renderer | GPU | queue / drops / atlas pages |
+|---|---|---|---|---|
+| net, host | +59 MB/h (4.5 %) | +60 MB/h (12 %) | flat | - / - / 8 |
+| net, client | +10 MB/h (0.8 %) | +6 MB/h | flat | 1-2 frames / 0 / 8 |
+| proxy (30 +- 15 ms), host | +44 MB/h (3.4 %) | +34 MB/h (7 %) | flat | - / - / 8 |
+| proxy, client | +7 MB/h (0.6 %) | +6 MB/h | flat | 2-3 frames / 0 / 8 |
+| solo | +30 MB/h (2.4 %) | +27 MB/h (6 %) | flat | - / - / 8 |
+
+No crash, hang, context loss or page error in any of them; `main_lag_max` at most 12 ms; the host socket buffer was always 0. The live audio graph counter grew linearly (~3 a minute, 190-260 after an hour) before the audio fix.
+
+### Hypotheses (T5.2 step 3)
+
+| | Hypothesis | Checked | Result |
+|---|---|---|---|
+| a | the client's frame queue grows when rendering is slower than the host | the queue stays at 1-3 frames in 60 min (direct and proxy); unit test with no `update()` for an hour | refuted for normal play; a theoretical unbounded growth when rAF stops: fixed (bound) |
+| b | atlas pages / textures are not released on level changes | 20 level changes per hour: 8 pages and 316 MB VRAM flat | refuted |
+| c | audio nodes are not disconnected | `liveGraphs`: grew ~3/min before the fix (190-260 after 60 min); after the fix 0-26 over 60 min, last value 0 (host, client, solo) | confirmed (finished loop-list channel graphs), fixed |
+| d | growing arrays in the worker | Node, 110 min of game time, heap after GC: Level11 with an idle ship +30 MB/h (bodies/coins accumulate until the level restarts), Level13 +9, Level01 +1; 15 level loads in a row (1 min each): the heap after GC stays at 55-62 MB (no leak across level loads) | accumulation inside one long level only (game behaviour, not changed); a level change frees it |
+| e | 8 GB laptop: memory / GPU lost | Mac: footprint ~1.2-1.3 GB per instance (GPU 700 MB of it); GPU process killed -> context back in ~1 s; `--lose-context` works | Windows 8 GB not measured |
+| f | hidden / occluded window: rAF throttled | Mac: minimized for 150 s and fully covered: fps 120, queue 1-2 | refuted on macOS; Windows not measured (hardening added) |
+| g | the main process blocks IPC | `main_lag_max` <= 12 ms over 5 runs; no synchronous writes on the game path | refuted |
+
+### After the audio and queue fixes (60 min, net and solo, same Mac, later; the Mac was also used by the developer)
+
+No crash, hang, context loss or page error; queue 1-2 frames, 0 drops, 8 atlas pages, VRAM 316 MB, live audio graphs 0-26 (before: up to 260). Footprint, mean of minutes 10-30 -> 40-60: net host 1230 -> 1299 MB (renderer 474 -> 504, GPU 680 -> 718), net client 1119 -> 1171 (renderer 374 -> 376, GPU 673 -> 720), solo 1340 -> 1410 (renderer 522 -> 551, GPU 745 -> 785). In the five runs before the fixes the same comparison gave +28 / +5 / +18 / +4 / +14 MB (net host / net client / proxy host / proxy client / solo) with the GPU process flat. The "after" runs show more growth, almost all of it in the GPU process (shared with whatever else the Mac was drawing), which none of the changes touches. **The criterion "all processes grow <= 5 % an hour" is met in the first set (0.6-4.5 %) and not reproduced in the second (7-12 %, GPU-driven): measurement noise of a shared machine, or a slow GPU-side growth that was not found.** The renderer of the host (it holds the simulation worker) grows by ~30-60 MB an hour in every run (6-12 %); the client's renderer by 0-6 MB. Open: a clean measurement on a machine used for nothing else, and on the Windows laptop.
+
+### What the user has to do (T5.2 is closed only after it)
+
+A long network game (>= 1 hour, both roles, Mac <-> Windows laptop) on the new build; if the window goes white again, `crash.log` (and `crash.log.1`) from **both** machines: see the README section "If the game window goes white or freezes". The lines to look at: `RENDER_GONE reason=` (oom = memory), `UNRESPONSIVE`, `CHILD_GONE type=GPU`, `WEBGL_CONTEXT_LOST`, the last `STATE` lines before it (`ram_*`, `renderer_age`, `main_lag_max`, `jitterPending`, `visibility`) and the `VISIBILITY` / `WINDOW` / `POWER` lines around it.
