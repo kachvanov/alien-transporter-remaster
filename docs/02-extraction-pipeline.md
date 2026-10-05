@@ -74,6 +74,7 @@ The final list of symbols is written to `build/extract/whitelist.json`. A report
     "PortalBG_mc": { "maxTier": "2x" } }
   ```
   `maxTier` means: for higher tiers take the raster of this tier and mark `scale` in the manifest.
+- **Pixel-art symbols (T5.6).** 123 of the whitelisted symbols (and all 12 font bitmaps) are not vector in the original: they are built from bitmaps that sit 1:1 in the SWF (every button, indicator = the delivery marker, caption `*TextEN_mc`, icon, HUD bar, menu/popup backgrounds; the bitmap fonts). JPEXS draws a smoothed bitmap fill (`fillStyleType` 65) with bilinear filtering at every zoom, so their 2x/3x raster was a blurred copy of the 1x pixels (fills of type 67, "non-smoothed", were already exact). `tools/extract/bitmapSymbols.ts` reads `build/extract/swf.xml` and marks a whitelisted symbol `pixelArt` when every fill under it is a bitmap with density 1 (bitmap px per logical px) and every placement is a translation (no scale, rotation, vector fill, stroke or morph). For those symbols and for the font bitmaps the 2x/3x frames are the **1x JPEXS frames replicated k x k** (`upscaleNearest`): no JPEXS export at those zooms, `rect = rect1x * k`, no `scale`. The picture is the 1x one, pixel for pixel, as in Flash for a non-smoothed bitmap. Not covered (kept as the JPEXS raster): symbols that mix bitmaps with vector shapes (`ShuttleHull*`, `*Roller_mc`, `MissionBar`, `IconFuel/Heart/Magnet/Random/Repair/Trophy`, `BtnAnton/Ahura/Wesley`, ...), `BtnShip_mc` (scaled placement) and `StarParticle_mc` (2.14x bitmap). `asset-overrides.json` `{ "Name_mc": { "pixelArt": false } }` returns one symbol to the JPEXS raster.
 
 ### 4.4 Groups and atlases
 - Groups (rules in `tools/extract/groups.json`):
@@ -121,7 +122,7 @@ java -Djava.awt.headless=true -jar vendor/jpexs/ffdec-cli.jar -export sound buil
 
 ## Step 6. Data (`data.ts`)
 
-- Fonts: `reference/data/fonts/fontXX.xml` + `.png` → `assets/data/fonts/fontXX.json` (`{name, charInterval, chars: {"A": {x,y,w,h}}}`). The font PNGs go into the `ui` atlas group as separate symbols `Font:font01` (glyphs are sub-rectangles).
+- Fonts: `reference/data/fonts/fontXX.xml` + `.png` → `assets/data/fonts/fontXX.json` (`{name, charInterval, chars: {"A": {x,y,w,h}}}`). The font PNGs go into the `ui` atlas group as separate symbols `Font:font01` (glyphs are sub-rectangles). At 2x/3x the font PNG is replicated (T5.6), so a glyph is `ch.rect * tierZoom` in the tier's atlas.
 - `missions.xml` → `assets/data/missions.json`, `texts_en.xml` → `texts.json`, `effects.xml` → `effects.json`. The structure mirrors the XML without semantic transformations: attributes → fields, repeated tags → arrays. Numbers as numbers, `true`/`false` as booleans — only where the AS3 code parses them as numbers or booleans (check against the code of `MissionManager`, `AntEffectManager`, `Text`).
 - zod schemas in `src/engine/assets/schemas.ts`, validation in a test.
 

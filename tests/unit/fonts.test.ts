@@ -99,6 +99,15 @@ describe.skipIf(!hasAssets)('Font', () => {
       expect(g.scale).toBe(b.scale);
     }
   });
+
+  it('T5.6: a glyph is made of real pixels of the tier (the font bitmap is replicated at 2x/3x), not stretched from 1x', () => {
+    const a = registry.getFrame(registry.glyphTexId('font04', 65) as number);
+    for (const [tier, zoom] of [['2x', 2], ['3x', 3]] as const) {
+      expect(a.tiers[tier].scale).toBeUndefined();
+      expect(a.tiers[tier].rect.slice(2)).toEqual(a.tiers['1x'].rect.slice(2).map((v) => v * zoom));
+      expect(a.tiers[tier].trim.slice(2)).toEqual(a.tiers['1x'].trim.slice(2).map((v) => v * zoom));
+    }
+  });
 });
 
 describe.skipIf(!hasAssets)('Label', () => {

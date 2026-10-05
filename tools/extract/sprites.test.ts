@@ -21,6 +21,7 @@ import {
   loadGroups,
   loadOverrides,
   spritesDir,
+  upscaleNearest,
   type Raw,
 } from './sprites';
 import { loadSymbols } from './types';
@@ -48,6 +49,20 @@ function rawOf(w: number, h: number, alphaAt: (x: number, y: number) => number):
 }
 
 describe('sprite helpers', () => {
+  it('upscaleNearest: every pixel becomes a k x k block; k = 1 is the identity', () => {
+    const src = rawOf(3, 2, (x, y) => 40 + x * 10 + y);
+    expect(upscaleNearest(src, 1)).toBe(src);
+    const up = upscaleNearest(src, 3);
+    expect([up.w, up.h]).toEqual([9, 6]);
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 9; x++) {
+        const a = (y * 9 + x) * 4;
+        const b = (Math.floor(y / 3) * 3 + Math.floor(x / 3)) * 4;
+        expect([...up.data.subarray(a, a + 4)]).toEqual([...src.data.subarray(b, b + 4)]);
+      }
+    }
+  });
+
   it('groupOf: first matching rule wins, $1 is substituted', () => {
     const cfg = {
       default: 'game-common',
@@ -392,7 +407,68 @@ describe('sprites manifest (needs `npm run extract`)', () => {
     const f = m.frames[m.symbols['Font:font01']!.firstTexId]!;
     expect(f.group).toBe('ui');
     expect(f.origin1x).toEqual([0, 0]);
-    expect(f.tiers['2x'].scale).toBeCloseTo(0.5, 9);
-    expect(f.tiers['3x'].scale).toBeCloseTo(1 / 3, 9);
+    // T5.6: the font bitmap is replicated at 2x/3x (real pixels of the tier), not stretched from the 1x raster by `scale`
+    expect(f.tiers['2x'].scale).toBeUndefined();
+    expect(f.tiers['3x'].scale).toBeUndefined();
+    expect(f.tiers['2x'].rect.slice(2)).toEqual(f.tiers['1x'].rect.slice(2).map((v) => v * 2));
+    expect(f.tiers['3x'].rect.slice(2)).toEqual(f.tiers['1x'].rect.slice(2).map((v) => v * 3));
+  });
+
+  dataIt('T5.6: the UI of 1:1 bitmaps (indicator, buttons, captions) is drawn from real 3x pixels, never a stretched lower tier', () => {
+    const m = manifest();
+    const names = [
+      'Indicator01Color01_mc',
+      'Indicator04Color05_mc',
+      'BtnPlay_mc',
+      'BtnMainMenu_mc',
+      'BtnApply_mc',
+      'BtnRestart_mc',
+      'CasualTextEN_mc',
+      'ConfirmTextEN_mc',
+      'IconShuttleBlue_mc',
+      'IconPassengerPirate_mc',
+      'PausePopupBG_mc',
+      'LivesIcon_mc',
+      'Font:font04',
+    ];
+    for (const name of names) {
+      const sym = m.symbols[name]!;
+      for (let i = 0; i < sym.frames; i++) {
+        const f = m.frames[sym.firstTexId + i]!;
+        for (const tier of ['2x', '3x'] as const) {
+          const t = f.tiers[tier];
+          expect(t.scale, `${name}#${i} ${tier}`).toBeUndefined();
+          // replicated pixels: the tier rectangle is the 1x rectangle times the zoom
+          expect(t.rect[2], `${name}#${i} ${tier} w`).toBe(f.tiers['1x'].rect[2] * TIER_ZOOM[tier]);
+          expect(t.rect[3], `${name}#${i} ${tier} h`).toBe(f.tiers['1x'].rect[3] * TIER_ZOOM[tier]);
+        }
+      }
+    }
+  });
+
+  dataIt('T5.6: the pixels of a replicated frame at 3x are the pixels of the 1x frame, 3x3 blocks', async () => {
+    const m = manifest();
+    const f = m.frames[m.symbols['Indicator01Color01_mc']!.firstTexId]!;
+    const grab = async (tier: '1x' | '3x'): Promise<Raw> => {
+      const t = f.tiers[tier];
+      const { data, info } = await sharp(join(ROOT, 'assets', m.atlases[tier][t.atlas]!))
+        .extract({ left: t.rect[0], top: t.rect[1], width: t.rect[2], height: t.rect[3] })
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      return { data, w: info.width, h: info.height };
+    };
+    const one = await grab('1x');
+    const three = await grab('3x');
+    expect(three).toMatchObject({ w: one.w * 3, h: one.h * 3 });
+    let bad = 0;
+    for (let y = 0; y < three.h; y++) {
+      for (let x = 0; x < three.w; x++) {
+        const a = (y * three.w + x) * 4;
+        const b = ((Math.floor(y / 3) * one.w) + Math.floor(x / 3)) * 4;
+        for (let c = 0; c < 4; c++) if (three.data[a + c] !== one.data[b + c]) bad++;
+      }
+    }
+    expect(bad).toBe(0);
   });
 });

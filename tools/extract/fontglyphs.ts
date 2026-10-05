@@ -4,7 +4,7 @@
 // sprites step packs a whole font bitmap as one frame `Font:<name>#0`; this step appends one frame per glyph,
 // `Font:<name>#<charCode>`, whose rectangle in every tier is the glyph rectangle of the font JSON inside that
 // font frame (the font bitmaps are not trimmed and not rescaled: `trim` of the font frame is its whole size,
-// `scale` is kept). The glyph frames are NOT symbols (manifest.symbols is untouched): they are looked up by key
+// the tier raster of the bitmap replicates its pixels, T5.6, and `scale` is kept if a tier has one). The glyph frames are NOT symbols (manifest.symbols is untouched): they are looked up by key
 // (AssetRegistry.findFrame). Existing texIds do not change, the new frames are appended and the buildHash is
 // recomputed.
 //
@@ -17,6 +17,7 @@ import {
   FontSchema,
   ManifestSchema,
   TIER_NAMES,
+  TIER_ZOOM,
   type FontData,
   type Frame,
   type Manifest,
@@ -75,10 +76,12 @@ export function buildGlyphFrames(aManifest: Manifest, aFonts: ReadonlyMap<string
         if (b.trim[0] !== 0 || b.trim[1] !== 0 || b.rect[2] !== b.trim[2] || b.rect[3] !== b.trim[3]) {
           throw new Error(`font ${fontName} ${t}: the bitmap is trimmed, glyph rectangles do not apply`);
         }
+        // pixels of the tier raster per pixel of the 1x font bitmap (T5.6: the bitmap is replicated at 2x/3x)
+        const z = TIER_ZOOM[t] * (b.scale ?? 1);
         const g: TierFrame = {
           atlas: b.atlas,
-          rect: [b.rect[0] + ch.x, b.rect[1] + ch.y, pw, ph],
-          trim: [0, 0, pw, ph],
+          rect: [b.rect[0] + ch.x * z, b.rect[1] + ch.y * z, pw * z, ph * z],
+          trim: [0, 0, pw * z, ph * z],
         };
         if (b.scale !== undefined) g.scale = b.scale;
         tiers[t] = g;

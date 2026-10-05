@@ -18,6 +18,7 @@ import {
   type TierName,
 } from '../../src/engine/assets/schemas';
 import { composePage, packItems, type Blit } from './atlas';
+import { classifySymbol, readBitmapGraph, type BitmapGraph } from './bitmapSymbols';
 import { javaBin, sha256File, type Paths } from './decompile';
 import type { Rect, SymbolInfo } from './types';
 import { loadSymbols } from './types';
@@ -35,6 +36,8 @@ export interface GroupsConfig {
 }
 export interface OverrideEntry {
   maxTier?: TierName;
+  /** `false` keeps the JPEXS raster for a symbol that bitmapSymbols.ts takes for a 1:1 bitmap (T5.6). */
+  pixelArt?: boolean;
 }
 export type Overrides = Record<string, OverrideEntry>;
 
@@ -89,6 +92,11 @@ export interface Source {
   mask: boolean;
   group: string;
   fontFile?: string;
+  /**
+   * T5.6: the symbol is made only of 1:1 bitmaps (bitmapSymbols.ts). Its 2x/3x raster is the 1x pixels replicated (no JPEXS
+   * export at those zooms), so buttons, indicators and captions stay as sharp as the original bitmap at any tier.
+   */
+  pixelArt: boolean;
 }
 
 const FONT_PREFIX = 'Font:';
@@ -116,6 +124,7 @@ export async function buildSources(
   const overrides = loadOverrides(p.root);
   const maskNames = new Set(loadAlphaMaskSymbols(p.root));
   const byId = new Map(symbols.map((s) => [s.id, s]));
+  const graph = await loadBitmapGraph(p);
   const out: Source[] = [];
   for (const w of whitelist.symbols) {
     const sym = byId.get(w.id);
@@ -133,6 +142,11 @@ export async function buildSources(
       maxZoom: maxTier ? TIER_ZOOM[maxTier] : 3,
       mask: maskNames.has(w.name),
       group: groupOf(w.name, groups),
+      pixelArt:
+        graph !== null &&
+        overrides[w.name]?.pixelArt !== false &&
+        !LEVEL_LAYER_RE.test(w.name) &&
+        classifySymbol(graph, w.id) === 'pixel',
     });
   }
   for (const name of Object.keys(overrides)) {
@@ -152,10 +166,12 @@ export async function buildSources(
       frames: 1,
       rect: { xMin: 0, yMin: 0, xMax: w, yMax: h },
       levelLayer: false,
-      maxZoom: 1,
+      // T5.6: a bitmap font is pixel art too (the original copies its pixels): the 2x/3x raster replicates them
+      maxZoom: 3,
       mask: false,
       group: groupOf(f.name, groups),
       fontFile: f.file,
+      pixelArt: true,
     });
   }
   out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
@@ -189,6 +205,12 @@ export function spritesDir(p: Paths, zoom: number): string {
   return join(p.extractDir, 'sprites', `${zoom}x`);
 }
 
+/** `build/extract/swf.xml` as a shape/sprite graph; null when the file is not there (a partial checkout, unit tests). */
+async function loadBitmapGraph(p: Paths): Promise<BitmapGraph | null> {
+  const file = join(p.extractDir, 'swf.xml');
+  return existsSync(file) ? readBitmapGraph(file) : null;
+}
+
 async function exportZoom(
   p: Paths,
   zoom: number,
@@ -196,7 +218,7 @@ async function exportZoom(
   swfSha: string,
 ): Promise<void> {
   const ids = sources
-    .filter((s) => s.kind === 'sprite' && s.maxZoom >= zoom)
+    .filter((s) => s.kind === 'sprite' && s.maxZoom >= zoom && !(s.pixelArt && zoom > 1))
     .map((s) => s.id)
     .sort((a, b) => a - b);
   const dir = spritesDir(p, zoom);
@@ -268,6 +290,23 @@ export function alphaBounds(raw: Raw): IntRect | null {
     }
   }
   return maxX < 0 ? null : [minX, minY, maxX - minX + 1, maxY - minY + 1];
+}
+
+/** Every pixel becomes a `k` x `k` block (nearest-neighbour, exact for an integer `k`). */
+export function upscaleNearest(raw: Raw, k: number): Raw {
+  if (k === 1) return raw;
+  const w = raw.w * k;
+  const h = raw.h * k;
+  const out = Buffer.alloc(w * h * 4);
+  for (let y = 0; y < raw.h; y++) {
+    const row = (y * k * w) * 4;
+    for (let x = 0; x < raw.w; x++) {
+      const px = raw.data.readUInt32LE((y * raw.w + x) * 4);
+      for (let dx = 0; dx < k; dx++) out.writeUInt32LE(px, row + (x * k + dx) * 4);
+    }
+    for (let dy = 1; dy < k; dy++) out.copy(out, row + dy * w * 4, row, row + w * 4);
+  }
+  return { data: out, w, h };
 }
 
 /** Copies a rectangle; parts outside the source stay transparent. */
@@ -353,24 +392,30 @@ async function processSymbol(
   src: Source,
   zoom: number,
   exportDirs: Map<number, string>,
+  /** 1x export, for `pixelArt` symbols at zoom > 1. */
+  pixelDirs: Map<number, string> | undefined = undefined,
 ): Promise<ProcessedSymbol> {
+  const fromPixels = src.pixelArt && zoom > 1;
   const frames: ProcessedFrame[] = [];
   const uniques: Raw[] = [];
   const seen = new Map<string, number>();
   const masks: { bits: Buffer; w: number; h: number }[] = [];
-  const dir = src.kind === 'sprite' ? exportDirs.get(src.id) : undefined;
+  const dir = src.kind === 'sprite' ? (fromPixels ? pixelDirs : exportDirs)?.get(src.id) : undefined;
   if (src.kind === 'sprite' && !dir)
-    throw new Error(`${src.name}: no export folder for id ${src.id} at ${zoom}x`);
+    throw new Error(`${src.name}: no export folder for id ${src.id} at ${fromPixels ? 1 : zoom}x`);
 
   for (let i = 0; i < src.frames; i++) {
     let raw: Raw;
     if (src.kind === 'font') {
-      raw = await loadRaw(src.fontFile as string);
+      raw = upscaleNearest(await loadRaw(src.fontFile as string), zoom);
     } else {
       const file = join(dir as string, `${i + 1}.png`);
-      if (!existsSync(file)) throw new Error(`${src.name}: missing frame ${i + 1} at ${zoom}x`);
+      if (!existsSync(file)) throw new Error(`${src.name}: missing frame ${i + 1} at ${fromPixels ? 1 : zoom}x`);
       raw = await loadRaw(file);
-      checkCanvasSize(`${src.name}#${i}`, raw, src.rect, zoom);
+      if (fromPixels) {
+        checkCanvasSize(`${src.name}#${i}`, raw, src.rect, 1);
+        raw = upscaleNearest(raw, zoom);
+      } else checkCanvasSize(`${src.name}#${i}`, raw, src.rect, zoom);
     }
     if (src.mask && zoom === 1) masks.push({ bits: alphaMaskBits(raw), w: raw.w, h: raw.h });
 
@@ -454,7 +499,7 @@ export function computeBuildHash(m: Manifest): string {
   return createHash('sha256').update(JSON.stringify(rest)).digest('hex');
 }
 
-const SCRIPT_FILES = ['sprites.ts', 'atlas.ts', 'whitelist.ts', 'types.ts'];
+const SCRIPT_FILES = ['sprites.ts', 'atlas.ts', 'whitelist.ts', 'types.ts', 'bitmapSymbols.ts'];
 const CONFIG_FILES = ['groups.json', 'asset-overrides.json', 'alphamask-symbols.json'];
 
 /** Everything the `sprites` step consumes, hashed into the cache key. */
@@ -551,7 +596,7 @@ export async function runSprites(p: Paths): Promise<{ summary: string }> {
       const members = sources.filter((s) => s.group === group);
       const processed = await pool(members, 6, (src) => {
         const rz = Math.min(zoom, src.maxZoom);
-        return processSymbol(src, rz, dirs.get(rz) ?? new Map());
+        return processSymbol(src, rz, dirs.get(rz) ?? new Map(), dirs.get(1));
       });
 
       // Bookkeeping that only depends on the raster.
