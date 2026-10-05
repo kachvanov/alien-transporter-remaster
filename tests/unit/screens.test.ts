@@ -211,6 +211,13 @@ describe.skipIf(!hasAssets)('SelectLevelScreen', () => {
     expect(G.levelManager.currentLevelNumber).toBe(1);
   });
 
+  it('MenuSystem.hasScreen (the dev entry --start-screen, T4.2): the registered screens only', () => {
+    newGame();
+    expect(menu().hasScreen(MenuSystem.LEVEL_COMPLETE_SCREEN)).toBe(true);
+    expect(menu().hasScreen('NoSuchScreen')).toBe(false);
+    expect(menu().hasScreen('toString')).toBe(false);
+  });
+
   it('the unlocked levels have buttons and stars: the level kinds (Basic, Bonus) and the places (LevelData.BTN_X/BTN_Y)', () => {
     const state = newGame();
     for (let i = 0; i < 6; i++) {

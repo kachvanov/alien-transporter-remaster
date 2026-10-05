@@ -20,13 +20,53 @@ export const THRESHOLD = 0.1;
 export const STATIC_LIMIT_PERCENT = 3;
 export const LEVEL_LIMIT_PERCENT = 6;
 
+/** A rectangle of the picture, `[x, y, width, height]`, in 800x600 pixels. */
+export type Rect = readonly [number, number, number, number];
+
+/**
+ * Intended differences from the original (T4.2): areas that are cut out of the comparison (their pixels are not counted and
+ * their area is taken off the whole). Everything else that differs is a difference to explain.
+ *  - sponsor and social elements are removed from the remaster (T2.6): the Armor Games logo and the Twitter / Facebook buttons,
+ *    "Support Us / Patreon" of the credits, the Armor Games button of the HUD;
+ *  - the "Online" button (LAN multiplayer) stands where the original has "More games";
+ *  - level-complete: the reference was taken after a play-through (stars, goals, columns, missions with values), ours with the
+ *    values of a fresh save, so only the layout of what is left is compared.
+ */
+export const IGNORE: Readonly<Record<string, readonly Rect[]>> = {
+  'main-menu': [
+    [130, 366, 90, 88], // Twitter
+    [584, 366, 86, 88], // Facebook
+    [296, 450, 210, 84], // Armor Games logo
+    [455, 330, 112, 142], // "More games" in the original, "Online" with its caption here
+  ],
+  credits: [[60, 300, 200, 80]], // Support Us / patreon.com
+  'select-level': [[296, 450, 210, 84]], // Armor Games logo
+  pause: [[316, 332, 170, 62]], // Armor Games logo
+  level: [[150, 540, 70, 54]], // the 4th button of the HUD (Armor Games / walkthrough)
+  'level-complete': [
+    [170, 30, 190, 100], // the stars of the result
+    [190, 100, 440, 60], // goals and their values
+    [190, 150, 440, 270], // the columns of P1/P2 with the coins
+    [190, 425, 440, 125], // the missions
+  ],
+};
+
+/** The ignored areas of a scene (`levelNN` share the `level` entry). */
+export function ignoreFor(scene: string): readonly Rect[] {
+  return IGNORE[/^level\d+$/i.test(scene) ? 'level' : scene] ?? [];
+}
+
 export interface CompareResult {
   width: number;
   height: number;
-  /** Number of pixels pixelmatch calls different. */
+  /** Number of pixels pixelmatch calls different, outside of the ignored areas. */
   diffPixels: number;
-  /** diffPixels / (width*height) * 100. */
+  /** diffPixels / (width*height - ignored area) * 100. */
   percent: number;
+  /** The same over the whole picture, with nothing ignored. */
+  rawPercent: number;
+  /** Share of the picture that is ignored, percent. */
+  ignoredPercent: number;
   /** The diff image (red = different, the rest is a faded copy of the reference). */
   diff: PNG;
 }
@@ -37,7 +77,7 @@ export function limitFor(scene: string): number {
 }
 
 /** Compares two PNGs of the same size. Throws when the sizes differ (both must be 800x600 by `shot`). */
-export function compareImages(reference: PNG, actual: PNG, threshold = THRESHOLD): CompareResult {
+export function compareImages(reference: PNG, actual: PNG, threshold = THRESHOLD, ignore: readonly Rect[] = []): CompareResult {
   if (reference.width !== actual.width || reference.height !== actual.height) {
     throw new Error(
       `size mismatch: reference ${reference.width}x${reference.height}, actual ${actual.width}x${actual.height}`,
@@ -45,8 +85,35 @@ export function compareImages(reference: PNG, actual: PNG, threshold = THRESHOLD
   }
   const { width, height } = reference;
   const diff = new PNG({ width, height });
-  const diffPixels = pixelmatch(reference.data, actual.data, diff.data, width, height, { threshold });
-  return { width, height, diffPixels, percent: (diffPixels / (width * height)) * 100, diff };
+  const total = pixelmatch(reference.data, actual.data, diff.data, width, height, { threshold });
+  // pixelmatch paints a different pixel (255, 0, 0); take the ignored areas out and tint them blue in the diff picture
+  let ignored = 0;
+  let ignoredDiff = 0;
+  const mask = new Uint8Array(width * height);
+  for (const r of ignore) {
+    for (let y = Math.max(0, r[1]); y < Math.min(height, r[1] + r[3]); y++) {
+      for (let x = Math.max(0, r[0]); x < Math.min(width, r[0] + r[2]); x++) mask[y * width + x] = 1;
+    }
+  }
+  for (let i = 0; i < width * height; i++) {
+    if (mask[i] === 0) continue;
+    ignored++;
+    const o = i * 4;
+    if (diff.data[o] === 255 && diff.data[o + 1] === 0 && diff.data[o + 2] === 0) ignoredDiff++;
+    diff.data[o] = Math.round(diff.data[o]! * 0.4);
+    diff.data[o + 1] = Math.round(diff.data[o + 1]! * 0.4 + 40);
+    diff.data[o + 2] = Math.round(diff.data[o + 2]! * 0.4 + 140);
+  }
+  const diffPixels = total - ignoredDiff;
+  return {
+    width,
+    height,
+    diffPixels,
+    percent: (diffPixels / (width * height - ignored)) * 100,
+    rawPercent: (total / (width * height)) * 100,
+    ignoredPercent: (ignored / (width * height)) * 100,
+    diff,
+  };
 }
 
 export interface SceneRow {
@@ -54,6 +121,9 @@ export interface SceneRow {
   /** `ok` | `fail` | `no-reference` | `no-actual` | `error` */
   status: 'ok' | 'fail' | 'no-reference' | 'no-actual' | 'error';
   percent?: number;
+  /** Without the ignored areas (`percent` is outside of them). */
+  rawPercent?: number;
+  ignoredPercent?: number;
   limit: number;
   message?: string;
 }
@@ -80,7 +150,14 @@ function esc(s: string): string {
 export function renderReport(rows: readonly SceneRow[], rel: { reference: string; actual: string; diff: string }): string {
   const body = rows
     .map((r) => {
-      const pct = r.percent === undefined ? '' : r.percent.toFixed(2) + ' %';
+      const pct =
+        r.percent === undefined
+          ? ''
+          : r.percent.toFixed(2) +
+            ' %' +
+            (r.ignoredPercent !== undefined && r.ignoredPercent > 0
+              ? ` (raw ${(r.rawPercent ?? 0).toFixed(2)} %, ignored ${r.ignoredPercent.toFixed(1)} % of the picture, blue)`
+              : '');
       const cell = (dir: string, show: boolean): string =>
         show ? `<a href="${dir}/${r.scene}.png"><img loading="lazy" src="${dir}/${r.scene}.png"></a>` : '<em>-</em>';
       return `<tr class="${r.status}"><td><b>${esc(r.scene)}</b><br>${pct}<br>limit ${r.limit} %<br>${r.status}${
@@ -120,9 +197,16 @@ export function runCompare(opts: CompareOptions): SceneRow[] {
       try {
         const ref = PNG.sync.read(readFileSync(join(opts.referenceDir, scene + '.png')));
         const act = PNG.sync.read(readFileSync(join(opts.actualDir, scene + '.png')));
-        const r = compareImages(ref, act);
+        const r = compareImages(ref, act, THRESHOLD, ignoreFor(scene));
         writeFileSync(join(diffDir, scene + '.png'), PNG.sync.write(r.diff));
-        rows.push({ scene, status: r.percent <= limit ? 'ok' : 'fail', percent: r.percent, limit });
+        rows.push({
+          scene,
+          status: r.percent <= limit ? 'ok' : 'fail',
+          percent: r.percent,
+          rawPercent: r.rawPercent,
+          ignoredPercent: r.ignoredPercent,
+          limit,
+        });
       } catch (e) {
         rows.push({ scene, status: 'error', limit, message: e instanceof Error ? e.message : String(e) });
       }
@@ -156,7 +240,8 @@ function main(argv: readonly string[]): number {
   });
   for (const r of rows) {
     const pct = r.percent === undefined ? '       ' : r.percent.toFixed(2).padStart(6) + '%';
-    console.log(`${r.status.padEnd(12)} ${pct}  (limit ${r.limit}%)  ${r.scene}${r.message !== undefined ? '  ' + r.message : ''}`);
+    const raw = r.rawPercent === undefined ? '' : `  raw ${r.rawPercent.toFixed(2)}%`;
+    console.log(`${r.status.padEnd(12)} ${pct}${raw}  (limit ${r.limit}%)  ${r.scene}${r.message !== undefined ? '  ' + r.message : ''}`);
   }
   console.log('report: ' + join(outDir, 'report.html'));
   return rows.some((r) => r.status === 'fail' || r.status === 'error') ? 1 : 0;

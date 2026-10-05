@@ -33,6 +33,11 @@ export class AntAnimation {
   totalFrames = 0; // int
   width = 0; // int
   height = 0; // int
+  /**
+   * T4.2: true when the frames are the BitmapData of makeFromMovieClip (the colour bounds + 2 px of indent on each
+   * side, see bitmapRect); false for the level layers (Level01BG_mc ...), which keep their whole-layer frame.
+   */
+  bitmapFrames = true;
 
   //---------------------------------------
   // CONSTRUCTOR
@@ -49,6 +54,24 @@ export class AntAnimation {
   //---------------------------------------
   // STATIC METHODS
   //---------------------------------------
+
+  /** The symbols of the level layers (tools/extract/sprites.ts LEVEL_LAYER_RE): frames of the whole layer. */
+  private static readonly LEVEL_LAYER_RE = /^Level\d\d(?:Back|BG|FG)_mc$/;
+
+  /**
+   * The BitmapData rectangle of a frame in the original, relative to the top-left corner of the untrimmed frame:
+   * `[x, y, width, height]`. makeFromMovieClip cuts the drawn clip to `getColorBoundsRect(alpha != 0)` and grows it by
+   * the indent (2 px) on each side: that is `trim1x` + 2 px, and AntActor.width/height are the size of this bitmap.
+   * `aBitmap = false` (level layers): the frame as it is.
+   */
+  static bitmapRect(aFrame: FrameMeta, aBitmap = true): [number, number, number, number] {
+    if (!aBitmap) {
+      return [0, 0, Math.ceil(aFrame.size1x[0]) | 0, Math.ceil(aFrame.size1x[1]) | 0];
+    }
+
+    const t = aFrame.trim1x;
+    return [(t[0] | 0) - 2, (t[1] | 0) - 2, ((t[2] | 0) + 4) | 0, ((t[3] | 0) + 4) | 0];
+  }
 
   static useAnimation(aName: string): void {
     const i = AntAnimation._usedNames.indexOf(aName) | 0;
@@ -232,14 +255,19 @@ export class AntAnimation {
    */
   makeFromFrames(aFrames: readonly FrameMeta[]): void {
     this.totalFrames = aFrames.length | 0;
+    this.bitmapFrames = !AntAnimation.LEVEL_LAYER_RE.test(this.name);
     let i = 0;
     while (i < aFrames.length) {
       const f = aFrames[i++] as FrameMeta;
       this.frames.push(f);
-      this.offsetX.push(-f.origin1x[0]);
-      this.offsetY.push(-f.origin1x[1]);
-      const w = Math.ceil(f.size1x[0]);
-      const h = Math.ceil(f.size1x[1]);
+      // makeFromMovieClip(aClip, aIndent = 2): the BitmapData of a frame is the colour bounds of the drawn clip
+      // grown by 2 px on each side, so the offset is the offset of that rectangle (T4.2: the actor width/height of
+      // the original are the size of this bitmap; the untrimmed `size1x` of the manifest is a different number).
+      const rect = AntAnimation.bitmapRect(f, this.bitmapFrames);
+      this.offsetX.push(-f.origin1x[0] + rect[0]);
+      this.offsetY.push(-f.origin1x[1] + rect[1]);
+      const w = rect[2];
+      const h = rect[3];
       this.width = this.width < w ? w | 0 : this.width;
       this.height = this.height < h ? h | 0 : this.height;
     }
@@ -250,6 +278,7 @@ export class AntAnimation {
     const anim = new AntAnimation(aName == null ? this.name : aName);
     anim.width = this.width;
     anim.height = this.height;
+    anim.bitmapFrames = this.bitmapFrames;
     anim.totalFrames = aFrameIndexes.length | 0;
     let i = 0;
     const n = aFrameIndexes.length | 0;

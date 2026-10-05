@@ -166,6 +166,7 @@ async function bootstrap(): Promise<void> {
     onReady: () => {
       online.onWorkerReady();
       if (flags.startLevel !== null) sim?.command('startLevel', [flags.startLevel]);
+      if (flags.startScreen !== undefined) sim?.command('showScreen', [flags.startScreen]);
     },
   });
   if (sim !== null) online.bind(sim);

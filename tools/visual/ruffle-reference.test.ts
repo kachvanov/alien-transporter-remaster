@@ -17,14 +17,15 @@ describe('ruffle reference', () => {
 });
 
 describe('shot scenes', () => {
-  it('has the scenes of docs/05 §6 except level-complete', () => {
+  it('has the scenes of docs/05 §6 (level-complete too: --start-screen=LevelComplete, T4.2)', () => {
     expect(ALL_SCENES).toContain('main-menu');
     expect(ALL_SCENES).toContain('level20');
-    expect(ALL_SCENES).toHaveLength(25);
+    expect(ALL_SCENES).toContain('level-complete');
+    expect(ALL_SCENES).toHaveLength(26);
   });
 
   it('parses --scene', () => {
-    expect(parseScenes(null)).toHaveLength(25);
+    expect(parseScenes(null)).toHaveLength(26);
     expect(parseScenes('level01,garage')).toEqual(['level01', 'garage']);
     expect(parseScenes('levels')).toHaveLength(20);
     expect(() => parseScenes('nope')).toThrow(/unknown scene/);

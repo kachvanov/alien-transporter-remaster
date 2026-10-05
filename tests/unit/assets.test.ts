@@ -34,9 +34,11 @@ describe.skipIf(!hasAssets)('AssetRegistry with the real assets/manifest.json', 
     expect(a.totalFrames).toBe(30);
     expect(a.currentFrame).toBe(1);
     const meta = registry.getAnimation('Coin_mc').frames[0]!;
-    expect(a.width).toBe(meta.size1x[0]);
-    expect(a.height).toBe(meta.size1x[1]);
-    expect(a.origin.x).toBe(-meta.origin1x[0]);
+    // the size and the offset of the BitmapData of the original: colour bounds (trim1x) + 2 px of indent (T4.2)
+    expect(a.width).toBe(meta.trim1x[2] + 4);
+    expect(a.height).toBe(meta.trim1x[3] + 4);
+    expect(a.origin.x).toBe(-meta.origin1x[0] + meta.trim1x[0] - 2);
+    expect(a.origin.y).toBe(-meta.origin1x[1] + meta.trim1x[1] - 2);
     a.gotoAndStop(30);
     expect(a.currentFrameMeta).toBe(registry.getAnimation('Coin_mc').frames[29]);
     expect(AntAnimation.containsInCache('Coin_mc')).toBe(true);

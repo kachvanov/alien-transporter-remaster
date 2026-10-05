@@ -355,8 +355,11 @@ export class AntLightEnvironment extends AntEntity implements IFrameWritable {
     const screen = aActor.getScreenPosition(aCamera);
     item.sx = screen.x;
     item.sy = screen.y;
-    item.ox = aActor.origin.x;
-    item.oy = aActor.origin.y;
+    // The origin of the actor is the offset of the BitmapData of the original (the colour bounds + 2 px, T4.2); the mask
+    // below is the untrimmed frame, so its own origin is taken back (rect = [x, y] of the bitmap inside the frame).
+    const rect = aActor.bitmapOffset;
+    item.ox = aActor.origin.x - rect[0];
+    item.oy = aActor.origin.y - rect[1];
     item.scaleX = aActor.scaleX;
     item.scaleY = aActor.scaleY;
     const angle = Math.PI * 2 * (aActor.globalAngle / 360);
@@ -365,8 +368,8 @@ export class AntLightEnvironment extends AntEntity implements IFrameWritable {
     item.quick =
       aActor.globalAngle == 0 && aActor.scaleX == 1 && aActor.scaleY == 1 && aActor.blend == null && aActor.quickDraw;
     // copyPixels(…, destPoint): the point is cut to integers
-    item.dx = (screen.x + aActor.origin.x) | 0;
-    item.dy = (screen.y + aActor.origin.y) | 0;
+    item.dx = ((screen.x + aActor.origin.x) | 0) - rect[0];
+    item.dy = ((screen.y + aActor.origin.y) | 0) - rect[1];
     item.mask = meta.mask ?? null;
     if (item.mask != null) {
       item.w = item.mask.w;

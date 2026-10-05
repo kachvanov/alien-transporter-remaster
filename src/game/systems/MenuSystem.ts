@@ -125,6 +125,11 @@ export class MenuSystem extends AntSystem {
     this._transition.hide();
   }
 
+  /** Not in the original (the dev entry `--start-screen`): is there a screen of that name. */
+  hasScreen(aName: string): boolean {
+    return Object.prototype.hasOwnProperty.call(this._screens, aName);
+  }
+
   private registerScreen(aName: string, aClass: Ctor<BasicScreen> | undefined): void {
     if (aClass !== undefined) {
       this._screens[aName] = aClass;
