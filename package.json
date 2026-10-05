@@ -25,6 +25,7 @@
     "build:win": "tsx tools/build/prepack.ts --win && electron-vite build && tsx tools/build/builder.ts --win --x64",
     "dist:all": "tsx tools/build/dist-all.ts",
     "dist:status": "tsx tools/build/dist-status.ts",
+    "dist:open": "tsx tools/build/dist-open.ts",
     "hooks:install": "git config core.hooksPath .githooks",
     "golden:update": "tsx tools/golden/update.ts",
     "golden:record": "tsx tools/golden/record.ts"

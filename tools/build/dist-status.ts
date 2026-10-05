@@ -1,6 +1,7 @@
-// `npm run dist:status`: is a build running, which commit was built last, is main behind it, where are the files (T5.3).
+// `npm run dist:status`: is a build running, which commit is in dist/latest, is main behind it, where are the files (T5.3, T5.5).
 import { resolve } from 'node:path';
 import { changedFiles, distPaths, git } from './dist-env';
+import { hasFlatLayout, listArchive } from './dist-layout';
 import {
   type BuildInfo,
   type BuildState,
@@ -28,7 +29,10 @@ function main(): void {
       headCommit: head,
       changedSinceBuild: changed,
       distDir: paths.dist,
-      info: readJson<BuildInfo | null>(paths.info, null),
+      latest: readJson<BuildInfo | null>(paths.latestInfo, null),
+      attempt: readJson<BuildInfo | null>(paths.attempt, null),
+      archive: listArchive(paths),
+      flatLayout: hasFlatLayout(paths.dist),
     }),
   );
 }

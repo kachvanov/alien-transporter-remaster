@@ -1,27 +1,48 @@
-// Paths and git helpers shared by dist-all.ts and dist-status.ts (T5.3).
+// Paths and git helpers shared by dist-all.ts, dist-status.ts and dist-open.ts (T5.3, T5.5).
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
 export interface DistPaths {
   root: string;
   dist: string;
+  /** dist/build.log: the only loose file in dist/ besides latest/ and archive/. */
   log: string;
+  /** dist/latest/: the newest build under stable names. */
+  latest: string;
+  /** dist/archive/<date>-<hash>/: builds with their original hash-named files. */
+  archive: string;
+  /** dist/.state/: internal files, hidden from the user's view. */
+  stateDir: string;
   lock: string;
   pending: string;
   state: string;
-  info: string;
+  /** The newest attempt, also a failed one that never became latest/. */
+  attempt: string;
+  /** latest/ is built here and swapped in; the replaced one waits here until it is deleted. */
+  latestNext: string;
+  latestOld: string;
+  /** BUILD-INFO.json inside latest/. */
+  latestInfo: string;
 }
 
 export function distPaths(root: string): DistPaths {
   const dist = join(root, 'dist');
+  const stateDir = join(dist, '.state');
+  const latest = join(dist, 'latest');
   return {
     root,
     dist,
     log: join(dist, 'build.log'),
-    lock: join(dist, '.build.lock'),
-    pending: join(dist, '.build.pending'),
-    state: join(dist, '.build-state.json'),
-    info: join(dist, 'BUILD-INFO.json'),
+    latest,
+    archive: join(dist, 'archive'),
+    stateDir,
+    lock: join(stateDir, 'build.lock'),
+    pending: join(stateDir, 'build.pending'),
+    state: join(stateDir, 'build-state.json'),
+    attempt: join(stateDir, 'last-attempt.json'),
+    latestNext: join(stateDir, 'latest.next'),
+    latestOld: join(stateDir, 'latest.old'),
+    latestInfo: join(latest, 'BUILD-INFO.json'),
   };
 }
 

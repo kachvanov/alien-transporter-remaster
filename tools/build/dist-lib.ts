@@ -57,6 +57,51 @@ export function resolveBuildId(envValue: string | undefined, headCommit: string 
 
 export type ArtifactKind = 'mac' | 'win-setup' | 'win-portable';
 
+/** Names in dist/latest/ (T5.5): stable across builds, no spaces, no hash: safe to bookmark and to copy to another machine. */
+export const STABLE_NAMES: Readonly<Record<ArtifactKind, string>> = {
+  mac: 'Alien-Transporter-Remaster-mac-arm64.dmg',
+  'win-setup': 'Alien-Transporter-Remaster-win-setup.exe',
+  'win-portable': 'Alien-Transporter-Remaster-win-portable.exe',
+};
+
+/** `2026-10-05_1432-49ec902`: the folder of a build in dist/archive/ (local time of the build start). */
+export function archiveDirName(date: Date, commit: string): string {
+  const p = (n: number, w = 2): string => String(n).padStart(w, '0');
+  const day = `${p(date.getFullYear(), 4)}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
+  return `${day}_${p(date.getHours())}${p(date.getMinutes())}-${shortHash(commit)}`;
+}
+
+/** Only folders with this shape in dist/archive/ belong to the build system; anything else there is the user's. */
+export const ARCHIVE_DIR_RE = /^\d{4}-\d{2}-\d{2}_\d{4}-[0-9a-f]{4,40}$/;
+
+const PRODUCT = 'Alien Transporter Remaster';
+
+export interface ParsedArtifactName {
+  kind: ArtifactKind;
+  version: string;
+  hash: string;
+  /** A leftover `.partial` of an interrupted move. */
+  partial: boolean;
+}
+
+/**
+ * A loose file of the OLD flat dist/ layout (T5.3 names): `<product>-<ver>-<hash>-arm64.dmg`,
+ * `<product> Setup <ver>-<hash>.exe`, `<product> <ver>-<hash>.exe` (+ ".partial"). Anything else is not ours: null.
+ */
+export function parseArtifactName(fileName: string): ParsedArtifactName | null {
+  const partial = fileName.endsWith('.partial');
+  const name = partial ? fileName.slice(0, -'.partial'.length) : fileName;
+  const ver = '(\\d+(?:\\.\\d+)*)';
+  const hash = '([0-9a-f]{4,40})';
+  let m = new RegExp(`^${PRODUCT}-${ver}-${hash}-arm64\\.dmg$`).exec(name);
+  if (m !== null) return { kind: 'mac', version: m[1] ?? '', hash: m[2] ?? '', partial };
+  m = new RegExp(`^${PRODUCT} Setup ${ver}-${hash}\\.exe$`).exec(name);
+  if (m !== null) return { kind: 'win-setup', version: m[1] ?? '', hash: m[2] ?? '', partial };
+  m = new RegExp(`^${PRODUCT} ${ver}-${hash}\\.exe$`).exec(name);
+  if (m !== null) return { kind: 'win-portable', version: m[1] ?? '', hash: m[2] ?? '', partial };
+  return null;
+}
+
 /**
  * Which deliverable a file in electron-builder's output is (null: not a deliverable: blockmaps, unpacked dirs, yml).
  * Only files carrying this build's id count, so a leftover of an older build is never picked up.
@@ -83,7 +128,10 @@ export interface StageResult {
 
 export interface BuildFile {
   kind: ArtifactKind;
+  /** The original hash-named file in dist/archive/<archiveDir>/. */
   name: string;
+  /** The stable name of the same file (a hard link) in dist/latest/. */
+  latestName: string;
   bytes: number;
 }
 
@@ -94,10 +142,15 @@ export interface BuildInfo {
   version: string;
   /** True only if every stage succeeded (macOS and Windows). */
   ok: boolean;
+  /** 'partial': a platform failed, it is absent from latest/ (see `stages` for the reason). */
   status: 'ok' | 'partial' | 'failed';
   durationMs: number;
   stages: StageResult[];
   files: BuildFile[];
+  /** Folder of this build in dist/archive/ ('' if nothing was produced). */
+  archiveDir: string;
+  /** Set for a build recovered from the old flat dist/ layout. */
+  note?: string;
 }
 
 /** Stages that produce a deliverable: a failure of one must not stop the other. */
@@ -108,12 +161,14 @@ export function makeBuildInfo(args: {
   date: string;
   version: string;
   stages: StageResult[];
-  files: BuildFile[];
+  files: Omit<BuildFile, 'latestName'>[];
   durationMs: number;
+  archiveDir?: string;
+  note?: string;
 }): BuildInfo {
   const ok = args.stages.every((s) => s.status === 'ok');
   const platformOk = args.stages.filter((s) => PLATFORM_STAGES.includes(s.name) && s.status === 'ok').length;
-  return {
+  const info: BuildInfo = {
     commit: args.commit,
     shortCommit: shortHash(args.commit),
     date: args.date,
@@ -122,52 +177,52 @@ export function makeBuildInfo(args: {
     status: ok ? 'ok' : platformOk > 0 ? 'partial' : 'failed',
     durationMs: args.durationMs,
     stages: args.stages,
-    files: args.files,
+    files: args.files.map((f) => ({ ...f, latestName: STABLE_NAMES[f.kind] })),
+    archiveDir: args.archiveDir ?? '',
   };
+  if (args.note !== undefined) info.note = args.note;
+  return info;
 }
 
 export interface HistoryEntry {
   commit: string;
   date: string;
-  /** File names in dist/ that belong to this build. */
-  files: string[];
+  /** Folder of this build in dist/archive/. */
+  dir: string;
 }
 
 export interface BuildState {
   /** Last commit that was built completely (all platforms ok): the base of the "what changed" diff. */
   lastSuccess: { commit: string; date: string } | null;
-  /** Newest first. */
+  /** Builds that exist in dist/archive/, newest first; history[0] is what dist/latest/ holds. */
   history: HistoryEntry[];
 }
 
 export const EMPTY_STATE: BuildState = { lastSuccess: null, history: [] };
 
-/** How many newest builds (a "pair" = dmg + exe set of one commit) are kept in dist/. */
+/**
+ * How many builds dist/archive/ holds: the newest one (its files are hard-linked into dist/latest/, so it costs no extra
+ * disk) plus 1 previous build.
+ */
 export const KEEP_BUILDS = 2;
 
-/** Keeps the `keep` newest builds that have files; returns the new history and the file names to delete. */
+/** Keeps the `keep` newest builds; returns the new history and the archive folders that fall out of it. */
 export function rotateBuilds(
   history: readonly HistoryEntry[],
   keep: number = KEEP_BUILDS,
 ): { history: HistoryEntry[]; remove: string[] } {
-  const withFiles = history.filter((h) => h.files.length > 0);
-  const kept = withFiles.slice(0, keep);
-  const keptFiles = new Set(kept.flatMap((h) => h.files));
-  const remove: string[] = [];
-  for (const h of withFiles.slice(keep)) {
-    for (const f of h.files) if (!keptFiles.has(f) && !remove.includes(f)) remove.push(f);
-  }
-  return { history: kept, remove };
+  return { history: history.slice(0, keep), remove: history.slice(keep).map((h) => h.dir) };
 }
 
-/** State after a finished build: the entry goes first (a rebuild of the same commit replaces the old entry). */
+/**
+ * State after a finished build. A build without files (it failed completely) never becomes latest/ and is not recorded in
+ * the history; otherwise the entry goes first (a rebuild of the same commit replaces the old entry).
+ */
 export function recordBuild(state: BuildState, info: BuildInfo): BuildState {
-  const entry: HistoryEntry = { commit: info.commit, date: info.date, files: info.files.map((f) => f.name) };
-  const history = [entry, ...state.history.filter((h) => h.commit !== info.commit)];
-  return {
-    lastSuccess: info.ok ? { commit: info.commit, date: info.date } : state.lastSuccess,
-    history,
-  };
+  const lastSuccess = info.ok ? { commit: info.commit, date: info.date } : state.lastSuccess;
+  if (info.files.length === 0) return { lastSuccess, history: state.history };
+  const entry: HistoryEntry = { commit: info.commit, date: info.date, dir: info.archiveDir };
+  return { lastSuccess, history: [entry, ...state.history.filter((h) => h.commit !== info.commit)] };
 }
 
 export function readJson<T>(path: string, fallback: T): T {
@@ -347,10 +402,10 @@ export async function processQueue(paths: QueuePaths, deps: QueueDeps): Promise<
 // ---------------------------------------------------------------------------------------------------------------
 
 export function notificationFor(info: BuildInfo): string {
-  if (info.ok) return `Build ${info.shortCommit} is ready: dmg + exe`;
+  if (info.ok) return `Build ${info.shortCommit} is ready: dmg + exe in dist/latest`;
   if (info.status === 'partial') {
     const failed = info.stages.filter((s) => s.status === 'failed').map((s) => s.name);
-    return `Build ${info.shortCommit} partly failed (${failed.join(', ')}): see dist/build.log`;
+    return `Build ${info.shortCommit} partly failed (${failed.join(', ')}): dist/latest has the rest, see dist/build.log`;
   }
   return 'Build failed: see dist/build.log';
 }
@@ -368,7 +423,14 @@ export interface StatusInput {
   /** Files changed between the last successful build and HEAD (null: unknown). */
   changedSinceBuild: string[] | null;
   distDir: string;
-  info: BuildInfo | null;
+  /** BUILD-INFO.json of dist/latest/ (null: no latest/ yet). */
+  latest: BuildInfo | null;
+  /** The newest attempt, also one that failed completely and never became latest/. */
+  attempt: BuildInfo | null;
+  /** Folder names in dist/archive/. */
+  archive: string[];
+  /** Loose files of the old flat layout are still in dist/ (the next dist:all moves them). */
+  flatLayout: boolean;
 }
 
 export function formatStatus(s: StatusInput): string {
@@ -395,14 +457,28 @@ export function formatStatus(s: StatusInput): string {
       lines.push(`main (${shortHash(s.headCommit)}): ahead of the build, but only docs/tests/tools changed: no build needed`);
     }
   }
-  if (s.info !== null) {
-    lines.push(
-      `latest attempt: ${s.info.shortCommit} ${s.info.status} in ${formatDuration(s.info.durationMs)} (${s.info.stages
-        .map((st) => `${st.name}=${st.status}`)
-        .join(', ')})`,
-    );
-    for (const f of s.info.files) lines.push(`  ${f.kind.padEnd(12)} ${s.distDir}/${f.name} (${(f.bytes / 1048576).toFixed(1)} MB)`);
+  if (s.latest !== null) {
+    lines.push(`${s.distDir}/latest: commit ${s.latest.shortCommit} (${s.latest.status}), built ${s.latest.date}`);
+    for (const f of s.latest.files) {
+      lines.push(`  ${f.kind.padEnd(12)} ${s.distDir}/latest/${f.latestName} (${(f.bytes / 1048576).toFixed(1)} MB)`);
+    }
+    for (const st of s.latest.stages) {
+      if (st.status !== 'ok' && PLATFORM_STAGES.includes(st.name)) {
+        lines.push(`  ${st.name}: ${st.status}, absent from latest${st.error !== undefined ? ` (${st.error})` : ''}`);
+      }
+    }
+  } else {
+    lines.push(`${s.distDir}/latest: none yet (run npm run dist:all)`);
   }
+  if (s.attempt !== null && (s.latest === null || s.attempt.commit !== s.latest.commit)) {
+    lines.push(
+      `latest attempt: ${s.attempt.shortCommit} ${s.attempt.status} in ${formatDuration(s.attempt.durationMs)} (${s.attempt.stages
+        .map((st) => `${st.name}=${st.status}`)
+        .join(', ')}); it is not in latest/`,
+    );
+  }
+  if (s.archive.length > 0) lines.push(`archive: ${s.archive.join(', ')} (${s.distDir}/archive)`);
+  if (s.flatLayout) lines.push('note: loose files of the old flat layout are still in dist/; the next dist:all moves them');
   lines.push(`log: ${s.distDir}/build.log`);
   return lines.join('\n');
 }
