@@ -86,14 +86,32 @@ export function buildGlyphFrames(aManifest: Manifest, aFonts: ReadonlyMap<string
         if (b.scale !== undefined) g.scale = b.scale;
         tiers[t] = g;
       }
-      out.push({
+      const glyph: Frame = {
         key: glyphKey(fontName, code),
         group: base.group,
         size1x: [ch.w, ch.h],
         origin1x: [0, 0],
         trim1x: [0, 0, pw, ph],
         tiers,
-      });
+      };
+      // FIX-11: the same glyph in the smooth variant of the font bitmap (same geometry, other pages)
+      if (base.smooth !== undefined) {
+        const smooth: NonNullable<Frame['smooth']> = {};
+        for (const t of ['2x', '3x'] as const) {
+          const b = base.smooth[t];
+          if (b === undefined) continue;
+          const z = TIER_ZOOM[t] * (b.scale ?? 1);
+          const g: TierFrame = {
+            atlas: b.atlas,
+            rect: [b.rect[0] + ch.x * z, b.rect[1] + ch.y * z, pw * z, ph * z],
+            trim: [0, 0, pw * z, ph * z],
+          };
+          if (b.scale !== undefined) g.scale = b.scale;
+          smooth[t] = g;
+        }
+        glyph.smooth = smooth;
+      }
+      out.push(glyph);
     }
   }
   return out;

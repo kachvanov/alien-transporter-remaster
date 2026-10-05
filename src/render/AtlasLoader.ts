@@ -4,7 +4,15 @@
 
 import { ImageSource, Rectangle, Texture } from 'pixi.js';
 import type { Manifest, TierName } from '../engine/assets/schemas';
-import { frameGeometry, groupAtlasKeys, levelGroupName, pageVramBytes, STARTUP_GROUPS } from './atlasMath';
+import type { UiScaling } from '../engine/assets/uiScaling';
+import {
+  effectiveUiScaling,
+  frameGeometry,
+  groupAtlasKeys,
+  levelGroupName,
+  pageVramBytes,
+  startupGroups,
+} from './atlasMath';
 import { NO_LEVEL_GROUP } from '../frame/constants';
 
 /** Everything the renderer needs to put a frame on a sprite. */
@@ -48,6 +56,11 @@ interface Page {
 
 export class AtlasLoader {
   readonly tier: TierName;
+  /**
+   * FIX-11: the variant of the pixel-art UI that is loaded and drawn (`smooth` only when the manifest has its pages at this
+   * tier). Fixed for the life of the loader: the other variant's pages are never loaded, so it costs no memory.
+   */
+  readonly uiScaling: UiScaling;
 
   /** Called before the textures of a group are destroyed: the renderer must drop every sprite that uses them. */
   onUnload: ((group: string) => void) | null = null;
@@ -65,9 +78,16 @@ export class AtlasLoader {
   private _upload: ((source: ImageSource) => void) | null = null;
   private _contextLost = false;
 
-  constructor(manifest: Manifest, tier: TierName, baseUrl = 'app://assets/', loadBitmap: BitmapLoader = loadBitmapFromNetwork) {
+  constructor(
+    manifest: Manifest,
+    tier: TierName,
+    baseUrl = 'app://assets/',
+    loadBitmap: BitmapLoader = loadBitmapFromNetwork,
+    uiScaling: UiScaling = 'pixel',
+  ) {
     this._manifest = manifest;
     this.tier = tier;
+    this.uiScaling = effectiveUiScaling(manifest, tier, uiScaling);
     this._baseUrl = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
     this._loadBitmap = loadBitmap;
   }
@@ -113,7 +133,7 @@ export class AtlasLoader {
 
   /** Loads the groups that are needed all the time. */
   loadStartup(): Promise<void[]> {
-    return Promise.all(STARTUP_GROUPS.map((g) => this.loadGroup(g)));
+    return Promise.all(startupGroups(this.uiScaling).map((g) => this.loadGroup(g)));
   }
 
   isGroupLoaded(group: string): boolean {
@@ -178,7 +198,7 @@ export class AtlasLoader {
     if (cached !== undefined) return cached;
     const frame = this._manifest.frames[texId];
     if (frame === undefined) return null;
-    const geo = frameGeometry(frame, this.tier);
+    const geo = frameGeometry(frame, this.tier, this.uiScaling);
     const page = this._pages.get(geo.atlas);
     if (page === undefined) return null;
     const [x, y, w, h] = geo.rect;

@@ -8,6 +8,18 @@
 // Pure TS (no DOM, no Electron): the main process validates the patches of the renderer with the same functions.
 
 import type { TierName } from './at';
+import { isUiScaling } from '../engine/assets/uiScaling';
+import type { UiScaling } from '../engine/assets/uiScaling';
+
+export type { UiScaling };
+export { isUiScaling };
+
+/**
+ * FIX-11: the UI scaling used when neither the command line (`--ui-scaling=`) nor settings.json says anything.
+ * `pixel`: the pixel art of the original replicated k x k at 2x/3x (crisp and blocky, since T5.6); `smooth`: the smooth
+ * resampled variant. Flip this one constant to change the default of the whole game.
+ */
+export const DEFAULT_UI_SCALING: UiScaling = 'pixel';
 
 export type TierSetting = 'auto' | TierName;
 
@@ -23,6 +35,8 @@ export interface RemasterSettings {
   classic35: boolean;
   /** Graphics tier of the atlases: `auto` follows the size of the window. */
   tier: TierSetting;
+  /** FIX-11: how the pixel-art UI is scaled at 2x/3x (applies at the next start, like `tier`). */
+  uiScaling: UiScaling;
   /** The last address that was typed on the Join screen (`ip` or `ip:port`). */
   lastJoinAddress: string;
   /** Port of the LAN host. */
@@ -32,6 +46,7 @@ export interface RemasterSettings {
 export const DEFAULT_SETTINGS: Readonly<RemasterSettings> = {
   classic35: false,
   tier: 'auto',
+  uiScaling: DEFAULT_UI_SCALING,
   lastJoinAddress: '',
   netPort: DEFAULT_NET_PORT,
 };
@@ -44,6 +59,11 @@ function isTierSetting(aValue: unknown): aValue is TierSetting {
   return typeof aValue === 'string' && (TIER_SETTINGS as readonly string[]).includes(aValue);
 }
 
+/** The scaling that is used: the command line flag wins over settings.json (like `--tier` and `--classic`). */
+export function resolveUiScaling(aFlag: UiScaling | null | undefined, aSetting: UiScaling): UiScaling {
+  return aFlag ?? aSetting;
+}
+
 /** The valid known keys of `aRaw`; everything else (unknown keys, wrong types, bad values) is dropped. */
 export function sanitizeSettingsPatch(aRaw: unknown): Partial<RemasterSettings> {
   const result: Partial<RemasterSettings> = {};
@@ -51,6 +71,7 @@ export function sanitizeSettingsPatch(aRaw: unknown): Partial<RemasterSettings> 
   const o = aRaw as Record<string, unknown>;
   if (typeof o['classic35'] === 'boolean') result.classic35 = o['classic35'];
   if (isTierSetting(o['tier'])) result.tier = o['tier'];
+  if (isUiScaling(o['uiScaling'])) result.uiScaling = o['uiScaling'];
   if (typeof o['lastJoinAddress'] === 'string' && o['lastJoinAddress'].length <= MAX_ADDRESS_LENGTH) {
     result.lastJoinAddress = o['lastJoinAddress'];
   }

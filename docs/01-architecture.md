@@ -141,7 +141,7 @@ Loads `assets/manifest.json` (frame metadata, no images), `assets/data/levels/*.
 ## 7. Saves and settings
 
 - In the simulation `SaveStorage` is an interface `{ load(key): Promise<object|null>; save(key, obj): Promise<void> }`. In the worker it goes via `postMessage` → renderer → `window.at.save.*` → IPC → `electron/save.ts`. In Node tests — an in-memory implementation.
-- Files: `app.getPath('userData')/save.json` (`GameData` progress) and `settings.json` (keys, fancy effects/quality, volume, tier, classic, window, last IP/port). Writes are atomic: `*.tmp` → `rename`.
+- Files: `app.getPath('userData')/save.json` (`GameData` progress) and `settings.json` (keys, fancy effects/quality, volume, tier, UI scaling (FIX-11: pixel-exact/smooth pixel-art UI at 2x/3x, `--ui-scaling=`), classic, window, last IP/port). Writes are atomic: `*.tmp` → `rename`.
 - `--profile=N` in the arguments: `app.setPath('userData', <base>-profileN)`, needed to test two instances.
 
 ## 8. Input

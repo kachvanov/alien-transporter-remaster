@@ -14,8 +14,8 @@ import type { SettingsMenuModel } from './RemasterSettingsModel';
 
 /** Panel in the logical stage (800x600). */
 const PANEL = { x: 80, y: 90, w: 640, h: 420 };
-const ROW_TOP = 200;
-const ROW_STEP = 62;
+const ROW_TOP = 190;
+const ROW_STEP = 54;
 const LABEL_X = 112;
 const VALUE_X = 560;
 const ARROW_DX = 90;
@@ -194,8 +194,8 @@ export class RemasterSettingsOverlay {
       const cy = ROW_TOP + i * ROW_STEP;
       const selected = i === model.selected;
       const color = selected ? COLOR_SELECTED : COLOR_TEXT;
-      this.hit(PANEL.x + 10, cy - 28, PANEL.w - 20, 56, { kind: 'row', index: i });
-      if (selected) this.rect(PANEL.x + 10, cy - 28, PANEL.w - 20, 56, 0x1d3a56, 0.9);
+      this.hit(PANEL.x + 10, cy - 26, PANEL.w - 20, 52, { kind: 'row', index: i });
+      if (selected) this.rect(PANEL.x + 10, cy - 26, PANEL.w - 20, 52, 0x1d3a56, 0.9);
       this.text('font01', row.label, LABEL_X, cy - 18, color, 'left');
       if (row.note !== '') this.text('font02', row.note, LABEL_X, cy + 10, COLOR_NOTE, 'left');
       this.button(VALUE_X - ARROW_DX, cy, '<', { kind: 'arrow', index: i, dir: -1 });

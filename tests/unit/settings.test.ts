@@ -37,7 +37,7 @@ afterEach(async () => {
 
 describe('settings.json', () => {
   it('defaults: smooth motion, automatic tier, the port of the LAN protocol', () => {
-    expect(parseSettings(undefined)).toEqual({ classic35: false, tier: 'auto', lastJoinAddress: '', netPort: 47020 });
+    expect(parseSettings(undefined)).toEqual({ classic35: false, tier: 'auto', uiScaling: 'pixel', lastJoinAddress: '', netPort: 47020 });
     expect(DEFAULT_NET_PORT).toBe(47020);
     expect(parseSettings({})).toEqual(DEFAULT_SETTINGS);
   });
@@ -46,9 +46,10 @@ describe('settings.json', () => {
     expect(
       parseSettings({ classic35: 'yes', tier: '4x', lastJoinAddress: 42, netPort: 80, window: { x: 1 }, extra: true }),
     ).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettings({ classic35: true, tier: '2x', lastJoinAddress: '192.168.0.7:50000', netPort: 50000 })).toEqual({
+    expect(parseSettings({ classic35: true, tier: '2x', uiScaling: 'smooth', lastJoinAddress: '192.168.0.7:50000', netPort: 50000 })).toEqual({
       classic35: true,
       tier: '2x',
+      uiScaling: 'smooth',
       lastJoinAddress: '192.168.0.7:50000',
       netPort: 50000,
     });
@@ -82,7 +83,7 @@ describe('settings.json', () => {
       get: () => new JsonDocument(path).readAll(),
       set: () => Promise.resolve({}),
     });
-    expect(await store2.load()).toEqual({ classic35: true, tier: '3x', lastJoinAddress: '10.0.0.5', netPort: 50001 });
+    expect(await store2.load()).toEqual({ classic35: true, tier: '3x', uiScaling: 'pixel', lastJoinAddress: '10.0.0.5', netPort: 50001 });
     // the window key is untouched by the settings of the renderer
     expect(sanitizeWindowSettings((await readJson(path) as Record<string, unknown>)['window'])).toEqual({
       bounds: { x: 10, y: 20, width: 1024, height: 768 },
@@ -133,12 +134,34 @@ function makeHost(aInit: Partial<RemasterSettings> = {}): { host: SettingsMenuHo
 const key = (m: SettingsMenuModel, code: string, k = '', shift = false): string => m.handleKey(code, k, shift);
 
 describe('RemasterSettingsModel', () => {
-  it('rows: Smooth motion, Graphics, Fullscreen, Network port', () => {
+  it('rows: Smooth motion, Graphics, UI scaling, Fullscreen, Network port', () => {
     const { host } = makeHost();
     const rows = new SettingsMenuModel(host).rows();
-    expect(rows.map((r) => r.id)).toEqual(['smooth', 'graphics', 'fullscreen', 'port']);
-    expect(rows.map((r) => r.label)).toEqual(['Smooth motion (60/120 Hz)', 'Graphics', 'Fullscreen', 'Network port']);
-    expect(rows.map((r) => r.value)).toEqual(['On', 'Auto', 'Off', '47020']);
+    expect(rows.map((r) => r.id)).toEqual(['smooth', 'graphics', 'uiScaling', 'fullscreen', 'port']);
+    expect(rows.map((r) => r.label)).toEqual(['Smooth motion (60/120 Hz)', 'Graphics', 'UI scaling', 'Fullscreen', 'Network port']);
+    expect(rows.map((r) => r.value)).toEqual(['On', 'Auto', 'Pixel-exact', 'Off', '47020']);
+  });
+
+  it('FIX-11: UI scaling toggles pixel-exact / smooth in both directions; a change asks for a restart', () => {
+    const { host, state } = makeHost();
+    const m = new SettingsMenuModel(host);
+    m.select(2);
+    expect(m.rows()[2]?.note).toContain('sharp pixels');
+    key(m, 'ArrowRight');
+    expect(state.s.uiScaling).toBe('smooth');
+    expect(m.rows()[2]).toMatchObject({ value: 'Smooth', note: 'Restart the game to apply' });
+    key(m, 'ArrowLeft');
+    expect(state.s.uiScaling).toBe('pixel');
+    expect(m.rows()[2]?.note).not.toContain('Restart');
+    key(m, 'Enter');
+    expect(state.s.uiScaling).toBe('smooth');
+  });
+
+  it('FIX-11: the UI scaling row says when it has no effect (1x) or no smooth graphics exist', () => {
+    const { host } = makeHost({ uiScaling: 'smooth' });
+    expect(new SettingsMenuModel({ ...host, activeTier: () => '1x' }).rows()[2]?.note).toContain('1x');
+    expect(new SettingsMenuModel({ ...host, activeUiScaling: () => 'pixel' }).rows()[2]?.note).toContain('no smooth graphics');
+    expect(new SettingsMenuModel({ ...host, activeUiScaling: () => 'smooth' }).rows()[2]?.note).toContain('without blocks');
   });
 
   it('Smooth motion is the opposite of Classic 35 fps', () => {
@@ -172,18 +195,17 @@ describe('RemasterSettingsModel', () => {
   it('Fullscreen asks the window; the row shows the state the app reports', () => {
     const { host, state } = makeHost();
     const m = new SettingsMenuModel(host);
-    key(m, 'ArrowDown');
-    key(m, 'ArrowDown');
+    m.select(3);
     key(m, 'Space');
     expect(state.toggles).toBe(1);
     m.refresh();
-    expect(m.rows()[2]?.value).toBe('On');
+    expect(m.rows()[3]?.value).toBe('On');
   });
 
   it('Network port: arrows step 1 (Shift: 100) inside 1024..65535, digits are typed, Enter applies', () => {
     const { host, state } = makeHost({ netPort: 1024 });
     const m = new SettingsMenuModel(host);
-    m.select(3);
+    m.select(4);
     key(m, 'ArrowLeft');
     expect(state.s.netPort).toBe(1024); // (not below the minimum)
     key(m, 'ArrowRight');
@@ -192,32 +214,32 @@ describe('RemasterSettingsModel', () => {
     expect(state.s.netPort).toBe(1125);
 
     for (const d of '50001') key(m, 'Digit' + d, d);
-    expect(m.rows()[3]?.value).toBe('50001_');
+    expect(m.rows()[4]?.value).toBe('50001_');
     expect(state.s.netPort).toBe(1125); // (not applied yet)
     key(m, 'Backspace');
     key(m, 'Digit2', '2');
     key(m, 'Enter');
     expect(state.s.netPort).toBe(50002);
-    expect(m.rows()[3]?.value).toBe('50002');
+    expect(m.rows()[4]?.value).toBe('50002');
   });
 
   it('a typed port that is not valid is dropped; leaving the row applies a valid one', () => {
     const { host, state } = makeHost({ netPort: 47020 });
     const m = new SettingsMenuModel(host);
-    m.select(3);
+    m.select(4);
     for (const d of ['9', '9']) key(m, 'Digit' + d, d);
     key(m, 'Enter');
     expect(state.s.netPort).toBe(47020);
     for (const d of ['6', '0', '0', '0', '0']) key(m, 'Digit' + d, d);
     key(m, 'ArrowUp'); // leaves the row: 60000 is applied
     expect(state.s.netPort).toBe(60000);
-    m.select(3);
+    m.select(4);
     for (const d of ['7', '0', '0', '0', '0']) key(m, 'Digit' + d, d); // 70000 is too big
     key(m, 'Enter');
     expect(state.s.netPort).toBe(60000);
-    m.select(3);
+    m.select(4);
     for (const d of ['1', '2', '3', '4', '5', '6', '7']) key(m, 'Digit' + d, d); // at most 5 digits
-    expect(m.rows()[3]?.value).toBe('12345_');
+    expect(m.rows()[4]?.value).toBe('12345_');
   });
 
   it('Esc and F2 close; the selection stays inside the rows; every other key is consumed', () => {
@@ -228,7 +250,7 @@ describe('RemasterSettingsModel', () => {
     key(m, 'ArrowUp');
     expect(m.selected).toBe(0);
     for (let i = 0; i < 9; i++) key(m, 'ArrowDown');
-    expect(m.selected).toBe(3);
+    expect(m.selected).toBe(4);
     expect(key(m, 'KeyW', 'w')).toBe('handled');
     expect(key(m, 'ArrowUp')).toBe('handled');
   });
@@ -328,10 +350,10 @@ describe('RemasterSettingsOverlay', () => {
     overlay.pointerDown(650, 200);
     overlay.pointerUp(650, 200);
     expect(f.model.rows()[0]?.value).toBe('Off');
-    // the left arrow of the Graphics row (470, 262)
+    // the left arrow of the Graphics row (470, 244)
     overlay.update(lb);
-    overlay.pointerDown(470, 262);
-    overlay.pointerUp(470, 262);
+    overlay.pointerDown(470, 244);
+    overlay.pointerUp(470, 244);
     expect(f.model.rows()[1]?.value).toBe('3x');
     // a press on a button released somewhere else does nothing
     overlay.update(lb);
