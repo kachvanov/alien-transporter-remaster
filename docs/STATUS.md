@@ -1,11 +1,10 @@
 # STATUS — state of the work (maintained only by the orchestrator `/orchestrate`)
 
-Updated: 2026-10-05 · Last merge: T5.2 96c967c
+Updated: 2026-10-05 · Last merge: T5.6 7863b72
 
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| T5.6 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -192,3 +191,6 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - 2026-10-05 T5.2 merged 96c967c (attempt 1; 1295 tests, e2e 27/27). Root cause of the white screen NOT found: three 60-min 'before' soaks (net/proxy/solo, tier 2x, Mac) showed no crash/hang/context loss. Delivered: crash.log (userData, 1 MB rotation: render-process-gone, unresponsive, child-process-gone, WebGL context lost, errors, STATE line every 30 s), a safety net (renderer crash / hang >10 s / GPU not back in 6 s -> fresh page, message in the menu, client -> Join 'Connection lost', host server stops), fixes: JitterBuffer.push bounded (old code could queue 126000 frames/h), AudioEngine disconnects finished non-looped loop-list channels, disable-backgrounding-occluded-windows + CalculateNativeWinOcclusion off on Windows (unmeasured). New tools: tools/perf/soak.ts (muted by default, --audio to unmute), heap-diff.ts, profile.ts --heap; docs/05 §11; README section 'If the game window goes white or freezes'. After-fix soaks (net, solo): no crash, audio graphs 0-26 (before up to 260), footprint grew 7-12%/h mostly in the GPU process (noise on a shared Mac; the 5%/h criterion not reproduced). Host renderer grows ~30-60 MB/h. T5.2 stays [ ] until the user check.
 - T5.2 NEEDS FROM YOU: a long (>= 1 h) Mac <-> Windows game on the new build, both roles; if the window goes white send crash.log and crash.log.1 from BOTH machines (README section). If RENDER_GONE reason=oom appears on the laptop, the next step is a lower default tier for 8 GB machines.
 - T5.2 out of scope: Level11 with an idle ship accumulates bodies/coins (~30 MB/h heap, tick p95 up to 7.5 ms after 2 h of game time), a level change frees it (fidelity: not changed); other e2e specs that call electron.launch directly (online-screens, persistence, menu-flow) and tools/visual/shot.ts are not muted; a real UNRESPONSIVE hang was not reproduced (HANG_KILL path untested, shares RENDER_GONE path); Windows 8 GB not measured.
+- 2026-10-05 T5.6 merged 7863b72 (attempt 1; 1306 tests). Cause: the soft elements are 1x bitmaps in the original SWF (delivery marker Indicator*, Btn*, *TextEN, Icon*, HUD bars, menu backgrounds, 12 bitmap fonts); JPEXS rendered smoothed bitmap fills (type 65) with bilinear filtering at 2x/3x, the fonts were stretched from 1x and linearly filtered. Fix (extraction only, no renderer change): tools/extract/bitmapSymbols.ts marks pixelArt symbols, sprites.ts builds their 2x/3x frames by k x k nearest replication; fontglyphs.ts scales glyph rects by the tier zoom; asset-overrides.json {"X_mc":{"pixelArt":false}} returns a symbol to JPEXS. assets/ was re-extracted (idempotent). 1x manifest identical (6625 frames). Memory: 3x VRAM 565-580 MB (+2.6%, already above the 350 MB target before), 2x 286-293 MB, 1x 119 MB; 3x disk 46->34 MB. docs/02 §4.3 note. T4.2 visual thresholds were not re-run (references are not in a worktree).
+- T5.6 out of scope: symbols mixing bitmaps and vectors keep the soft raster (IconFuel/Heart/Magnet/Random/Repair/Trophy, NotifyIconLeft, ColumnBar, MissionBar, ShuttleHull*, *Roller_mc, Shuttle0NBodyPreview, CreditsScreenBG, BtnShip_mc); fixing them needs an SWF patch + JPEXS re-export. 3x VRAM above the 350 MB target (predates T5.6). A new dist build is needed to see the change.
+- 2026-10-05 until=T5.6 reached: stopped. FIX-7 (dim the pause popup for the client) is still queued, not started. T5.2 stays open until the user's long Mac <-> Windows check.
