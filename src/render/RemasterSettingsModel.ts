@@ -2,14 +2,14 @@
 // the selection, the keys, the editing of the port. RemasterSettingsOverlay.ts draws it with the glyphs of the game.
 //
 // The rows: Smooth motion (60/120 Hz) = not Classic 35 fps, Graphics (tier of the atlases), UI scaling (FIX-11: pixel-exact or
-// smooth pixel-art UI), Fullscreen, Network port.
+// smooth pixel-art UI), Fullscreen, Network port, Master volume (FIX-12).
 
 import type { TierName } from '../app/at';
-import { isValidPort, MAX_NET_PORT, MIN_NET_PORT, TIER_SETTINGS } from '../app/settings';
+import { isValidPort, MAX_NET_PORT, MIN_NET_PORT, normalizeVolume, TIER_SETTINGS } from '../app/settings';
 import type { RemasterSettings, TierSetting, UiScaling } from '../app/settings';
 import { UI_SCALINGS } from '../engine/assets/uiScaling';
 
-export type SettingsRowId = 'smooth' | 'graphics' | 'uiScaling' | 'fullscreen' | 'port';
+export type SettingsRowId = 'smooth' | 'graphics' | 'uiScaling' | 'fullscreen' | 'port' | 'volume';
 
 export interface SettingsRow {
   id: SettingsRowId;
@@ -36,7 +36,10 @@ export interface SettingsMenuHost {
 
 export type KeyResult = 'close' | 'handled';
 
-const ROW_IDS: readonly SettingsRowId[] = ['smooth', 'graphics', 'uiScaling', 'fullscreen', 'port'];
+const ROW_IDS: readonly SettingsRowId[] = ['smooth', 'graphics', 'uiScaling', 'fullscreen', 'port', 'volume'];
+/** FIX-12: the volume steps (percent): the arrows, and with Shift. */
+export const VOLUME_STEP = 5;
+export const VOLUME_STEP_BIG = 20;
 const UI_SCALING_LABELS: Record<UiScaling, string> = { pixel: 'Pixel-exact', smooth: 'Smooth' };
 const TIER_LABELS: Record<TierSetting, string> = { auto: 'Auto', '1x': '1x', '2x': '2x', '3x': '3x' };
 
@@ -47,6 +50,8 @@ export class SettingsMenuModel {
   private _selected = 0;
   /** The digits that are typed into the port row; null when it is not edited. */
   private _portInput: string | null = null;
+  /** FIX-12: the volume before Enter muted it (this session only); null when not muted by Enter. */
+  private _volumeBeforeMute: number | null = null;
   private _version = 0;
 
   constructor(aHost: SettingsMenuHost) {
@@ -103,6 +108,12 @@ export class SettingsMenuModel {
         value: this._portInput !== null ? this._portInput + '_' : String(s.netPort),
         note: this._portInput !== null ? 'Enter to apply (' + MIN_NET_PORT + '-' + MAX_NET_PORT + ')' : 'LAN game, host',
       },
+      {
+        id: 'volume',
+        label: 'Master volume',
+        value: Math.round(s.masterVolume * 100) + '%',
+        note: s.masterVolume === 0 ? 'Muted (Enter to unmute)' : 'Shift: bigger steps, Enter: mute',
+      },
     ];
   }
 
@@ -115,7 +126,36 @@ export class SettingsMenuModel {
     this.touch();
   }
 
-  /** The left (-1) or right (+1) arrow of the row; `aBig`: a step of 100 for the port. */
+  /** FIX-12: the volume as a fraction 0..1 (the slider of the overlay); clamped and rounded to whole percent. */
+  setVolume(aFraction: number): void {
+    const v = normalizeVolume(aFraction);
+    if (v === null) return;
+    this._volumeBeforeMute = null;
+    if (v !== this._host.settings().masterVolume) this._host.update({ masterVolume: v });
+    this.touch();
+  }
+
+  /** FIX-12: a step of the volume (percent: VOLUME_STEP, or VOLUME_STEP_BIG): the F2 row and the global hotkeys use this. */
+  stepVolume(aDirection: -1 | 1, aBig = false): void {
+    const pct = Math.round(this._host.settings().masterVolume * 100) + aDirection * (aBig ? VOLUME_STEP_BIG : VOLUME_STEP);
+    this.setVolume(pct / 100);
+  }
+
+  /** FIX-12: mute; the next call brings the volume back (100% when it was 0 before): Enter on the row, the mute hotkey. */
+  toggleMute(): void {
+    const volume = this._host.settings().masterVolume;
+    if (volume > 0) {
+      this._host.update({ masterVolume: 0 });
+      this._volumeBeforeMute = volume;
+    } else {
+      const back = this._volumeBeforeMute ?? 1;
+      this._volumeBeforeMute = null;
+      this._host.update({ masterVolume: back > 0 ? back : 1 });
+    }
+    this.touch();
+  }
+
+  /** The left (-1) or right (+1) arrow of the row; `aBig`: a step of 100 for the port, 20% for the volume. */
   change(aIndex: number, aDirection: -1 | 1, aBig = false): void {
     const id = ROW_IDS[aIndex];
     const s = this._host.settings();
@@ -148,6 +188,9 @@ export class SettingsMenuModel {
         this._host.update({ netPort: port });
         break;
       }
+      case 'volume':
+        this.stepVolume(aDirection, aBig);
+        break;
     }
     this.touch();
   }
@@ -156,6 +199,8 @@ export class SettingsMenuModel {
   activate(): void {
     if (ROW_IDS[this._selected] === 'port') {
       this.commitPort();
+    } else if (ROW_IDS[this._selected] === 'volume') {
+      this.toggleMute();
     } else {
       this.change(this._selected, 1);
     }

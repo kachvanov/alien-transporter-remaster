@@ -2,7 +2,7 @@
 //
 // What the game itself keeps in its save (GameData: the keys of Player1/Player2, fancyEffects, fancyQuality, muteMusic,
 // muteSounds, Casual/Hardcore) stays there and is NOT repeated here. The file holds what the original does not have:
-// Classic 35 fps, the graphics tier, the address and the port of the LAN game, and the window (the key `window`:
+// Classic 35 fps, the graphics tier, the master volume (FIX-12), the address and the port of the LAN game, and the window (the key `window`:
 // bounds and fullscreen; it belongs to the main process, electron/main.ts, and is not part of RemasterSettings).
 //
 // Pure TS (no DOM, no Electron): the main process validates the patches of the renderer with the same functions.
@@ -29,6 +29,8 @@ export const DEFAULT_NET_PORT = 47020;
 export const MIN_NET_PORT = 1024;
 export const MAX_NET_PORT = 65535;
 const MAX_ADDRESS_LENGTH = 255;
+/** FIX-12: the master volume (0..1) applied to AudioEngine.masterVolume; the volumes the simulation computes stay as they are. */
+export const DEFAULT_MASTER_VOLUME = 1;
 
 export interface RemasterSettings {
   /** Classic 35 fps: the frames are drawn as they are, without the interpolation to the refresh rate of the display. */
@@ -41,6 +43,8 @@ export interface RemasterSettings {
   lastJoinAddress: string;
   /** Port of the LAN host. */
   netPort: number;
+  /** FIX-12: master volume of the game sound, 0..1 (0 = silent). Applied at once, also in the LAN client. */
+  masterVolume: number;
 }
 
 export const DEFAULT_SETTINGS: Readonly<RemasterSettings> = {
@@ -49,10 +53,21 @@ export const DEFAULT_SETTINGS: Readonly<RemasterSettings> = {
   uiScaling: DEFAULT_UI_SCALING,
   lastJoinAddress: '',
   netPort: DEFAULT_NET_PORT,
+  masterVolume: DEFAULT_MASTER_VOLUME,
 };
 
 export function isValidPort(aValue: unknown): aValue is number {
   return typeof aValue === 'number' && Number.isInteger(aValue) && aValue >= MIN_NET_PORT && aValue <= MAX_NET_PORT;
+}
+
+/**
+ * FIX-12: a volume from settings.json or from the UI: a finite number is clamped to 0..1 and rounded to whole percent
+ * (no float drift after many steps); anything else (string, NaN, null, missing) is `null` = not a volume.
+ */
+export function normalizeVolume(aValue: unknown): number | null {
+  if (typeof aValue !== 'number' || !Number.isFinite(aValue)) return null;
+  const clamped = aValue < 0 ? 0 : aValue > 1 ? 1 : aValue;
+  return Math.round(clamped * 100) / 100;
 }
 
 function isTierSetting(aValue: unknown): aValue is TierSetting {
@@ -76,6 +91,8 @@ export function sanitizeSettingsPatch(aRaw: unknown): Partial<RemasterSettings> 
     result.lastJoinAddress = o['lastJoinAddress'];
   }
   if (isValidPort(o['netPort'])) result.netPort = o['netPort'];
+  const volume = normalizeVolume(o['masterVolume']);
+  if (volume !== null) result.masterVolume = volume;
   return result;
 }
 

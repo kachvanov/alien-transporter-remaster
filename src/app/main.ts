@@ -26,6 +26,8 @@ import { PerfOverlay } from '../render/PerfOverlay';
 import { PixiRenderer } from '../render/PixiRenderer';
 import { SettingsMenuModel } from '../render/RemasterSettingsModel';
 import { RemasterSettingsOverlay } from '../render/RemasterSettingsOverlay';
+import { volumeHotkeyOf } from '../render/VolumeHotkeys';
+import { VolumeIndicator } from '../render/VolumeIndicator';
 import { installErrorReporting, watchCanvas, watchVisibility, type DiagReport } from './diagnostics';
 import { failureFromHash, joinFailureOf, joinHash, localHash, noticeFromHash, resolveJoinTarget } from './joinTarget';
 import { OnlineController } from './OnlineController';
@@ -83,6 +85,7 @@ async function bootstrap(): Promise<void> {
 
   // --- sound (T1.8): decoded in the background; the frames play through it ---
   const audio = new AudioEngine();
+  audio.masterVolume = settings.value.masterVolume; // FIX-12 (the same engine plays the frames of a LAN host: the client uses it too)
   audio.attachUserGesture(window);
   {
     const assets = new FetchAssetSource(ASSETS_URL);
@@ -243,6 +246,7 @@ async function bootstrap(): Promise<void> {
     settings: () => settings.value,
     update: (patch) => {
       settings.update(patch);
+      if (patch.masterVolume !== undefined) audio.masterVolume = settings.value.masterVolume;
       if (patch.classic35 !== undefined) {
         player.classic = patch.classic35;
         root.dataset['classic'] = String(patch.classic35);
@@ -314,6 +318,35 @@ async function bootstrap(): Promise<void> {
       overlay = o;
     })
     .catch((e: unknown) => console.warn('[settings] overlay unavailable:', e));
+  // FIX-12: the volume hotkeys work on every screen, also while the F2 panel or a LAN overlay is open: this listener is the
+  // first of the capture phase (the gates below are added later). The settings model is the one source of the volume.
+  const volumeIndicator = new VolumeIndicator(document.body);
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      const hot = volumeHotkeyOf(e);
+      if (hot === null) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (hot === 'mute') {
+        if (e.repeat) return;
+        menu.toggleMute();
+      } else {
+        menu.stepVolume(hot === 'down' ? -1 : 1); // (a held key repeats)
+      }
+      volumeIndicator.show(settings.value.masterVolume);
+    },
+    true,
+  );
+  window.addEventListener(
+    'keyup',
+    (e) => {
+      if (volumeHotkeyOf(e) === null) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    },
+    true,
+  );
   const REPEAT_IGNORED = new Set(['Enter', 'NumpadEnter', 'Space', 'Tab', 'Escape', 'F2']);
   const gate = (e: Event): boolean => {
     if (overlay === null || !overlay.isOpen) return false;
