@@ -24,7 +24,7 @@ import {
 import type { OnlineRequest } from '../../src/game/online/OnlineBridge';
 import { Button } from '../../src/game/screens/Button';
 import { HostScreen } from '../../src/game/screens/HostScreen';
-import { JoinScreen } from '../../src/game/screens/JoinScreen';
+import { HINT_DELAY, JoinScreen, vpnHintLines } from '../../src/game/screens/JoinScreen';
 import { MainMenuScreen } from '../../src/game/screens/MainMenuScreen';
 import { OnlineScreen } from '../../src/game/screens/OnlineScreen';
 import { SelectLevelScreen } from '../../src/game/screens/SelectLevelScreen';
@@ -333,6 +333,38 @@ describe.skipIf(!hasAssets)('JoinScreen', () => {
     clickButton(state, 'BtnCancel_mc'); // Back
     waitScreen(OnlineScreen);
     expect(sent).toEqual([{ k: 'scanOpen' }, { k: 'scanClose' }]);
+  });
+
+  it('FIX-10: the hint about the manual address appears after the empty search, goes away when a game is found', () => {
+    const state = newGame();
+    openJoin(state);
+    OnlineBridge.receive({ k: 'info', port: 5000, lastJoinAddress: '' });
+    const hint = (): string[] => texts(state).filter((x) => vpnHintLines(5000).includes(x));
+    expect(hint()).toEqual([]); // just opened (openJoin has run 120 ticks of the screen already)
+    ticks(Math.floor((HINT_DELAY - 0.5) / AntG.elapsed) - 120);
+    expect(hint()).toEqual([]); // not yet
+    ticks(Math.ceil(1 / AntG.elapsed));
+    expect(hint()).toEqual(vpnHintLines(5000));
+    expect(texts(state)).toContain('SEARCHING FOR GAMES...');
+    expect(vpnHintLines(5000)[2]).toContain('DEFAULT PORT 5000');
+
+    OnlineBridge.receive({ k: 'games', games: GAMES });
+    ticks(2);
+    expect(hint()).toEqual([]); // a host was found
+
+    OnlineBridge.receive({ k: 'games', games: [] });
+    ticks(2);
+    expect(hint()).toEqual([]); // the delay starts again
+    ticks(Math.ceil((HINT_DELAY + 0.5) / AntG.elapsed));
+    expect(hint()).toEqual(vpnHintLines(5000));
+  });
+
+  it('FIX-10: the hint is shown at once when the network cannot be listened to', () => {
+    const state = newGame();
+    openJoin(state);
+    OnlineBridge.receive({ k: 'games', games: [], error: 'EADDRINUSE' });
+    ticks(2);
+    expect(texts(state)).toEqual(expect.arrayContaining(vpnHintLines(OnlineBridge.port)));
   });
 
   it('a click on a game connects to it; a game of another version or a full one cannot be clicked', () => {

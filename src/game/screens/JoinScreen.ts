@@ -3,6 +3,11 @@
 // below it the field in which an address `ip` or `ip:port` is typed (Enter = Connect). The renderer owns the network:
 // the screen only sends `scanOpen` / `scanClose` and `joinRequest` (OnlineBridge) and shows what comes back.
 //
+// FIX-10 (DEVIATION: online remaster addition, the original has no network): when the search has found nothing for
+// HINT_DELAY seconds (or cannot listen at all) three dim lines in the empty list tell that a VPN (Tailscale) or another
+// subnet may hide the host and that its address can be typed in the field below (`ip` or `ip:port`, the port of the
+// settings `netPort` when omitted). They disappear as soon as a game is listed.
+//
 // A failed or a lost game brings the player back here: the renderer restarts the worker and opens this screen with the
 // reason (OnlineBridge.joinFailure).
 
@@ -36,6 +41,10 @@ const COLUMN_ADDRESS = 440;
 const COLUMN_STATE = 630;
 /** A connection that has not answered after this many seconds is given up (the renderer restarts the worker earlier). */
 const CONNECT_TIMEOUT = 20;
+/** Seconds of an empty list after which the hint about the manual address appears (FIX-10). */
+export const HINT_DELAY = 4.5;
+/** The lines of the hint sit in the rows 1..3 of the (empty) list. */
+const HINT_ROW = 1;
 
 interface GameLine {
   name: Label;
@@ -49,6 +58,8 @@ export class JoinScreen extends OnlineScreenBase {
   private _input: TextInputView | null = null;
   private _note: Label | null = null;
   private _hint: Label | null = null;
+  private _vpnHint: Label[] = [];
+  private _emptyTime = 0;
   private _version = -1;
   private _selected = -1;
   private _busy = 0;
@@ -67,6 +78,10 @@ export class JoinScreen extends OnlineScreenBase {
         address: this.makeLabel(COLUMN_ADDRESS, y, ' ', 'font02', 'center'),
         state: this.makeLabel(COLUMN_STATE, y, ' ', 'font02', 'right'),
       });
+    }
+
+    for (let i = 0; i < 3; i++) {
+      this._vpnHint.push(this.makeLabel(400, LIST_TOP + (HINT_ROW + i) * LIST_STEP, ' ', 'font02', 'center', TEXT_DIM_COLOR));
     }
 
     this._note = this.makeLabel(400, LIST_TOP + MAX_GAME_LINES * LIST_STEP + 1, ' ', 'font02', 'center', TEXT_COLOR);
@@ -103,6 +118,7 @@ export class JoinScreen extends OnlineScreenBase {
     }
 
     this._lines.length = 0;
+    this._vpnHint.length = 0;
     this._note = null;
     this._hint = null;
     super.destroy();
@@ -126,6 +142,13 @@ export class JoinScreen extends OnlineScreenBase {
     }
 
     this.updateList();
+    if (this._games.length > 0) {
+      this._emptyTime = 0;
+    } else if (this._emptyTime < HINT_DELAY) {
+      this._emptyTime += AntG.elapsed;
+    }
+
+    this.updateVpnHint();
   }
 
   protected override onEscape(): void {
@@ -171,6 +194,19 @@ export class JoinScreen extends OnlineScreenBase {
     }
   }
 
+  /** FIX-10: the hint about the manual address (see the top of the file). */
+  private updateVpnHint(): void {
+    const show = this._busy == 0 && this._games.length == 0 && (this._emptyTime >= HINT_DELAY || OnlineBridge.scanError != null);
+    const lines = show ? vpnHintLines(OnlineBridge.port) : ['', '', ''];
+    for (let i = 0; i < 3; i++) {
+      const label = this._vpnHint[i] as Label;
+      const text = lines[i] as string;
+      if ((text == '' ? ' ' : text) != label.text) {
+        this.setLabel(label, text, TEXT_DIM_COLOR);
+      }
+    }
+  }
+
   private refresh(): void {
     this._version = OnlineBridge.version;
     this._games = OnlineBridge.games.slice(0, MAX_GAME_LINES);
@@ -194,6 +230,7 @@ export class JoinScreen extends OnlineScreenBase {
       this.setLabel(line.state, stateOf(game), color);
     }
 
+    this.updateVpnHint();
     const note = this._note as Label;
     if (this._busy > 0) {
       this.setLabel(note, 'CONNECTING...', TEXT_WHITE);
@@ -257,6 +294,15 @@ export class JoinScreen extends OnlineScreenBase {
 
     this.connect(address.host, address.port);
   };
+}
+
+/** The lines of the hint of FIX-10 (the font has all the printable ASCII chars). */
+export function vpnHintLines(aPort: number): string[] {
+  return [
+    'NO HOST FOUND? A VPN (E.G. TAILSCALE) OR ANOTHER SUBNET',
+    'CAN HIDE IT. TYPE THE ADDRESS FROM ITS HOST SCREEN BELOW:',
+    `IP OR IP:PORT, E.G. 100.64.0.5 (DEFAULT PORT ${aPort})`,
+  ];
 }
 
 function canJoin(aGame: OnlineGame): boolean {
