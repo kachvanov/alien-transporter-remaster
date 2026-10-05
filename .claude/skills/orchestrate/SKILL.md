@@ -102,6 +102,6 @@ Stop when: nothing is in progress and there are no ready tasks (everything is do
 ## Rules
 
 - Do not write or fix code yourself. Exceptions: resolving minor merge conflicts per §3.3 and edits to `docs/ROADMAP.md`/`docs/STATUS.md`.
-- Do not run `git push`, `git reset --hard`, `git rebase` main.
+- Run `git push` only when the user explicitly asks for it in chat (never on your own initiative, and never from a porter). Do not run `git reset --hard`, `git rebase` main.
 - Do not read `reference/as3/**` and `src/**` in full. If you need to understand a problem, hand it to porter as a FIX.
 - Always keep STATUS up to date and committed before ending your turn: the session can be cut off at any moment (Pro limits).

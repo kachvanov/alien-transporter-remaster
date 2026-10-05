@@ -64,7 +64,6 @@
       "WebFetch(domain:www.electron.build)"
     ],
     "deny": [
-      "Bash(git push*)",
       "Bash(git reset --hard*)",
       "Bash(git clean *)",
       "Bash(git filter-branch*)",
