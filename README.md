@@ -2,7 +2,7 @@
 
 # 👽 Alien Transporter Remaster
 
-**Неофициальный ремастер Flash-игры Alien Transporter — для macOS и Windows, с игрой вдвоём по локальной сети.**
+**An unofficial remaster of the Flash game Alien Transporter for macOS and Windows, with two-player play over a local network.**
 
 ![macOS Apple Silicon](https://img.shields.io/badge/macOS-Apple%20Silicon-black?logo=apple)
 ![Windows 10 x64](https://img.shields.io/badge/Windows-10%20x64-0078D6?logo=windows)
@@ -11,189 +11,189 @@
 
 </div>
 
-Alien Transporter — аркадная игра Anton Karlov (2016): вы пилотируете ракетный шаттл в пещерах и развозите инопланетян-пассажиров, следя за топливом и обходя препятствия. Эта версия переносит оригинальную Flash-игру **v1.3.0** на современный движок, чтобы она снова запускалась на обычном компьютере.
+Alien Transporter is an arcade game by Anton Karlov (2016): you pilot a rocket shuttle through caves and ferry alien passengers around, watching your fuel and dodging obstacles. This version ports the original Flash game **v1.3.0** to a modern engine so that it runs on an ordinary computer again.
 
-Цель проекта — **максимальная верность оригиналу**: те же уровни, та же физика и те же формулы. Поверх оригинала добавлено только то, чего в нём не было.
+The goal of the project is **maximum fidelity to the original**: the same levels, the same physics and the same formulas. Only things the original did not have have been added on top.
 
-## Содержание
+## Contents
 
-- [Что нового по сравнению с оригиналом](#что-нового-по-сравнению-с-оригиналом)
-- [Важно: игра не включает ассеты оригинала](#важно-игра-не-включает-ассеты-оригинала)
-- [Как получить игру](#как-получить-игру)
-- [Запуск и установка](#запуск-и-установка)
-- [Управление](#управление)
-- [Вдвоём на одном компьютере](#вдвоём-на-одном-компьютере)
-- [Игра по сети](#игра-по-сети)
-- [Если не подключается](#если-не-подключается)
-- [Сохранения](#сохранения)
-- [Авторство и права](#авторство-и-права)
+- [What's new compared to the original](#whats-new-compared-to-the-original)
+- [Important: the game does not include the original assets](#important-the-game-does-not-include-the-original-assets)
+- [How to get the game](#how-to-get-the-game)
+- [Installing and running](#installing-and-running)
+- [Controls](#controls)
+- [Two players on one computer](#two-players-on-one-computer)
+- [LAN play](#lan-play)
+- [If you can't connect](#if-you-cant-connect)
+- [Saves](#saves)
+- [Credits and rights](#credits-and-rights)
 
-## Что нового по сравнению с оригиналом
+## What's new compared to the original
 
 | | |
 |---|---|
-| 🌐 **Игра по LAN** | Двое игроков по одной Wi-Fi или проводной сети. Автопоиск игр, как «игры в локальной сети» в Minecraft; можно ввести IP вручную. Mac и Windows играют друг с другом. |
-| 🎞️ **Плавная картинка** | Отрисовка на GPU, 60 или 120 Гц вместо 35 кадров в секунду. Режим **Classic 35 fps** возвращает ощущение оригинала. |
-| 🖼️ **HD-графика** | Спрайты в разрешении 1x, 2x и 3x (Retina и 4K). Набор подбирается автоматически под экран и память. |
-| 💾 **Сохранения в файле** | Прогресс лежит в обычном JSON рядом с настройками, а не во Flash-хранилище. |
+| 🌐 **LAN play** | Two players on the same Wi-Fi or wired network. Games are discovered automatically, like "LAN games" in Minecraft; you can also enter an IP address by hand. Mac and Windows can play with each other. |
+| 🎞️ **Smooth picture** | GPU rendering at 60 or 120 Hz instead of 35 frames per second. **Classic 35 fps** mode brings back the feel of the original. |
+| 🖼️ **HD graphics** | Sprites at 1x, 2x and 3x resolution (Retina and 4K). The set is chosen automatically to suit your screen and memory. |
+| 💾 **Saves in a file** | Progress is stored in a plain JSON file next to the settings, not in Flash storage. |
 
-Физика и логика игры (Box2D 2.1a) перенесены без «улучшений»: геймплей, баланс и тайминги совпадают с оригиналом.
+The physics and game logic (Box2D 2.1a) are ported without any "improvements": gameplay, balance and timings match the original.
 
-## Важно: игра не включает ассеты оригинала
+## Important: the game does not include the original assets
 
-Графика, звуки, музыка и уровни принадлежат Anton Karlov. **В этом репозитории их нет, и готовых сборок здесь нет.** Игру нужно собрать самому, из собственной копии оригинального файла `alien-transporter.swf` (Alien Transporter **v1.3.0**). Сборка достаёт из него картинки, звуки и данные уровней и кладёт их в локальные папки, которые в git не попадают.
+The graphics, sounds, music and levels belong to Anton Karlov. **They are not in this repository, and there are no ready-made builds here.** You need to build the game yourself from your own copy of the original `alien-transporter.swf` file (Alien Transporter **v1.3.0**). The build extracts the images, sounds and level data from it and puts them into local folders that are not tracked by git.
 
-Поэтому, пожалуйста:
+So, please:
 
-- **не выкладывайте** собранные `dmg`, `exe` и папки `assets/` в открытый доступ — внутри чужие материалы;
-- делитесь с друзьями только этим репозиторием, а не сборками.
+- **do not publish** the built `dmg`, `exe` or the `assets/` folders anywhere public: they contain someone else's material;
+- share only this repository with friends, not the builds.
 
-## Как получить игру
+## How to get the game
 
-### Что понадобится
+### What you need
 
-- файл оригинала **`alien-transporter.swf`** (v1.3.0), который у вас уже есть;
-- [Node.js](https://nodejs.org) 22 или новее;
-- [Java](https://adoptium.net) 17 и [ffmpeg](https://ffmpeg.org) (нужны один раз, чтобы разобрать SWF).
+- the original file **`alien-transporter.swf`** (v1.3.0), which you already have;
+- [Node.js](https://nodejs.org) 22 or newer;
+- [Java](https://adoptium.net) 17 and [ffmpeg](https://ffmpeg.org) (needed once, to unpack the SWF).
 
-На Mac всё это ставится через [Homebrew](https://brew.sh): `brew install node openjdk@17 ffmpeg`.
+On a Mac all of this can be installed with [Homebrew](https://brew.sh): `brew install node openjdk@17 ffmpeg`.
 
-### Шаги
+### Steps
 
 ```bash
-git clone https://github.com/<ваш-аккаунт>/alien-transporter-remaster.git
+git clone https://github.com/<your-account>/alien-transporter-remaster.git
 cd alien-transporter-remaster
 npm ci
-cp .env.example .env     # впишите в ORIGINAL_SWF путь к вашему alien-transporter.swf
-npm run extract          # достаёт графику, звуки и уровни из SWF в локальные папки
+cp .env.example .env     # set ORIGINAL_SWF to the path of your alien-transporter.swf
+npm run extract          # extracts graphics, sounds and levels from the SWF into local folders
 ```
 
-Дальше выберите вариант:
+Then pick an option:
 
-| Что хотите | Команда | Результат |
+| What you want | Command | Result |
 |---|---|---|
-| Просто поиграть сразу | `npm run dev` | игра открывается в окне |
-| Приложение для Mac | `npm run build:mac` | `dist/Alien Transporter Remaster-0.1.0-arm64.dmg` |
-| Приложение для Windows 10 | `npm run build:win` | в `dist/`: установщик `…Setup 0.1.0.exe` и portable `…0.1.0.exe` |
+| Just play right away | `npm run dev` | the game opens in a window |
+| A Mac app | `npm run build:mac` | `dist/Alien Transporter Remaster-0.1.0-arm64.dmg` |
+| A Windows 10 app | `npm run build:win` | in `dist/`: the installer `…Setup 0.1.0.exe` and the portable `…0.1.0.exe` |
 
-Установщик для Windows можно собрать и на Mac (на Apple Silicon для этого нужен Rosetta 2: `softwareupdate --install-rosetta`). Сборка на самой Windows пока не проверялась.
+The Windows installer can also be built on a Mac (on Apple Silicon this requires Rosetta 2: `softwareupdate --install-rosetta`). Building on Windows itself has not been tested yet.
 
-## Запуск и установка
+## Installing and running
 
 ### macOS (Apple Silicon)
 
-1. Откройте собранный `.dmg` и перетащите **Alien Transporter Remaster** в **Applications**.
-2. Запустите игру двойным кликом.
+1. Open the built `.dmg` and drag **Alien Transporter Remaster** into **Applications**.
+2. Launch the game by double-clicking it.
 
-Приложение подписано только «ad-hoc» подписью (платного сертификата Apple нет). Если вы копировали его на другой Mac, и система пишет, что приложение «повреждено», выполните в Terminal:
+The app is signed only with an "ad-hoc" signature (there is no paid Apple certificate). If you copied it to another Mac and the system says the app is "damaged", run this in Terminal:
 
 ```bash
 xattr -cr "/Applications/Alien Transporter Remaster.app"
 ```
 
-При первой игре по сети macOS спросит про доступ к **локальной сети** — нажмите «Разрешить».
+The first time you play over the network, macOS will ask about access to the **local network**: click "Allow".
 
 ### Windows 10 (x64)
 
-- **Установщик** (`Alien Transporter Remaster Setup 0.1.0.exe`): запустите, выберите папку, нажмите «Установить». Ярлыки создаются сами.
-- **Portable** (`Alien Transporter Remaster 0.1.0.exe`): положите куда угодно и запустите, установка не нужна.
+- **Installer** (`Alien Transporter Remaster Setup 0.1.0.exe`): run it, choose a folder and click "Install". Shortcuts are created automatically.
+- **Portable** (`Alien Transporter Remaster 0.1.0.exe`): put it anywhere and run it; no installation needed.
 
-Сборка не подписана сертификатом, поэтому Windows покажет синее окно SmartScreen: нажмите **«Подробнее» → «Выполнить в любом случае»**. При первом **Online → Host Game** Защитник Windows спросит про доступ: отметьте **«Частные сети»** и нажмите «Разрешить».
+The build is not signed with a certificate, so Windows will show the blue SmartScreen window: click **"More info" → "Run anyway"**. The first time you use **Online → Host Game**, Windows Defender will ask about access: tick **"Private networks"** and click "Allow".
 
-В сборке для Windows нет самого крупного набора картинок (3x, для 4K-экранов), чтобы она не занимала лишнюю память. Если на 4K-мониторе картинка не появилась, запустите игру с флагом `--tier=2x`: ярлык → Свойства → в поле «Объект» после пути добавьте пробел и `--tier=2x`.
+The Windows build does not include the largest image set (3x, for 4K screens), so that it does not take up extra memory. If the picture does not appear on a 4K monitor, start the game with the `--tier=2x` flag: shortcut → Properties → in the "Target" field, add a space and `--tier=2x` after the path.
 
-## Управление
+## Controls
 
-| Действие | Клавиши |
+| Action | Keys |
 |---|---|
-| Игрок 1 | стрелки: ↑ газ, ← и → поворот |
-| Игрок 2 | **W** газ, **A** и **D** поворот |
-| Пауза | **P** или **Esc** |
-| Полный экран | **F11** (также Alt+Enter; на Mac ещё Ctrl+Cmd+F) |
-| Настройки ремастера | **F2**: режим «Classic 35 fps», набор картинок auto / 1x / 2x / 3x (смена вступает в силу после перезапуска) |
-| Счётчик производительности | **F3**: FPS, время такта симуляции, трафик, сеть |
+| Player 1 | arrows: ↑ thrust, ← and → rotate |
+| Player 2 | **W** thrust, **A** and **D** rotate |
+| Pause | **P** or **Esc** |
+| Full screen | **F11** (also Alt+Enter; on Mac also Ctrl+Cmd+F) |
+| Remaster settings | **F2**: "Classic 35 fps" mode, image set auto / 1x / 2x / 3x (a change takes effect after a restart) |
+| Performance counter | **F3**: FPS, simulation tick time, traffic, network |
 
-Клавиши игроков меняются в игре, в **Garage**. Прогресс сохраняется при выходе из Garage кнопками Play и Back, как в оригинале.
+Player keys can be changed in the game, in the **Garage**. Progress is saved when you leave the Garage with the Play and Back buttons, as in the original.
 
-## Вдвоём на одном компьютере
+## Two players on one computer
 
-Первый игрок начинает уровень как обычно. Чтобы подключить второго, **во время уровня второй игрок нажимает W**: второй корабль входит в игру. Дальше он летит на W / A / D, а первый на стрелках.
+The first player starts a level as usual. To bring in the second player, **the second player presses W during the level**: the second ship enters the game. From then on it flies with W / A / D, and the first one with the arrows.
 
-## Игра по сети
+## LAN play
 
-Играют двое: **хост** (игрок 1) и **клиент** (игрок 2). Нужно:
+Two people play: the **host** (player 1) and the **client** (player 2). You need:
 
-- оба компьютера в одной Wi-Fi или проводной сети;
-- одна и та же версия игры у обоих;
-- Mac и Windows могут играть друг с другом в любых сочетаниях.
+- both computers on the same Wi-Fi or wired network;
+- the same version of the game on both;
+- Mac and Windows can play with each other in any combination.
 
-1. **Хост:** главное меню → **Online** → **Host Game**. Игра покажет адреса вида `192.168.x.x:47020`. Кнопка **TEST** проверяет, что игра слушает порт на сетевых адресах.
-2. **Клиент:** **Online** → **Join Game**. Хост появится в списке сам, обычно за 1–2 секунды: выберите его и нажмите **Connect**. Если списка нет, введите адрес хоста с экрана Host руками.
-3. **Хост** нажимает **START** и выбирает уровень. Меню и выбор уровня всегда за хостом.
-4. **Клиент** входит в уровень газом. Корабль второго игрока появится в игре хоста.
-5. Пауза с клиента (**P**) ставит и снимает паузу на хосте. **Esc** на клиенте открывает вопрос о выходе. Если клиент закрыл окно или пропала сеть, хост продолжает играть. Если закрыть игру на хосте, у клиента появится сообщение и он вернётся в меню.
+1. **Host:** main menu → **Online** → **Host Game**. The game shows addresses like `192.168.x.x:47020`. The **TEST** button checks that the game is listening on the port on the network addresses.
+2. **Client:** **Online** → **Join Game**. The host appears in the list by itself, usually within 1–2 seconds: select it and click **Connect**. If there is no list, enter the host's address from the Host screen by hand.
+3. The **host** clicks **START** and chooses a level. The menu and level selection always belong to the host.
+4. The **client** enters the level by pressing thrust. The second player's ship appears in the host's game.
+5. Pause from the client (**P**) pauses and unpauses the game on the host. **Esc** on the client opens the exit prompt. If the client closes the window or loses the network, the host keeps playing. If the host closes the game, the client sees a message and returns to the menu.
 
-Игра использует порт **TCP 47020** (сама игра) и **UDP 47021** (автопоиск).
+The game uses **TCP port 47020** (the game itself) and **UDP port 47021** (auto-discovery).
 
-## Если не подключается
+## If you can't connect
 
 <details>
-<summary><b>Общие причины</b></summary>
+<summary><b>Common causes</b></summary>
 
-- Обе машины должны быть в **одной** Wi-Fi-сети, не в основной и «гостевой». Гостевые и общественные сети часто блокируют связь между устройствами («изоляция клиентов»). Подключитесь к основной сети или к точке доступа на телефоне.
-- **Версия игры одинакова** у обоих. В списке Join несовпадающая версия подписана «DIFFERENT VERSION», подключиться к ней нельзя.
-- Если игры нет в списке, но подключение по адресу руками работает, значит, блокируется автопоиск (UDP, порт 47021). Играть можно, вводя адрес вручную.
+- Both machines must be on the **same** Wi-Fi network, not one on the main and one on a "guest" network. Guest and public networks often block communication between devices ("client isolation"). Connect to the main network or to a phone hotspot.
+- **The game version is the same** on both. In the Join list, a host with a different version is labelled "DIFFERENT VERSION" and cannot be connected to.
+- If the game is not in the list but connecting by address works, then auto-discovery (UDP, port 47021) is being blocked. You can still play by entering the address manually.
 
 </details>
 
 <details>
 <summary><b>Windows</b></summary>
 
-1. Сеть должна быть **Частной**: Параметры → Сеть и Интернет → Wi-Fi → свойства сети → «Профиль сети» → **Частные**.
-2. Брандмауэр должен разрешать игру в **Частных сетях**. Если при первом Host Game вы отказали, окно больше не появится: Параметры → Безопасность Windows → Брандмауэр и защита сети → «Разрешить работу с приложением через брандмауэр» → найдите Alien Transporter Remaster (для portable — Electron) → галочка **Частная**.
-3. Проверка порта с Windows на хост (подставьте его IP):
+1. The network must be **Private**: Settings → Network & Internet → Wi-Fi → network properties → "Network profile" → **Private**.
+2. The firewall must allow the game on **Private networks**. If you refused the first time you used Host Game, the prompt will not appear again: Settings → Windows Security → Firewall & network protection → "Allow an app through firewall" → find Alien Transporter Remaster (for the portable build, Electron) → tick **Private**.
+3. Check the port from Windows to the host (substitute its IP):
 
    ```powershell
    Test-NetConnection 192.168.0.5 -Port 47020
    ```
 
-   Должно быть `TcpTestSucceeded : True`.
+   You should see `TcpTestSucceeded : True`.
 
 </details>
 
 <details>
 <summary><b>macOS</b></summary>
 
-1. Системные настройки → Конфиденциальность и безопасность → **Локальная сеть** → включите переключатель для **Alien Transporter Remaster**. Без него игра не видит соседей.
-2. Если включён брандмауэр macOS, при первом Host Game нажмите «Разрешить входящие подключения».
-3. Проверка порта с Mac на хост:
+1. System Settings → Privacy & Security → **Local Network** → turn on the switch for **Alien Transporter Remaster**. Without it the game cannot see other machines.
+2. If the macOS firewall is on, click "Allow incoming connections" the first time you use Host Game.
+3. Check the port from the Mac to the host:
 
    ```bash
    nc -vz 192.168.0.5 47020
    ```
 
-   Ответ «succeeded» означает, что порт открыт.
+   A "succeeded" reply means the port is open.
 
 </details>
 
-Кнопка TEST на экране Host не показывает блокировку брандмауэром со стороны чужих машин. Для этого используйте `Test-NetConnection` или `nc` со второго компьютера.
+The TEST button on the Host screen does not show whether a firewall is blocking connections from other machines. For that, use `Test-NetConnection` or `nc` from the second computer.
 
-## Сохранения
+## Saves
 
-| ОС | Папка |
+| OS | Folder |
 |---|---|
 | macOS | `~/Library/Application Support/Alien Transporter Remaster/` |
 | Windows | `%APPDATA%\Alien Transporter Remaster\` |
 
-- `save.json` — прогресс игры (пройденные уровни, корабли и их настройки, клавиши);
-- `settings.json` — настройки ремастера (F2) и положение окна.
+- `save.json`: game progress (completed levels, ships and their settings, keys);
+- `settings.json`: remaster settings (F2) and the window position.
 
-**Сбросить прогресс:** закройте игру и удалите `save.json` (лучше сначала сохраните копию). Если файл повреждён, игра переименует его в `save.corrupt-<время>.json` и начнёт заново, старый останется рядом.
+**To reset progress:** close the game and delete `save.json` (better to keep a copy first). If the file is corrupted, the game renames it to `save.corrupt-<time>.json` and starts over; the old one stays alongside.
 
-## Авторство и права
+## Credits and rights
 
-- Оригинальная игра **Alien Transporter** © Anton Karlov, 2016. Графика, звуки, музыка и уровни — его собственность.
-- Это **неофициальный** фанатский некоммерческий проект. Он никак не связан с автором оригинала и не одобрен им.
-- Репозиторий не содержит файлов оригинальной игры и не предназначен для их распространения. Не публикуйте собранные приложения и извлечённые ассеты.
-- Физический движок: [box2dweb](https://www.npmjs.com/package/box2dweb) 2.1a (порт Box2D). Графика на [PixiJS](https://pixijs.com), оболочка на [Electron](https://www.electronjs.org).
-- Если вы автор оригинала или правообладатель и хотите, чтобы проект был изменён или удалён, напишите через issue или в личные сообщения, и это будет сделано.
+- The original game **Alien Transporter** is © Anton Karlov, 2016. The graphics, sounds, music and levels are his property.
+- This is an **unofficial** non-commercial fan project. It is not affiliated with the author of the original and is not endorsed by them.
+- The repository does not contain any files from the original game and is not intended for distributing them. Do not publish the built apps or the extracted assets.
+- Physics engine: [box2dweb](https://www.npmjs.com/package/box2dweb) 2.1a (a port of Box2D). Graphics by [PixiJS](https://pixijs.com), shell by [Electron](https://www.electronjs.org).
+- If you are the author of the original or a rights holder and want the project changed or removed, write via an issue or a private message and it will be done.

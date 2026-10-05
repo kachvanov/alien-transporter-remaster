@@ -49,7 +49,7 @@ export class AntDeluxeSignal<A extends AnyArgs = AnyArgs> extends AntSignal<A> {
   }
 
   override dispatch(...aValueObjects: A): void {
-    // Если список типов данных пустой, значит проверка не осуществляется.
+    // If the list of data types is empty, no check is performed.
     const numValueClasses = this._valueClasses.length | 0; // :int
     const numValueObjects = aValueObjects.length | 0; // :int
 
@@ -65,7 +65,7 @@ export class AntDeluxeSignal<A extends AnyArgs = AnyArgs> extends AntSignal<A> {
 
     // The per-argument `is valueClass` check is dropped (see AntSignal).
 
-    // Извлекаем и клонируем событие если необходимо.
+    // Extract and clone the event if necessary.
     let event: IEvent | null = isIEvent(aValueObjects[0]) ? aValueObjects[0] : null;
     if (event != null) {
       if (event.target != null) {
@@ -78,7 +78,7 @@ export class AntDeluxeSignal<A extends AnyArgs = AnyArgs> extends AntSignal<A> {
       event.signal = this;
     }
 
-    // Рассылка слушателям.
+    // Dispatch to the listeners.
     let bindingsToProcess = this._bindings;
     if (!bindingsToProcess.isEmpty) {
       while (!bindingsToProcess.isEmpty) {
@@ -87,7 +87,7 @@ export class AntDeluxeSignal<A extends AnyArgs = AnyArgs> extends AntSignal<A> {
       }
     }
 
-    // Реализуем всплывающее событие если это возможно.
+    // Implement the bubbling event if possible.
     // DEVIATION: the original calls `(target as IBubbleEventHandler).onEventBubbled(event)` without a null
     // check, i.e. throws a TypeError (#1009) when target is not an IBubbleEventHandler. Any code that
     // reached that path crashed in the original, so the guard changes no working behaviour.

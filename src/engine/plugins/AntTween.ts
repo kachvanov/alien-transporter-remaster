@@ -109,7 +109,7 @@ export class AntTween implements IPlugin {
     if (this.eventComplete == null) this.eventComplete = new AntSignal();
     else this.eventComplete.clear();
 
-    // Отключение типизации для сигналов
+    // Disable typing for signals
     this.eventStart.strict = false;
     this.eventUpdate.strict = false;
     this.eventRepeat.strict = false;
@@ -250,7 +250,7 @@ export class AntTween implements IPlugin {
     this._currentTime = Math.min(this._totalTime, this._currentTime + aTime);
 
     if (this._currentTime <= 0) {
-      // Задержка еще не закончилась.
+      // The delay has not finished yet.
       return;
     }
 
@@ -314,9 +314,9 @@ export class AntTween implements IPlugin {
           this.nextTween.start();
         }
 
-        // Если включено автоматическое кэширование.
+        // If automatic caching is enabled.
         if (this.autocaching) {
-          // Помещаем твин в кэш.
+          // Put the tween into the cache.
           AntTween.set(this, this.autocachingReset);
         }
       }

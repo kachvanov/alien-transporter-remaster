@@ -1,4 +1,4 @@
-// Not a port (docs/01-architecture.md §4, "Ресурсы"): replaces the embedded SWF library of the original.
+// Not a port (docs/01-architecture.md §4, "Resources"): replaces the embedded SWF library of the original.
 // Frame metadata comes from assets/manifest.json, the game data from assets/data/**.json.
 
 import type { AnyObject } from '../utils/types';

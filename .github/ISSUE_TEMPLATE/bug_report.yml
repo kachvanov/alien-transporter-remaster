@@ -1,52 +1,52 @@
-name: Сообщить об ошибке
-description: Что-то не запускается, не подключается или ведёт себя не так, как в оригинале
+name: Report a bug
+description: Something does not start, does not connect, or behaves differently from the original
 labels: [bug]
 body:
   - type: dropdown
     id: os
     attributes:
-      label: Система
-      options: [macOS (Apple Silicon), Windows 10 x64, Другая]
+      label: System
+      options: [macOS (Apple Silicon), Windows 10 x64, Other]
     validations:
       required: true
   - type: dropdown
     id: build
     attributes:
-      label: Как запущена игра
-      options: [Установщик / dmg, Portable exe, "npm run dev"]
+      label: How the game was launched
+      options: [Installer / dmg, Portable exe, "npm run dev"]
     validations:
       required: true
   - type: dropdown
     id: mode
     attributes:
-      label: Режим
-      options: [Один игрок, Вдвоём на одном компьютере, По сети — хост, По сети — клиент]
+      label: Mode
+      options: [Single player, Two players on one computer, Over the network - host, Over the network - client]
     validations:
       required: true
   - type: textarea
     id: what
     attributes:
-      label: Что произошло
-      description: Что вы нажимали и что увидели (белый экран, вылет, зависание, рассинхрон и т.п.). Если можете — как долго шла игра до сбоя и на каком уровне.
+      label: What happened
+      description: What you pressed and what you saw (white screen, crash, freeze, desync, etc.). If you can, say how long the game had been running before the failure and on which level.
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: Как должно быть
+      label: What should have happened
     validations:
       required: false
   - type: input
     id: version
     attributes:
-      label: Версия игры
-      description: Видна в имени файла установщика (например, 0.1.0).
+      label: Game version
+      description: Visible in the installer file name (for example, 0.1.0).
     validations:
       required: false
   - type: textarea
     id: logs
     attributes:
-      label: Логи и скриншоты
-      description: Если в папке данных игры есть `crash.log`, приложите его (папки — в разделе «Сохранения» README). Скриншот тоже поможет.
+      label: Logs and screenshots
+      description: If the game's data folder contains `crash.log`, please attach it (the folders are listed in the "Saves" section of the README). A screenshot helps too.
     validations:
       required: false

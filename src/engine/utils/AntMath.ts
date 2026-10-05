@@ -104,7 +104,7 @@ export class AntMath {
   ): boolean {
     const d = (aLineX2 - aLineX1) * (bLineY1 - bLineY2) - (bLineX1 - bLineX2) * (aLineY2 - aLineY1);
 
-    // Отрезки паралельны.
+    // The segments are parallel.
     if (d == 0) {
       return false;
     }

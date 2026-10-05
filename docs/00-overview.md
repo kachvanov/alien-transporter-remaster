@@ -1,83 +1,83 @@
-# 00 — Обзор проекта
+# 00 — Project overview
 
-## Что делаем
+## What we are doing
 
-Ремастер Flash-игры **Alien Transporter v1.3.0 (Feb 2, 2016)**. Автор — Anton Karlov (Ant.Karlov), спонсор — Armor Games. Игрок пилотирует ракетный шаттл в пещерах: развозит инопланетян-пассажиров между станциями, заправляется, собирает монеты. Мешают падающие камни, ракетные турели и взрывающиеся бочки. Есть 20 уровней (4, 8, 12, 16 и 20 — бонусные), звёзды, 19 миссий-квестов, гараж с кораблями и цветами, режимы Casual/Hardcore и игра вдвоём на одной клавиатуре.
+A remaster of the Flash game **Alien Transporter v1.3.0 (Feb 2, 2016)**. The author is Anton Karlov (Ant.Karlov), the sponsor is Armor Games. The player pilots a rocket shuttle through caves: ferries alien passengers between stations, refuels and collects coins. Falling rocks, rocket turrets and exploding barrels get in the way. There are 20 levels (4, 8, 12, 16 and 20 are bonus levels), stars, 19 quest missions, a garage with ships and colors, Casual/Hardcore modes and two-player play on one keyboard.
 
-Исходник — `AlienTransporter.swf` (6.5 МБ). У пользователя он лежит в `/Applications/Flash Games/alien-transporter.swf`, путь задаётся в `.env` (`ORIGINAL_SWF`).
+The source is `AlienTransporter.swf` (6.5 MB). The user keeps it at `/Applications/Flash Games/alien-transporter.swf`; the path is set in `.env` (`ORIGINAL_SWF`).
 
-Целевые машины:
-- MacBook Pro M5 Pro, 24 ГБ, экран 3024×1964, 120 Гц (ProMotion);
-- ноутбук с Windows 10 x64, 8 ГБ ОЗУ, скорее всего интегрированная графика.
+Target machines:
+- MacBook Pro M5 Pro, 24 GB, 3024×1964 screen, 120 Hz (ProMotion);
+- a Windows 10 x64 laptop, 8 GB RAM, most likely integrated graphics.
 
-## Почему оригинал лагает
+## Why the original lags
 
-- Anthill рисует всё на CPU: `copyPixels` и `BitmapData.draw` в буфер 800×600, векторные клипы растеризуются в рантайме.
-- Сейчас игра идёт через эмулятор Ruffle.
-- Физика делает фиксированный шаг `1/40` **на каждый кадр**. Когда FPS падает, игра проваливается в слоу-мо.
+- Anthill draws everything on the CPU: `copyPixels` and `BitmapData.draw` into an 800×600 buffer, and vector clips are rasterized at runtime.
+- Right now the game runs through the Ruffle emulator.
+- The physics uses a fixed step of `1/40` **per frame**. When the FPS drops, the game falls into slow motion.
 
-## Требования
+## Requirements
 
-1. Графика, уровни и физика — как в оригинале.
-2. Режимы:
-   - одиночная игра;
-   - двое на одном ПК (как в оригинале: P2 подключается своей клавишей газа);
-   - игра по LAN: один хостит, другой вводит IP или выбирает хост из списка найденных, как в Minecraft.
-3. Сборки для macOS arm64 и Windows 10 x64.
-4. Хорошая производительность на обеих машинах.
+1. Graphics, levels and physics are as in the original.
+2. Modes:
+   - single player;
+   - two players on one PC (as in the original: P2 joins with their own thrust key);
+   - LAN play: one hosts, the other enters an IP or picks a host from the list of discovered ones, as in Minecraft.
+3. Builds for macOS arm64 and Windows 10 x64.
+4. Good performance on both machines.
 
-Решения пользователя (зафиксированы):
-- Язык — только английский, как в оригинале.
-- Графика — та же векторная, растеризованная заново в HD (1x/2x/3x).
-- Добавить:
-  - автопоиск игр в LAN;
-  - переназначение клавиш (в оригинале уже есть в Garage, переносим);
-  - плавность 60/120 Гц (интерполяция);
-  - оптимизацию физики **при неизменном поведении**.
-- Спонсорские мёртвые ссылки и интро Armor Games убрать, экран Credits оставить.
+User decisions (fixed):
+- Language: English only, as in the original.
+- Graphics: the same vector art, re-rasterized in HD (1x/2x/3x).
+- Add:
+  - automatic discovery of LAN games;
+  - key remapping (already present in the original's Garage, we port it);
+  - smooth 60/120 Hz (interpolation);
+  - physics optimization **with unchanged behavior**.
+- Remove dead sponsor links and the Armor Games intro, keep the Credits screen.
 
-## Факты об оригинале (проверено декомпиляцией)
+## Facts about the original (verified by decompilation)
 
-| Что | Значение |
+| What | Value |
 |---|---|
-| Сцена | 800×600, `Config.FRAME_RATE = 35` |
-| Физика | Box2DFlash **2.1alpha**; `AntBox2DManager`: `step = 1/40` на кадр, `velocityIterations = 6`, `positionIterations = 15`, `scale = 30` px/м, gravity `(0, 9.81)`, allowSleep по умолчанию |
-| Время | `AntG.elapsed` = реальное время, но не больше `maxElapsed = 0.0333`. Анимации AntActor: `currentFrame += animationSpeed * AntG.timeScale` за апдейт |
-| Архитектура | Фреймворк Anthill: сцена AntEntity/AntActor; ECS «ants» (AntCore/AntSystem/AntNode в стиле Ash); плагины Box2D, эффекты, living lights |
-| Объём кода | ~22.7K строк игры (`ru.alientransporter.*`) и ~20K Anthill (включая debug, который не нужен). Box2D ~14K строк заменяем на box2dweb |
-| Уровни | 20 одноэкранных. Клипы: `LevelNNBack_mc` (scrollFactor 0.25), `LevelNNBG_mc` (0.5), `LevelNNFG_mc` (1.0) кешируются в AntTileMap 8×6 тайлов × `CELL_SIZE = 100` (область 800×600). `LevelNNPhysic_mc` — разметка редактора с экземплярами `*_com` |
-| Камера | Статична. `scroll` = (0, 0), есть `shake(...)` |
-| Графика | Вектор: 915 шейпов, 596 спрайтов, ~6000 кадров. Блендинг `add`/`overlay`, multiply-тинт, BlurFilter у AntLight |
-| Звук | 62 MP3: 55 SFX и 3 музыкальных трека, частично 11 кГц |
-| Данные | XML: миссии (19), тексты EN, эффекты частиц (256 КБ), 10 растровых шрифтов |
-| Клавиши | P1: UP/LEFT/RIGHT. P2: W/A/D. Пауза: P или ESC. Action: SPACEBAR/ENTER. Переназначение — в Garage |
-| Сохранения | `AntCookie` (SharedObject) → в ремастере JSON-файл |
+| Stage | 800×600, `Config.FRAME_RATE = 35` |
+| Physics | Box2DFlash **2.1alpha**; `AntBox2DManager`: `step = 1/40` per frame, `velocityIterations = 6`, `positionIterations = 15`, `scale = 30` px/m, gravity `(0, 9.81)`, allowSleep by default |
+| Time | `AntG.elapsed` = real time, but no more than `maxElapsed = 0.0333`. AntActor animations: `currentFrame += animationSpeed * AntG.timeScale` per update |
+| Architecture | The Anthill framework: an AntEntity/AntActor scene; the "ants" ECS (AntCore/AntSystem/AntNode, Ash style); Box2D plugins, effects, living lights |
+| Code size | ~22.7K lines of game code (`ru.alientransporter.*`) and ~20K of Anthill (including debug, which is not needed). Box2D, ~14K lines, is replaced with box2dweb |
+| Levels | 20 single-screen ones. Clips: `LevelNNBack_mc` (scrollFactor 0.25), `LevelNNBG_mc` (0.5), `LevelNNFG_mc` (1.0) are cached in an AntTileMap of 8×6 tiles × `CELL_SIZE = 100` (an 800×600 area). `LevelNNPhysic_mc` is the editor markup with `*_com` instances |
+| Camera | Static. `scroll` = (0, 0), there is `shake(...)` |
+| Graphics | Vector: 915 shapes, 596 sprites, ~6000 frames. `add`/`overlay` blending, multiply tint, BlurFilter on AntLight |
+| Sound | 62 MP3s: 55 SFX and 3 music tracks, some at 11 kHz |
+| Data | XML: missions (19), EN texts, particle effects (256 KB), 10 bitmap fonts |
+| Keys | P1: UP/LEFT/RIGHT. P2: W/A/D. Pause: P or ESC. Action: SPACEBAR/ENTER. Remapping is in the Garage |
+| Saves | `AntCookie` (SharedObject) → a JSON file in the remaster |
 
-## Ключевые решения
+## Key decisions
 
-1. **Порт, а не переписывание.** AS3 → TypeScript почти 1:1. Это главный рычаг точности.
-2. **Физика — box2dweb 2.1a.** Это JS-конверсия того же Box2DFlash 2.1a, поэтому поведение идентично.
-3. **Уровни, модели тел, звуки и данные извлекаются из SWF автоматически** (`npm run extract`).
-4. **Графика растеризуется заново из оригинальных векторов** через JPEXS в 1x, 2x и 3x. Мак использует 3x, Windows — 2x.
-5. **Логика идёт на 35 тиках/с, физика — `Step(1/40, 6, 15)` на тик**, как в оригинале при стабильных 35 FPS. Рендер работает на частоте дисплея и интерполирует между тиками. Режим «Classic 35 fps» интерполяцию выключает.
-6. **Симуляция работает в Web Worker и каждый тик отдаёт бинарный `Frame`.** Рендерер умеет рисовать только `Frame`. В сетевой игре хост пересылает клиенту те же `Frame`, так что клиент выглядит в точности как хост.
-7. **Сеть: хост-авторитарный тонкий клиент** по WebSocket (TCP) + UDP-автопоиск.
-8. **Оптимизация физики при той же физике:** солвер не трогаем. Выигрываем за счёт воркера, отсутствия аллокаций и GPU-рендера. Каждое изменение проверяется golden-replay хэшами.
+1. **Port, not rewrite.** AS3 → TypeScript almost 1:1. This is the main lever for accuracy.
+2. **Physics is box2dweb 2.1a.** It is a JS conversion of the same Box2DFlash 2.1a, so the behavior is identical.
+3. **Levels, body models, sounds and data are extracted from the SWF automatically** (`npm run extract`).
+4. **Graphics are re-rasterized from the original vectors** via JPEXS at 1x, 2x and 3x. The Mac uses 3x, Windows uses 2x.
+5. **Logic runs at 35 ticks/s, physics is `Step(1/40, 6, 15)` per tick**, as in the original at a stable 35 FPS. Rendering runs at the display rate and interpolates between ticks. The "Classic 35 fps" mode turns interpolation off.
+6. **The simulation runs in a Web Worker and emits a binary `Frame` every tick.** The renderer can draw only a `Frame`. In a network game the host forwards the same `Frame`s to the client, so the client looks exactly like the host.
+7. **Network: a host-authoritative thin client** over WebSocket (TCP) + UDP auto-discovery.
+8. **Physics optimization with the same physics:** we do not touch the solver. We gain through the worker, the absence of allocations and GPU rendering. Every change is verified with golden-replay hashes.
 
-## Стек
+## Stack
 
-TypeScript (strict) · Electron (закрепить версию, актуальная стабильная — 44.x; Windows 10 поддерживается начиная с v23+) · electron-vite · PixiJS v8 (WebGL2) · box2dweb 2.1a (npm `box2dweb@2.1.0-b`, без патчей) · Web Audio · `ws` + `dgram` · zod · Vitest · Playwright (`_electron`) · electron-builder · JPEXS FFDec 26.3.0 + Java 17 · sharp · maxrects-packer · ffmpeg.
+TypeScript (strict) · Electron (pin the version; the current stable is 44.x; Windows 10 is supported from v23+) · electron-vite · PixiJS v8 (WebGL2) · box2dweb 2.1a (npm `box2dweb@2.1.0-b`, no patches) · Web Audio · `ws` + `dgram` · zod · Vitest · Playwright (`_electron`) · electron-builder · JPEXS FFDec 26.3.0 + Java 17 · sharp · maxrects-packer · ffmpeg.
 
-## Милстоуны
+## Milestones
 
-- **M0** — фундамент и извлечение ассетов/данных.
-- **M1** — вертикальный срез: Level01 играбелен (соло + вдвоём).
-- **M2** — полный порт: 20 уровней, меню, гараж, миссии, сохранения.
-- **M3** — игра по LAN.
-- **M4** — сверка с оригиналом, оптимизация, сборки для Mac и Windows, README.
+- **M0** — foundation and extraction of assets/data.
+- **M1** — vertical slice: Level01 is playable (solo + two players).
+- **M2** — full port: 20 levels, menu, garage, missions, saves.
+- **M3** — LAN play.
+- **M4** — parity check with the original, optimization, Mac and Windows builds, README.
 
-Задачи и зависимости — в `docs/ROADMAP.md`.
+Tasks and dependencies are in `docs/ROADMAP.md`.
 
-## Юридическое
+## Legal
 
-Ассеты и код оригинала принадлежат автору. Ремастер только для личного использования. Ничего не публикуем.
+The assets and code of the original belong to the author. The remaster is for personal use only. We publish nothing.

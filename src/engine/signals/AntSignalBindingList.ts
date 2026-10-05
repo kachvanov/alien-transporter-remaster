@@ -71,12 +71,12 @@ export class AntSignalBindingList<A extends AnyArgs = AnyArgs> {
   }
 
   insertWithPriority(aSignalBinding: AntSignalBinding<A>): AntSignalBindingList<A> {
-    // Если список пуст, добавляем в начало.
+    // If the list is empty, add to the beginning.
     if (this.isEmpty) {
       return new AntSignalBindingList<A>(aSignalBinding, this);
     }
 
-    // Если приоритет больше чем у первого элемента списка, добавляем в начало.
+    // If the priority is higher than that of the first element of the list, add to the beginning.
     const priority = aSignalBinding.priority; // :int
     if (priority > (this.head as AntSignalBinding<A>).priority) {
       return new AntSignalBindingList<A>(aSignalBinding, this);
@@ -88,7 +88,7 @@ export class AntSignalBindingList<A extends AnyArgs = AnyArgs> {
     let first: AntSignalBindingList<A> | null = null;
     let last: AntSignalBindingList<A> | null = null;
 
-    // Перебираем весь список связей.
+    // Iterate over the whole list of bindings.
     while (!p.isEmpty) {
       if (priority > (p.head as AntSignalBinding<A>).priority) {
         q = new AntSignalBindingList<A>(aSignalBinding, p);

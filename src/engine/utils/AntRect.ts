@@ -67,12 +67,12 @@ export class AntRect {
   }
 
   intersects(aX: number, aY: number, aWidth = 0, aHeight = 0): boolean {
-    // Если высота и ширина не указаны, проверяем пересечение с точкой.
+    // If the height and width are not specified, check the intersection with a point.
     if (aWidth == 0 && aHeight == 0) {
       return aX > this.left && aX < this.right && aY > this.top && aY < this.bottom ? true : false;
     }
 
-    // Проверяем пересечение с областью.
+    // Check the intersection with the area.
     const t = aY;
     const r = aX + aWidth;
     const b = aY + aHeight;

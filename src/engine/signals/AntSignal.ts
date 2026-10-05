@@ -66,7 +66,7 @@ export class AntSignal<A extends AnyArgs = AnyArgs> {
   }
 
   dispatch(...aValueObjects: A): void {
-    // Если список типов данных пустой, значит проверка не осуществляется.
+    // If the list of data types is empty, no check is performed.
     const numValueClasses = this._valueClasses.length | 0; // :int
     const numValueObjects = aValueObjects.length | 0; // :int
 
@@ -82,8 +82,8 @@ export class AntSignal<A extends AnyArgs = AnyArgs> {
 
     // The per-argument `is valueClass` check is dropped (see class comment).
 
-    // Рассылка слушателям. Список связей неизменяемый: add/remove внутри слушателя создают новый список
-    // и не влияют на текущую рассылку.
+    // Dispatch to the listeners. The binding list is immutable: add/remove inside a listener creates a new list
+    // and does not affect the current dispatch.
     let bindingsToProcess = this._bindings;
     if (!bindingsToProcess.isEmpty) {
       while (!bindingsToProcess.isEmpty) {
@@ -118,14 +118,14 @@ export class AntSignal<A extends AnyArgs = AnyArgs> {
     }
 
     if (existingBinding.instant != aInstant) {
-      // Если слушатель уже был добавлен раньше, то не добавляем его.
-      // Исключением может быть только однаразовые слушатели.
+      // If the listener has already been added, we do not add it again.
+      // The only exception is one-time listeners.
       throw new Error(
         'You cannot addOnce() then add() the same listener without removing the relationship first.',
       ); // IllegalOperationError
     }
 
-    // Слушатель уже зарегистрирован.
+    // The listener is already registered.
     return false;
   }
 
@@ -137,7 +137,7 @@ export class AntSignal<A extends AnyArgs = AnyArgs> {
     return this._valueClasses;
   }
   set valueClasses(value: unknown[]) {
-    // Клонируем так как массив не может быть применем извне.
+    // Clone, because the array cannot be modified from outside.
     // DEVIATION: the original also verifies that every item is a Class; in TS the entries are opaque
     // (they may be built-in constructors, `Number`, `String`, ... or omitted), so it is not checked.
     this._valueClasses = value ? value.slice() : [];

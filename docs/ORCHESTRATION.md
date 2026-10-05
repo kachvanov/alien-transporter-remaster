@@ -1,46 +1,46 @@
-# Как запускать работу агентов (для тебя, не для агентов)
+# How to run the agents (for you, not for the agents)
 
-## Схема
+## Overview
 
-- **Ты** запускаешь одну сессию Claude Code в этой папке и пишешь `/orchestrate`.
-- **Прораб** (эта сессия) берёт готовые задачи из `docs/ROADMAP.md`. На каждую он запускает **исполнителя** `porter`: это субагент на Sonnet, который работает в своей копии репозитория (git worktree) и своей ветке. Одновременно работают до 2 исполнителей.
-- Исполнитель делает одну карточку, прогоняет тесты, коммитит и отчитывается. Прораб проверяет отчёт, вливает ветку в `main`, отмечает `[x]` в ROADMAP и сразу запускает следующую задачу.
-- Прораб сам останавливается только в трёх случаях:
-  1. закончен милстоун (M1–M4) — нужна твоя короткая ручная проверка;
-  2. задаче нужен человек (Windows-ноутбук, скриншоты из Ruffle, решение);
-  3. задача дважды не удалась.
+- **You** start one Claude Code session in this folder and type `/orchestrate`.
+- The **orchestrator** (this session) takes ready tasks from `docs/ROADMAP.md`. For each one it launches an **executor** `porter`: a Sonnet subagent that works in its own copy of the repository (a git worktree) and its own branch. Up to 2 executors work at the same time.
+- An executor does one task card, runs the tests, commits and reports. The orchestrator checks the report, merges the branch into `main`, marks `[x]` in ROADMAP and immediately launches the next task.
+- The orchestrator stops by itself in only three cases:
+  1. a milestone (M1–M4) is finished — your short manual check is needed;
+  2. a task needs a human (a Windows laptop, screenshots from Ruffle, a decision);
+  3. a task has failed twice.
 
-  Всё, что от тебя нужно, он пишет списком в конце и в `docs/STATUS.md` («Нужно от тебя»).
+  Everything it needs from you it writes as a list at the end and in `docs/STATUS.md` ("Needed from you").
 
-## Что делать тебе
+## What you do
 
-1. Открой папку проекта в VS Code → Claude Code.
-2. Напиши `/orchestrate` (или `/orchestrate 1`, чтобы исполнитель был один).
-3. Занимайся своими делами. Прораб сам просыпается, когда исполнитель закончил.
-4. Когда прораб остановился — прочитай его итоговое сообщение, сделай пункты «Нужно от тебя» и снова напиши `/orchestrate`. При воротах милстоуна он задаст вопрос с кнопками «Всё ок / Есть проблемы».
+1. Open the project folder in VS Code → Claude Code.
+2. Type `/orchestrate` (or `/orchestrate 1` to have a single executor).
+3. Go about your business. The orchestrator wakes up by itself when an executor finishes.
+4. When the orchestrator has stopped, read its final message, do the "Needed from you" items and type `/orchestrate` again. At a milestone gate it will ask a question with the buttons "All OK / There are problems".
 
-Если сессия закрылась, упала или кончился лимит — ничего страшного: состояние хранится в `docs/STATUS.md` и в git. Новая сессия + `/orchestrate` продолжит с того же места и подберёт брошенные ветки.
+If the session closed, crashed or hit the limit, no problem: the state is kept in `docs/STATUS.md` and in git. A new session + `/orchestrate` continues from the same place and picks up abandoned branches.
 
-## Про план Pro ($20)
+## About the Pro plan ($20)
 
-- Лимиты Pro считаются по 5-часовым окнам и за неделю. Параллельные исполнители **не увеличивают** общий объём работы в рамках лимита: они просто тратят окно быстрее и экономят время на часах. Если лимит кончается слишком быстро — запускай `/orchestrate 1`.
-- В `.claude/settings.json` включено `autoContinueAtUsageLimit`: упёршись в лимит, сессия дождётся сброса и продолжит сама. Если это не сработало (настройка может читаться только из пользовательских настроек), включи её в `/config` или просто повтори `/orchestrate` после сброса.
-- Исполнители всегда на Sonnet (задано в `.claude/agents/porter.md`). Сам прораб работает на модели сессии, а у тебя по умолчанию стоит Opus. Прораб тратит мало, но если лимит жмёт — переключи сессию на Sonnet: `/model sonnet`.
-- Порядок цифр: ~43 задачи, самые большие — порт игрового кода (десятки тысяч строк). Реалистично это **много 5-часовых окон**, растянутых на недели. Самая выгодная точка контроля — M1 (первый уровень играбелен): там сразу видно, туда ли всё идёт.
+- Pro limits are counted in 5-hour windows and per week. Parallel executors **do not increase** the total amount of work within the limit: they just use up the window faster and save wall-clock time. If the limit runs out too quickly, launch `/orchestrate 1`.
+- `autoContinueAtUsageLimit` is enabled in `.claude/settings.json`: on hitting the limit the session waits for the reset and continues by itself. If that does not work (the setting may be read only from user settings), enable it in `/config` or simply repeat `/orchestrate` after the reset.
+- Executors are always on Sonnet (set in `.claude/agents/porter.md`). The orchestrator itself runs on the session's model, and yours defaults to Opus. The orchestrator uses little, but if the limit is tight, switch the session to Sonnet: `/model sonnet`.
+- Order of magnitude: ~43 tasks, the biggest being the port of the game code (tens of thousands of lines). Realistically that is **many 5-hour windows**, stretched over weeks. The most valuable control point is M1 (the first level is playable): it shows right away whether everything is heading the right way.
 
-## Где что лежит
+## Where things are
 
-| Файл | Зачем |
+| File | Purpose |
 |---|---|
-| `.claude/skills/orchestrate/SKILL.md` | инструкция прораба (`/orchestrate`) |
-| `.claude/agents/porter.md` | инструкция исполнителя (модель Sonnet) |
-| `.claude/settings.json` | разрешения (без лишних вопросов), worktree от текущего `main`, общие папки через симлинки, путь к SWF, автопродолжение после лимита, без Co-Authored-By |
-| `docs/STATUS.md` | что в работе, что ждёт тебя, журнал |
-| `docs/ROADMAP.md` | все задачи и зависимости, отметки `[x]` |
+| `.claude/skills/orchestrate/SKILL.md` | the orchestrator's instructions (`/orchestrate`) |
+| `.claude/agents/porter.md` | the executor's instructions (Sonnet model) |
+| `.claude/settings.json` | permissions (no needless prompts), worktrees from the current `main`, shared folders via symlinks, SWF path, auto-continue after the limit, no Co-Authored-By |
+| `docs/STATUS.md` | what is in progress, what is waiting for you, the log |
+| `docs/ROADMAP.md` | all tasks and dependencies, `[x]` marks |
 
-## Если что-то пошло не так
+## If something goes wrong
 
-- Посмотреть, что делают исполнители: панель агентов в Claude Code (или `/agents`).
-- Остановить всё: прервать сессию. Потом `/orchestrate` подберёт состояние.
-- Откатить неудачный merge можно вручную (`git revert -m 1 <hash>`) или попросить об этом прораба обычным сообщением.
-- Настройки намеренно запрещают агентам `git push`, `git reset --hard`, `npm ci` и удаление общих папок.
+- To see what the executors are doing: the agents panel in Claude Code (or `/agents`).
+- To stop everything: interrupt the session. Then `/orchestrate` will pick up the state.
+- A bad merge can be rolled back manually (`git revert -m 1 <hash>`) or by asking the orchestrator in a normal message.
+- The settings deliberately forbid agents from `git push`, `git reset --hard`, `npm ci` and deleting shared folders.

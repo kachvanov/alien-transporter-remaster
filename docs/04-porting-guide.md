@@ -1,147 +1,147 @@
-# 04 — Руководство по порту AS3 → TypeScript
+# 04 — AS3 → TypeScript porting guide
 
-## 0. Принципы
+## 0. Principles
 
-1. **Файл в файл, класс в класс.** `reference/as3/ru/alientransporter/systems/ShuttleSystem.as` → `src/game/systems/ShuttleSystem.ts`. `reference/as3/ru/antkarlov/anthill/AntActor.as` → `src/engine/core/AntActor.ts`. Box2D-плагин → `src/physics/anthill/...`.
-2. Порядок методов и полей — как в оригинале, чтобы файлы легко сравнивать бок о бок.
-3. Имена: классы, методы, публичные поля — как в оригинале. `_loc3_` и `param1` переименовывай в осмысленные имена (это рекомендуется), но строго сохраняй порядок вычислений.
-4. В шапке файла: `// Port of ru/alientransporter/systems/ShuttleSystem.as`. Любое сознательное отклонение помечай комментарием `// DEVIATION: <почему>` и упоминай в отчёте.
-5. Не упрощай «очевидно лишнее». Двойные проверки, странные коэффициенты, пустые ветки остаются как в оригинале.
+1. **File for file, class for class.** `reference/as3/ru/alientransporter/systems/ShuttleSystem.as` → `src/game/systems/ShuttleSystem.ts`. `reference/as3/ru/antkarlov/anthill/AntActor.as` → `src/engine/core/AntActor.ts`. The Box2D plugin → `src/physics/anthill/...`.
+2. The order of methods and fields is as in the original, so that the files are easy to compare side by side.
+3. Names: classes, methods, public fields — as in the original. Rename `_loc3_` and `param1` to meaningful names (recommended), but strictly preserve the order of computation.
+4. In the file header: `// Port of ru/alientransporter/systems/ShuttleSystem.as`. Mark any deliberate deviation with a `// DEVIATION: <why>` comment and mention it in the report.
+5. Do not simplify the "obviously redundant". Double checks, odd coefficients and empty branches stay as in the original.
 
-## 1. Типы и значения по умолчанию
+## 1. Types and default values
 
-| AS3 | TS | Примечание |
+| AS3 | TS | Note |
 |---|---|---|
-| `int` | `number` + `\|0` | см. §2 |
-| `uint` | `number` + `>>>0` | см. §2 |
-| `Number` | `number` | **дефолт NaN**, не 0 |
-| `Boolean` | `boolean` | дефолт false |
-| `String` | `string \| null` | дефолт null |
-| `Object`, классы | `T \| null` | дефолт null |
-| `*` | `any` (точечно) или `unknown` | |
-| `Array` | `any[]` или типизированный массив | |
-| `Vector.<T>` | `T[]` | `.fixed` игнорировать |
-| `Dictionary` | `Map<K, V>` | если ключи — объекты. Порядок итерации AS3 не определён; если логика от него зависит — отметь |
+| `int` | `number` + `\|0` | see §2 |
+| `uint` | `number` + `>>>0` | see §2 |
+| `Number` | `number` | **default NaN**, not 0 |
+| `Boolean` | `boolean` | default false |
+| `String` | `string \| null` | default null |
+| `Object`, classes | `T \| null` | default null |
+| `*` | `any` (sparingly) or `unknown` | |
+| `Array` | `any[]` or a typed array | |
+| `Vector.<T>` | `T[]` | ignore `.fixed` |
+| `Dictionary` | `Map<K, V>` | if the keys are objects. The AS3 iteration order is undefined; if the logic depends on it, flag it |
 | `Class` | `new (...a: any[]) => T` | |
 | `Function` | `(...a: any[]) => any` | |
-| `flash.geom.Point/Rectangle/Matrix` | `src/engine/utils/geom.ts` (минимальные аналоги) | |
-| `XML` / E4X | JSON из `assets/data/*.json` | §6 |
+| `flash.geom.Point/Rectangle/Matrix` | `src/engine/utils/geom.ts` (minimal equivalents) | |
+| `XML` / E4X | JSON from `assets/data/*.json` | §6 |
 
-**Поля класса инициализируются явно AS3-дефолтами:** `int/uint = 0`, `Number = NaN`, `Boolean = false`, всё остальное `null`. Если в декомпиляции конструктор присваивает значение, оставь это присваивание в конструкторе, в том же порядке.
+**Class fields are initialized explicitly with the AS3 defaults:** `int/uint = 0`, `Number = NaN`, `Boolean = false`, everything else `null`. If in the decompilation the constructor assigns a value, keep that assignment in the constructor, in the same order.
 
-## 2. Целочисленная семантика — главный источник тихих расхождений
+## 2. Integer semantics — the main source of silent divergences
 
-В AS3 значение, **записываемое** в `int`/`uint`, приводится к целому (к нулю, с переполнением по модулю 2³²). В JS этого нет. Правила:
+In AS3 a value **written** into an `int`/`uint` is coerced to an integer (toward zero, with modulo 2³² overflow). JS has no such thing. Rules:
 
 ```ts
 // var i:int = a / b;                       →
 let i = (a / b) | 0;
 // public var count:int;  this.count = x * 0.5; →
 this.count = (x * 0.5) | 0;
-// function f(n:int):int { return n * 1.5; }  → параметры и возврат тоже приводятся!
+// function f(n:int):int { return n * 1.5; }  → parameters and return values are coerced too!
 function f(n: number): number { n = n | 0; return (n * 1.5) | 0; }
 // int(x) → x | 0 ;  uint(x) → x >>> 0 ;  int("12") → Number("12") | 0
-// uint-арифметика с умножением (PRNG!) → Math.imul(a, b) >>> 0
+// uint arithmetic with multiplication (PRNG!) → Math.imul(a, b) >>> 0
 ```
-- `++`/`--` над уже целым значением можно оставить как есть.
-- Сравнения и чтения без записи приводить не нужно.
-- В сомнительных местах (int-поле получает результат `Math.random()*N`, деление, `* 0.5`) всегда `|0`.
-- Помощник для ревью: `npm run tool:int-report -- <as3-файл>` печатает все `:int`/`:uint`-объявления (поля, var, параметры, возвраты) — сверь с ними свой TS. Это делается в T1.1.
+- `++`/`--` on an already integer value can be left as is.
+- Comparisons and reads without a write need no coercion.
+- In doubtful places (an int field receives the result of `Math.random()*N`, a division, `* 0.5`) always use `|0`.
+- A review helper: `npm run tool:int-report -- <as3-file>` prints all `:int`/`:uint` declarations (fields, vars, parameters, return values) — check your TS against them. This is done in T1.1.
 
-## 3. Семантика методов и замыканий
+## 3. Method and closure semantics
 
-- **Method closures.** В AS3 `this.onClick`, переданный как колбэк, навсегда привязан к `this`. В TS обработчики, которые передаются в сигналы, таймеры или кнопки, объявляй **стрелочными свойствами класса**:
+- **Method closures.** In AS3 `this.onClick` passed as a callback is permanently bound to `this`. In TS declare handlers that are passed to signals, timers or buttons as **arrow-function class properties**:
   ```ts
-  private onClick = (btn: Button): void => { ... };   // одна и та же ссылка для add() и remove()
+  private onClick = (btn: Button): void => { ... };   // the same reference for add() and remove()
   ```
-  `.bind(this)` в месте вызова не подходит: `signal.remove(this.onClick)` не найдёт такой обработчик.
-- `override` → `override` (включён `noImplicitOverride`). `internal` → без модификатора (экспорт из модуля). `protected`/`private` — как есть.
-- Геттеры и сеттеры — как есть.
-- Статические поля и инициализация классов: в AS3 статика инициализируется лениво при первом обращении к классу, в TS — при загрузке модуля. **Циклические импорты** (`G` ↔ `GameState` ↔ системы) могут давать `undefined`. Правила:
-  - статику, которая создаёт объекты других модулей, переносить в явный `init()` (как `G.init`);
-  - константы-числа и строки можно оставить `static readonly`;
-  - если ESLint/esbuild предупреждает о цикле, разорвать его через импорт типов (`import type`).
-- `is` → `instanceof`. `as` → `asType(value, Class)` (возвращает `null`, если не экземпляр) из `src/engine/utils/cast.ts`.
-- `for each (var v in coll)` → `for (const v of coll)` (для Array/Vector) или `Object.values(obj)`. `for (var k in obj)` → `for (const k in obj)`.
-- `getQualifiedClassName(obj)` → у всех «компонентных» и view-классов есть `static readonly className = "X"`; хелпер `qualifiedName(obj)`.
-- `getDefinitionByName("X")` / `new (getDefinitionByName(name))()` → реестр `src/game/registry.ts` (`name → constructor`).
-- `describeType` (используется в AntFamily для полей Node) → статическое описание `static components = { fieldName: ComponentClass }` у каждого Node-класса.
-- `getTimer()` → `AntG.simTimeMs` (время симуляции, растёт на 1000/35 за тик).
-- `setTimeout`/`Timer` → `AntTaskManager` или счётчики тиков. Никаких реальных таймеров в симуляции.
-- `trace(...)` → удалить (или `debugLog`, вырезаемый в prod).
-- `Math.random()` → `AntMath.random()`. Игровой код и так почти везде зовёт `AntMath.random*`, прямой `Math.random()` есть, например, в `AntCamera.shake`. Сам `AntMath` портируется 1:1. Его PRNG — xorshift над `uint r`:
+  `.bind(this)` at the call site does not work: `signal.remove(this.onClick)` will not find such a handler.
+- `override` → `override` (`noImplicitOverride` is on). `internal` → no modifier (a module export). `protected`/`private` — as is.
+- Getters and setters — as is.
+- Static fields and class initialization: in AS3 statics are initialized lazily on first access to the class, in TS — when the module is loaded. **Circular imports** (`G` ↔ `GameState` ↔ systems) can yield `undefined`. Rules:
+  - statics that create objects of other modules should be moved into an explicit `init()` (like `G.init`);
+  - numeric and string constants can stay `static readonly`;
+  - if ESLint/esbuild warns about a cycle, break it with a type import (`import type`).
+- `is` → `instanceof`. `as` → `asType(value, Class)` (returns `null` if not an instance) from `src/engine/utils/cast.ts`.
+- `for each (var v in coll)` → `for (const v of coll)` (for Array/Vector) or `Object.values(obj)`. `for (var k in obj)` → `for (const k in obj)`.
+- `getQualifiedClassName(obj)` → all "component" and view classes have `static readonly className = "X"`; the helper `qualifiedName(obj)`.
+- `getDefinitionByName("X")` / `new (getDefinitionByName(name))()` → the registry `src/game/registry.ts` (`name → constructor`).
+- `describeType` (used in AntFamily for Node fields) → a static description `static components = { fieldName: ComponentClass }` on every Node class.
+- `getTimer()` → `AntG.simTimeMs` (simulation time, grows by 1000/35 per tick).
+- `setTimeout`/`Timer` → `AntTaskManager` or tick counters. No real timers in the simulation.
+- `trace(...)` → delete (or `debugLog`, stripped in prod).
+- `Math.random()` → `AntMath.random()`. The game code almost everywhere already calls `AntMath.random*`; a direct `Math.random()` exists, for example, in `AntCamera.shake`. `AntMath` itself is ported 1:1. Its PRNG is xorshift over a `uint r`:
   ```
   r ^= r << 21; r ^= r >>> 35; r ^= r << 4; return r * MAX_RATIO;
   ```
-  В TS каждую строку делай с `>>> 0`: `r = (r ^ (r << 21)) >>> 0` и т.д. Сдвиг `>>> 35` и в AS3, и в JS маскируется до `>>> 3`. Начальный `r = Math.random() * uint.MAX_VALUE` замени на `AntMath.seed(n)`. Юнит-тест: первые 10 значений при сиде 12345 фиксируются как эталон.
-- `Array.sort` / `sortOn` → `sortAS3` / `sortOnAS3` из `src/engine/utils/as3array.ts`. **Никогда не используй встроенный `Array.prototype.sort` для порта AS3-сортировок.** JS-сортировка стабильна, а AVM2 — нет: при равных ключах она переставляет элементы по своему алгоритму. Это важно. Например, `AntCore.updatePriority()` сортирует системы, а у всех систем `Priority = 0`, поэтому **порядок обновления систем определяется алгоритмом сортировки AVM2**. То же для `AntPluginManager` (physics/core/music) и `AntEntity.sort`. `as3array.ts` реализует точную копию алгоритма Flash Player (avmplus `core/ArrayClass.cpp`, класс `ArraySort`, метод `qsort`, исходники на github.com/adobe/avmplus) и флаги `NUMERIC`, `DESCENDING`, `CASEINSENSITIVE`, `RETURNINDEXEDARRAY`, `UNIQUESORT`.
+  In TS write every line with `>>> 0`: `r = (r ^ (r << 21)) >>> 0` and so on. A shift by `>>> 35` is masked to `>>> 3` in both AS3 and JS. Replace the initial `r = Math.random() * uint.MAX_VALUE` with `AntMath.seed(n)`. Unit test: the first 10 values at seed 12345 are fixed as the reference.
+- `Array.sort` / `sortOn` → `sortAS3` / `sortOnAS3` from `src/engine/utils/as3array.ts`. **Never use the built-in `Array.prototype.sort` for ports of AS3 sorts.** JS sorting is stable, while AVM2's is not: with equal keys it reorders elements by its own algorithm. This matters. For example, `AntCore.updatePriority()` sorts the systems, and all systems have `Priority = 0`, so **the update order of systems is determined by the AVM2 sorting algorithm**. The same goes for `AntPluginManager` (physics/core/music) and `AntEntity.sort`. `as3array.ts` implements an exact copy of the Flash Player algorithm (avmplus `core/ArrayClass.cpp`, class `ArraySort`, method `qsort`, sources at github.com/adobe/avmplus) and the flags `NUMERIC`, `DESCENDING`, `CASEINSENSITIVE`, `RETURNINDEXEDARRAY`, `UNIQUESORT`.
 
-## 4. Flash-объекты в игровом коде
+## 4. Flash objects in game code
 
-| Встречается в AS3 | Что делаем |
+| Found in AS3 | What we do |
 |---|---|
-| `new Level01Physic_mc()` + обход `getChildAt(i)` (LevelCore.createPhysicsFromClip) | Итерация по `assets/data/levels/level01.json → objects` (уже по `depth`). Каждый объект оборачиваем в `ClipProxy` |
-| `param1: Sprite` в `Factory.make*` / `Ground.make*` / `ObjectManager` | `ClipProxy { x, y, rotation, scaleX, scaleY, width, height, name, visible, [prop]: value }`. `width/height` — Flash-размер при `rotation = 0` (посчитан в пайплайне). Присваивание `rotation = 0` разрешено и ничего не ломает. `getQualifiedClassName(proxy)` → `proxy.cls` |
-| Клипы моделей (`AntModelManager` читает `*Model_mc`) | То же через `models.json` + `ClipProxy` |
-| `addAnimationFromCache("X", name?)` | `AssetRegistry.getAnimation("X")` — метаданные кадров |
-| `AntTileMap.addClip(Level01BG_mc)` + `cacheClips()` | Узел со ссылкой на `LevelNNBG_mc#0` и `scrollFactor`; `eventComplete` диспатчится сразу (асинхронно на следующем тике, если оригинальный код рассчитывает на отложенность — проверить) |
-| `BitmapData`, `copyPixels`, `draw` | Не переносим. Рисует рендерер по `Frame`. Исключение — альфа-тест AntLight (§5 в `01`) |
-| `SoundTransform`, `Sound.play` | `AntSound` → состояние каналов (loops/oneShots) → `Frame` |
-| `SharedObject` (`AntCookie`) | `SaveStorage` (асинхронный). Где AS3 читает синхронно при старте — загрузить заранее в `PrepareState` и отдавать из кеша |
-| `navigateToURL` | `hostApi.openExternal(url)` (через воркер → renderer → preload). Спонсорские ссылки удалены |
-| `stage.frameRate = N` (`AntG.frameRate`) | Не влияет на тик. Логика всегда 35 Гц. Значение 28 в PrepareState — только для загрузочного экрана оригинала, игнорировать |
-| `flash.filters.GlowFilter` в `AntLabel` | AntLabel (TextField) в игре не используется, Label — растровый. Если встретится — `// DEVIATION` и пропустить |
+| `new Level01Physic_mc()` + traversal `getChildAt(i)` (LevelCore.createPhysicsFromClip) | Iterate over `assets/data/levels/level01.json → objects` (already by `depth`). We wrap each object in a `ClipProxy` |
+| `param1: Sprite` in `Factory.make*` / `Ground.make*` / `ObjectManager` | `ClipProxy { x, y, rotation, scaleX, scaleY, width, height, name, visible, [prop]: value }`. `width/height` is the Flash size at `rotation = 0` (computed in the pipeline). Assigning `rotation = 0` is allowed and breaks nothing. `getQualifiedClassName(proxy)` → `proxy.cls` |
+| Model clips (`AntModelManager` reads `*Model_mc`) | The same via `models.json` + `ClipProxy` |
+| `addAnimationFromCache("X", name?)` | `AssetRegistry.getAnimation("X")` — frame metadata |
+| `AntTileMap.addClip(Level01BG_mc)` + `cacheClips()` | A node referencing `LevelNNBG_mc#0` and a `scrollFactor`; `eventComplete` is dispatched immediately (asynchronously on the next tick if the original code relies on deferral — check) |
+| `BitmapData`, `copyPixels`, `draw` | Not ported. The renderer draws from the `Frame`. The exception is the AntLight alpha test (§5 in `01`) |
+| `SoundTransform`, `Sound.play` | `AntSound` → channel state (loops/oneShots) → `Frame` |
+| `SharedObject` (`AntCookie`) | `SaveStorage` (asynchronous). Where AS3 reads synchronously at startup — load in advance in `PrepareState` and serve from the cache |
+| `navigateToURL` | `hostApi.openExternal(url)` (via worker → renderer → preload). The sponsor links have been removed |
+| `stage.frameRate = N` (`AntG.frameRate`) | Does not affect the tick. The logic always runs at 35 Hz. The value 28 in PrepareState is only for the original's loading screen; ignore it |
+| `flash.filters.GlowFilter` in `AntLabel` | AntLabel (TextField) is not used in the game, Label is bitmap-based. If encountered — `// DEVIATION` and skip |
 
 ## 5. XML → JSON
 
-Пайплайн переводит XML в JSON по схеме: элемент → объект, атрибуты → поля, дочерние элементы с одним именем → массив под этим именем. Текст узла → `"#text"`. Пример:
+The pipeline converts XML to JSON by this scheme: an element → an object, attributes → fields, child elements with the same name → an array under that name. Node text → `"#text"`. Example:
 ```xml
 <Mission><SubProp name="iconBig" value="IconPassengerOrange_mc"/>…</Mission>
 ```
 ```json
 { "Mission": [ { "SubProp": [ { "name": "iconBig", "value": "IconPassengerOrange_mc" } ] } ] }
 ```
-E4X-выражения меняются на обход массивов: `xml.Mission` → `data.Mission`; `m.SubProp.(@name == "x").@value` → `m.SubProp.find(p => p.name === "x")?.value`. Числа в атрибутах остаются **строками**, а AS3-код сам делает `Number(...)` / `int(...)` — повторяй это с приведением из §2.
+E4X expressions turn into array traversal: `xml.Mission` → `data.Mission`; `m.SubProp.(@name == "x").@value` → `m.SubProp.find(p => p.name === "x")?.value`. Numbers in attributes stay **strings**, and the AS3 code itself does `Number(...)` / `int(...)` — repeat that with the coercion from §2.
 
-## 6. Карта: пакет оригинала → папка → задача
+## 6. Map: original package → folder → task
 
-| Оригинал (`reference/as3/…`) | Порт | Задача |
+| Original (`reference/as3/…`) | Port | Task |
 |---|---|---|
 | `ru/antkarlov/anthill/{AntMath,AntPoint,AntRect,utils/*,signals/*}` | `src/engine/utils`, `src/engine/signals` | T1.1 |
 | `ru/antkarlov/anthill/plugins/{AntTaskManager,AntTween,AntTransition,IPlugin}`, `AntPluginManager` | `src/engine/plugins` | T1.1 |
 | `ru/antkarlov/anthill/{AntBasic,AntEntity,AntActor,AntAnimation,AntCamera,AntTileMap,AntMask,AntState,AntG,AntKeyboard,AntMouse,AntMouseButton,AntStorage}` | `src/engine/core`, `src/engine/input` | T1.2 |
 | `ru/antkarlov/anthill/ants/*` | `src/engine/ants` | T1.3 |
 | `ru/antkarlov/anthill/plugins/box2d/**` | `src/physics/anthill` | T1.4 |
-| `ru/antkarlov/anthill/{AntSound,AntSoundManager}` | `src/engine/sound` | T1.8 (логика) |
+| `ru/antkarlov/anthill/{AntSound,AntSoundManager}` | `src/engine/sound` | T1.8 (logic) |
 | `ru/antkarlov/anthill/extensions/effects/*` | `src/engine/effects` | T2.3 |
 | `ru/antkarlov/anthill/extensions/livinglights/*` | `src/engine/lights` | T2.4 |
-| `ru/antkarlov/anthill/{AntLabel,AntButton,AntCookie,AntAtlas,AntAssetLoader,AntPreloader,Anthill}`, `debug/*` | не портируются (AntButton — только если его использует игра; проверить) | — |
+| `ru/antkarlov/anthill/{AntLabel,AntButton,AntCookie,AntAtlas,AntAssetLoader,AntPreloader,Anthill}`, `debug/*` | not ported (AntButton — only if the game uses it; check) | — |
 | `ru/alientransporter/{Config,G,Assets,Models,AvailKeys,DebugSettings}`, `data/*`, `components/*`, `tags/*`, `nodes/*` | `src/game/...` | T1.9a |
 | `ru/alientransporter/{map,levels,models}/*` | `src/game/{map,levels,models}` | T1.9b |
-| `systems/{Control,Shuttle,Health,Render,Station}System` + `views/ShuttleView` и связанные | `src/game/systems`, `src/game/views` | T1.9c |
+| `systems/{Control,Shuttle,Health,Render,Station}System` + `views/ShuttleView` and related | `src/game/systems`, `src/game/views` | T1.9c |
 | `ai/**`, `systems/{Passenger,Spawn,Trigger,Portal,Goal}System`, `views/PassengerView` | … | T1.9d |
-| `states/GameState` (слои), `fonts/*`, `systems/UISystem` + нужные `ui/*` для HUD | … | T1.9e |
-| `systems/{Magnet,Missile,Ragdoll,Sensor,ObjectSpawn,Menu}System` + оставшиеся `views/*` | … | T2.1 |
+| `states/GameState` (layers), `fonts/*`, `systems/UISystem` + the needed `ui/*` for the HUD | … | T1.9e |
+| `systems/{Magnet,Missile,Ragdoll,Sensor,ObjectSpawn,Menu}System` + the remaining `views/*` | … | T2.1 |
 | `elements/*` | `src/game/elements` | T2.2 |
-| оставшиеся `ui/*` | `src/game/ui` | T2.5 |
+| the remaining `ui/*` | `src/game/ui` | T2.5 |
 | `screens/*`, `states/PrepareState` | `src/game/screens`, `src/game/states` | T2.6 |
 | `missions/*`, `texts/*`, `MusicManager`, `Sounds`, `Music` | … | T2.7 |
-| `tools/*` (ConfigEditor, JointEditor), `systems/DebugSystem` | не портируются | — |
-| `Box2D/**` | не портируется (box2dweb); справочник по API | — |
+| `tools/*` (ConfigEditor, JointEditor), `systems/DebugSystem` | not ported | — |
+| `Box2D/**` | not ported (box2dweb); an API reference | — |
 
-## 7. box2dweb vs Box2DFlash API
+## 7. box2dweb vs the Box2DFlash API
 
-box2dweb — автоматическая конверсия Box2DFlash 2.1a, API тот же. Пространства имён: `Box2D.Dynamics.b2World`, `Box2D.Common.Math.b2Vec2`, `Box2D.Collision.Shapes.b2PolygonShape`, `Box2D.Dynamics.Joints.b2RevoluteJointDef` и т.д. Модуль `src/physics/box2dweb/index.ts` реэкспортирует их плоско (`export const b2World = Box2D.Dynamics.b2World` …) и даёт типы из `box2d.d.ts` (описывать только используемое API: методы, которые реально вызываются в `plugins/box2d/**` и `ru/alientransporter/**`, собрать через grep). Отличия от AS3:
-- `b2Vec2.Make(x, y)` и `new b2Vec2(x, y)` — есть оба;
-- `b2World(gravity, doSleep)` — как в 2.1a;
-- `SetUserData/GetUserData`, `GetFixtureList()`, `GetNext()` — как в AS3.
+box2dweb is an automatic conversion of Box2DFlash 2.1a, the API is the same. Namespaces: `Box2D.Dynamics.b2World`, `Box2D.Common.Math.b2Vec2`, `Box2D.Collision.Shapes.b2PolygonShape`, `Box2D.Dynamics.Joints.b2RevoluteJointDef`, etc. The module `src/physics/box2dweb/index.ts` re-exports them flat (`export const b2World = Box2D.Dynamics.b2World` …) and provides types from `box2d.d.ts` (describe only the API that is used: the methods actually called in `plugins/box2d/**` and `ru/alientransporter/**`, collect them via grep). Differences from AS3:
+- `b2Vec2.Make(x, y)` and `new b2Vec2(x, y)` — both exist;
+- `b2World(gravity, doSleep)` — as in 2.1a;
+- `SetUserData/GetUserData`, `GetFixtureList()`, `GetNext()` — as in AS3.
 
-## 8. Что проверять в своём порте перед сдачей
+## 8. What to check in your port before handing it in
 
-- [ ] Шапка `// Port of …`, порядок методов как в оригинале.
-- [ ] Все `int`/`uint`-записи приведены (сверено с `tool:int-report`).
-- [ ] Поля инициализированы AS3-дефолтами (Number → NaN!).
-- [ ] Колбэки для сигналов и кнопок — стрелочные свойства.
-- [ ] Нет `Math.random`, `Date`, `performance`, `setTimeout` в симуляции.
-- [ ] Нет импортов pixi, electron и DOM в `src/{engine,physics,game,frame,sim}`.
-- [ ] Тест: как минимум создание объекта и один `update()` без исключений. Для чистой логики — тесты на значения.
+- [ ] The `// Port of …` header, method order as in the original.
+- [ ] All `int`/`uint` writes are coerced (checked against `tool:int-report`).
+- [ ] Fields are initialized with the AS3 defaults (Number → NaN!).
+- [ ] Callbacks for signals and buttons are arrow-function properties.
+- [ ] No `Math.random`, `Date`, `performance`, `setTimeout` in the simulation.
+- [ ] No pixi, electron or DOM imports in `src/{engine,physics,game,frame,sim}`.
+- [ ] Test: at least creating the object and one `update()` without exceptions. For pure logic — tests on values.
