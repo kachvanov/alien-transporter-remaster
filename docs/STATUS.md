@@ -18,7 +18,7 @@ Updated: 2026-10-04 · Last merge: FIX(M3) 2b4167a
 ## Needed from you
 The M4 gates are not closed yet, waiting on:
 1. **Measurement on the Windows laptop (T4.3, T4.4)** — in the evening, package `~/Desktop/at-win-measure/` (installer + `INSTRUCTIONS-for-Claude.md`, docs/08): budgets from `05` §9 (RAM ≤ 700 MB, VRAM ≤ 350 MB, FPS 60, tick p95 ≤ 4 ms), confirm tier 2x. Also collect evidence for the white screen (T5.2).
-2. (Optional) the behavioral "original" column in `docs/05` §5: a Ruffle recording at `--frame-rate 35`, scenarios 1, 2, 5, 6.
+2. ~~(Optional) the behavioral "original" column in `docs/05` §5~~ — closed by the user's decision on 2026-10-05: no more Ruffle recordings; scenarios 3, 4, 7 stay "not measured" and #6 Hardcore stays at the tolerance limit (1.2°), accepted as is.
 The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the "Verification status" section was removed.
 
 ## Blocked
@@ -179,3 +179,5 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - 2026-10-05 user pushed main (33b848a). Release v0.1.0 created on GitHub (tag on 33b848a, no binaries): https://github.com/kachvanov/alien-transporter-remaster/releases/tag/v0.1.0. Notes mention the known white-screen issue (T5.2) and the unmeasured parity scenarios.
 - 2026-10-05 at the user's request dist/ was cleaned by the orchestrator (old unversioned builds, mac-arm64/, win-unpacked/, builder-debug.yml removed: 2.8 GB -> 834 MB; the 49ec902 build and the auto-build state files kept) and T5.5 was created/started: a tidy layout (dist/latest with stable names, dist/archive/<date>-<hash>, hard links, migration).
 - 2026-10-05 T5.5: the earlier agent left no worktree/branch (interrupted) — restarted, attempt 1. User scope for this session: only T5.5, then report what is left.
+- 2026-10-05 the user's decision: the behaviour-parity scenarios of docs/05 §5 (#3, #4, #7 not measured; #6 Hardcore at the limit) are accepted as is, no more Ruffle recordings. Closed, not a gate item.
+- 2026-10-05 the user reports: they play over Tailscale (addresses 100.x.y.z, no LAN); auto-discovery does not find the host, a manual IP+port join works. FIX-6 started in parallel with T5.5 (no shared files expected: electron/net/discovery*, src/app, docs/03/06). The manual Mac <-> Windows check (§8 item 6) will also run over Tailscale.
