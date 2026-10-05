@@ -39,6 +39,7 @@ import {
   parseArtifactName,
   readJson,
   rotateBuilds,
+  successOf,
   writeJsonAtomic,
 } from './dist-lib';
 
@@ -162,7 +163,7 @@ export function finalizeBuild(
   const rotated = rotateBuilds(history, KEEP_BUILDS);
   const removed = sweepArchive(paths, rotated.history.map((h) => h.dir));
   return {
-    state: { lastSuccess: info.ok ? { commit: info.commit, date: info.date } : state.lastSuccess, history: rotated.history },
+    state: { lastSuccess: successOf(state.lastSuccess, info), history: rotated.history },
     removed,
   };
 }

@@ -20,7 +20,12 @@ import { dirname } from 'node:path';
 // Path filter: is a build needed?
 // ---------------------------------------------------------------------------------------------------------------
 
-/** A change in any of these (directory prefixes end with "/") changes the built application. */
+/**
+ * A change in any of these (directory prefixes end with "/") changes the built application. FIX-8: also what produces or
+ * packs the generated assets (tools/extract/**, the icon and signing steps of the build). assets/ itself is not in git, so
+ * a change of the pipeline is all a git diff shows; the content of assets/ is watched by its fingerprint
+ * (dist-assets.ts, `decideBuild`).
+ */
 export const BUILD_TRIGGER_PATHS: readonly string[] = [
   'src/',
   'electron/',
@@ -30,13 +35,85 @@ export const BUILD_TRIGGER_PATHS: readonly string[] = [
   'electron-builder.yml',
   'index.html',
   'electron.vite.config.ts',
+  'tools/extract/',
+  'tools/build/prepack.ts',
+  'tools/build/make-icon.ts',
+  'tools/build/adhocSign.cjs',
 ];
+
+/** Tests never change what is built. */
+function isTestFile(f: string): boolean {
+  return /\.test\.[cm]?[jt]s$/.test(f);
+}
 
 /** True if at least one of the changed files (repository-relative, "/"-separated) affects the built app. */
 export function needsBuild(changedFiles: readonly string[]): boolean {
-  return changedFiles.some((f) =>
-    BUILD_TRIGGER_PATHS.some((p) => (p.endsWith('/') ? f.startsWith(p) : f === p)),
+  return changedFiles.some(
+    (f) => !isTestFile(f) && BUILD_TRIGGER_PATHS.some((p) => (p.endsWith('/') ? f.startsWith(p) : f === p)),
   );
+}
+
+export interface DecisionInput {
+  /** The state's lastSuccess (null: nothing was built yet). */
+  lastSuccess: LastSuccess | null;
+  /** Files changed between lastSuccess.commit and the commit to build (null: unknown). */
+  changed: string[] | null;
+  /** Fingerprint of assets/ now (null: assets/ does not exist). */
+  assets: { fingerprint: string; newestMtimeMs: number } | null;
+}
+
+export interface BuildDecision {
+  build: boolean;
+  reason: string;
+  /**
+   * Set when no build is needed and the last build has no fingerprint yet (a build made before FIX-8) but assets/ is not
+   * newer than it: the caller stores this fingerprint as that build's one, so nothing is rebuilt "for nothing" and the
+   * next comparison is exact.
+   */
+  adoptAssets?: string;
+}
+
+/**
+ * Is a build needed now? Both the sources (git diff against the last successful build) and the generated assets
+ * (fingerprint of assets/ against the one recorded by the last successful build) are checked. A request for the very same
+ * commit is therefore not "up to date" by itself: `npm run extract` may have changed assets/ since.
+ */
+export function decideBuild(i: DecisionInput): BuildDecision {
+  if (i.lastSuccess === null) return { build: true, reason: 'no successful build yet' };
+  if (i.changed === null) return { build: true, reason: 'the changes since the last build cannot be determined' };
+  if (needsBuild(i.changed)) return { build: true, reason: 'src/electron/resources/build configuration/tools/extract changed' };
+  switch (compareAssets(i.lastSuccess, i.assets)) {
+    case 'none':
+      return { build: false, reason: 'no build-relevant changes (assets/ is missing: nothing to compare)' };
+    case 'same':
+      return { build: false, reason: 'no build-relevant changes, the generated assets are the same' };
+    case 'changed':
+      return { build: true, reason: 'the generated assets (assets/) changed since the last build' };
+    case 'unrecorded-newer':
+      return { build: true, reason: 'assets/ was modified after the last build (its fingerprint was not recorded)' };
+    case 'unrecorded':
+      return {
+        build: false,
+        reason: 'no build-relevant changes; assets/ is older than the last build (fingerprint recorded now)',
+        adoptAssets: i.assets?.fingerprint ?? '',
+      };
+  }
+}
+
+/**
+ * - none: assets/ does not exist; same / changed: against the fingerprint recorded by the last successful build;
+ * - unrecorded(-newer): that build predates the fingerprint (migration). No file in assets/ is newer than the build
+ *   ('unrecorded': the build has the current assets) or some file is ('unrecorded-newer': they may have changed).
+ */
+export type AssetsStatus = 'none' | 'same' | 'changed' | 'unrecorded' | 'unrecorded-newer';
+
+export function compareAssets(
+  lastSuccess: LastSuccess,
+  assets: { fingerprint: string; newestMtimeMs: number } | null,
+): AssetsStatus {
+  if (assets === null) return 'none';
+  if (lastSuccess.assets !== undefined) return lastSuccess.assets === assets.fingerprint ? 'same' : 'changed';
+  return assets.newestMtimeMs > Date.parse(lastSuccess.date) ? 'unrecorded-newer' : 'unrecorded';
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -149,6 +226,8 @@ export interface BuildInfo {
   files: BuildFile[];
   /** Folder of this build in dist/archive/ ('' if nothing was produced). */
   archiveDir: string;
+  /** Fingerprint of assets/ taken when the build started (FIX-8); absent in builds made before it. */
+  assets?: string;
   /** Set for a build recovered from the old flat dist/ layout. */
   note?: string;
 }
@@ -164,6 +243,7 @@ export function makeBuildInfo(args: {
   files: Omit<BuildFile, 'latestName'>[];
   durationMs: number;
   archiveDir?: string;
+  assets?: string;
   note?: string;
 }): BuildInfo {
   const ok = args.stages.every((s) => s.status === 'ok');
@@ -180,6 +260,7 @@ export function makeBuildInfo(args: {
     files: args.files.map((f) => ({ ...f, latestName: STABLE_NAMES[f.kind] })),
     archiveDir: args.archiveDir ?? '',
   };
+  if (args.assets !== undefined) info.assets = args.assets;
   if (args.note !== undefined) info.note = args.note;
   return info;
 }
@@ -191,9 +272,24 @@ export interface HistoryEntry {
   dir: string;
 }
 
+export interface LastSuccess {
+  commit: string;
+  date: string;
+  /** Fingerprint of assets/ at the start of that build (FIX-8); missing in a state written before it. */
+  assets?: string;
+}
+
+/** The lastSuccess after `info` finished: only a fully successful build moves it (a failed one keeps the old commit and fingerprint). */
+export function successOf(previous: LastSuccess | null, info: BuildInfo): LastSuccess | null {
+  if (!info.ok) return previous;
+  return info.assets !== undefined
+    ? { commit: info.commit, date: info.date, assets: info.assets }
+    : { commit: info.commit, date: info.date };
+}
+
 export interface BuildState {
   /** Last commit that was built completely (all platforms ok): the base of the "what changed" diff. */
-  lastSuccess: { commit: string; date: string } | null;
+  lastSuccess: LastSuccess | null;
   /** Builds that exist in dist/archive/, newest first; history[0] is what dist/latest/ holds. */
   history: HistoryEntry[];
 }
@@ -219,7 +315,7 @@ export function rotateBuilds(
  * the history; otherwise the entry goes first (a rebuild of the same commit replaces the old entry).
  */
 export function recordBuild(state: BuildState, info: BuildInfo): BuildState {
-  const lastSuccess = info.ok ? { commit: info.commit, date: info.date } : state.lastSuccess;
+  const lastSuccess = successOf(state.lastSuccess, info);
   if (info.files.length === 0) return { lastSuccess, history: state.history };
   const entry: HistoryEntry = { commit: info.commit, date: info.date, dir: info.archiveDir };
   return { lastSuccess, history: [entry, ...state.history.filter((h) => h.commit !== info.commit)] };
@@ -422,6 +518,8 @@ export interface StatusInput {
   headCommit: string | null;
   /** Files changed between the last successful build and HEAD (null: unknown). */
   changedSinceBuild: string[] | null;
+  /** The generated assets/ against the last successful build (FIX-8); undefined: not checked. */
+  assets?: AssetsStatus;
   distDir: string;
   /** BUILD-INFO.json of dist/latest/ (null: no latest/ yet). */
   latest: BuildInfo | null;
@@ -446,16 +544,33 @@ export function formatStatus(s: StatusInput): string {
   } else {
     lines.push('last successful build: none');
   }
+  const assetsOutdated = s.assets === 'changed' || s.assets === 'unrecorded-newer';
   if (s.headCommit !== null) {
+    const head = shortHash(s.headCommit);
     if (s.state.lastSuccess?.commit === s.headCommit) {
-      lines.push(`main (${shortHash(s.headCommit)}): up to date`);
+      lines.push(
+        assetsOutdated
+          ? `main (${head}): same commit as the build, but the generated assets changed: a build is needed`
+          : `main (${head}): up to date`,
+      );
     } else if (s.changedSinceBuild === null) {
-      lines.push(`main (${shortHash(s.headCommit)}): differs from the last build (changes unknown): a build is needed`);
+      lines.push(`main (${head}): differs from the last build (changes unknown): a build is needed`);
     } else if (needsBuild(s.changedSinceBuild)) {
-      lines.push(`main (${shortHash(s.headCommit)}): BEHIND, the build is outdated (src/electron/... changed)`);
+      lines.push(`main (${head}): BEHIND, the build is outdated (src/electron/tools/extract... changed)`);
+    } else if (assetsOutdated) {
+      lines.push(`main (${head}): BEHIND, the generated assets changed since the build: a build is needed`);
     } else {
-      lines.push(`main (${shortHash(s.headCommit)}): ahead of the build, but only docs/tests/tools changed: no build needed`);
+      lines.push(`main (${head}): ahead of the build, but only docs/tests/tools changed: no build needed`);
     }
+  }
+  if (s.assets === 'same') {
+    lines.push('assets/: same content as in the last build');
+  } else if (s.assets === 'changed') {
+    lines.push('assets/: CHANGED since the last build (npm run extract?): run npm run dist:all');
+  } else if (s.assets === 'unrecorded-newer') {
+    lines.push('assets/: files are newer than the last build, whose fingerprint was not recorded: assume changed, run npm run dist:all');
+  } else if (s.assets === 'unrecorded') {
+    lines.push('assets/: older than the last build; its fingerprint is recorded at the next build check (counted as up to date)');
   }
   if (s.latest !== null) {
     lines.push(`${s.distDir}/latest: commit ${s.latest.shortCommit} (${s.latest.status}), built ${s.latest.date}`);

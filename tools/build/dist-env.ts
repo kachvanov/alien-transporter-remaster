@@ -18,6 +18,8 @@ export interface DistPaths {
   state: string;
   /** The newest attempt, also a failed one that never became latest/. */
   attempt: string;
+  /** Cache of the content hashes of assets/ files (dist-assets.ts): only an optimisation. */
+  assetsCache: string;
   /** latest/ is built here and swapped in; the replaced one waits here until it is deleted. */
   latestNext: string;
   latestOld: string;
@@ -40,6 +42,7 @@ export function distPaths(root: string): DistPaths {
     pending: join(stateDir, 'build.pending'),
     state: join(stateDir, 'build-state.json'),
     attempt: join(stateDir, 'last-attempt.json'),
+    assetsCache: join(stateDir, 'assets-hash-cache.json'),
     latestNext: join(stateDir, 'latest.next'),
     latestOld: join(stateDir, 'latest.old'),
     latestInfo: join(latest, 'BUILD-INFO.json'),
