@@ -6,11 +6,15 @@ import { AntG } from '../../src/engine/core/AntG';
 import { AntTileMap } from '../../src/engine/core/AntTileMap';
 import { AntMath } from '../../src/engine/utils/AntMath';
 
-/** An animation of `n` frames; frame i is 10 + i wide, 20 high, its registration point is (5, 10). */
+/**
+ * An animation of `n` frames; frame i is 10 + i wide, 20 high (no transparent border: trim = the whole frame), its
+ * registration point is (5, 10). The "pixels" of the actor are the colour bounds + 2 px of indent on each side
+ * (makeFromMovieClip, T4.2): (10 + i + 4) x 24 at (-7, -12) from the registration point.
+ */
 function makeAnim(name: string, n: number): AntAnimation {
   const frames: FrameMeta[] = [];
   for (let i = 0; i < n; i++) {
-    frames.push({ texId: 100 + i, size1x: [10 + i, 20], origin1x: [5, 10], trim1x: [0, 0, 10, 20] });
+    frames.push({ texId: 100 + i, size1x: [10 + i, 20], origin1x: [5, 10], trim1x: [0, 0, 10 + i, 20] });
   }
   const a = new AntAnimation(name);
   a.makeFromFrames(frames);
@@ -43,16 +47,16 @@ describe('AntActor animation', () => {
     expect(a.currentAnimation).toBe('X');
     expect(a.currentFrame).toBe(1);
     expect(a.totalFrames).toBe(4);
-    // frame 1 = frames[0]: size 10x20; origin is the top-left offset (-origin1x)
-    expect([a.width, a.height]).toEqual([10, 20]);
-    expect([a.origin.x, a.origin.y]).toEqual([-5, -10]);
+    // frame 1 = frames[0]: 10x20 + the 2 px indent of the bitmap on every side; origin is the top-left offset of the bitmap
+    expect([a.width, a.height]).toEqual([14, 24]);
+    expect([a.origin.x, a.origin.y]).toEqual([-7, -12]);
     expect(a.currentFrameMeta!.texId).toBe(100);
 
     a.gotoAndStop(3);
     expect(a.currentFrame).toBe(3);
     expect(a.isPlaying).toBe(false);
     expect(a.currentFrameMeta!.texId).toBe(102);
-    expect(a.width).toBe(12);
+    expect(a.width).toBe(16);
 
     a.gotoAndStop(99); // clamped to totalFrames
     expect(a.currentFrame).toBe(4);
@@ -177,7 +181,7 @@ describe('AntActor animation', () => {
     expect(a.alpha).toBe(0);
     a.color = 0x1ff8040;
     expect(a.color).toBe(0xff8040);
-    expect(a.width).toBe(10);
+    expect(a.width).toBe(14);
     expect(a.blend).toBeNull();
     expect(a.smoothing).toBe(true);
   });
@@ -202,11 +206,42 @@ describe('AntActor animation', () => {
     a.update();
     const cam = { scroll: { x: 0, y: 0 }, width: 800, height: 600, zoom: 1, zoomStyle: 'styleDefault' };
     a.draw(cam as never);
-    // origin (-5, -10), size 10x20 at (100, 100)
-    expect(a.bounds.x).toBe(95);
-    expect(a.bounds.y).toBe(90);
-    expect(a.bounds.width).toBe(10);
-    expect(a.bounds.height).toBe(20);
+    // origin (-7, -12), size 14x24 (the bitmap with its indent) at (100, 100)
+    expect(a.bounds.x).toBe(93);
+    expect(a.bounds.y).toBe(88);
+    expect(a.bounds.width).toBe(14);
+    expect(a.bounds.height).toBe(24);
+  });
+});
+
+describe('AntAnimation.bitmapRect (T4.2)', () => {
+  const meta = (trim: [number, number, number, number]): FrameMeta => ({
+    texId: 1,
+    size1x: [40, 30],
+    origin1x: [20, 15],
+    trim1x: trim,
+  });
+
+  it('a clip frame is its colour bounds + 2 px of indent on each side; the offset follows the bitmap', () => {
+    const a = new AntAnimation('Foo_mc');
+    a.makeFromFrames([meta([3, 4, 23, 14])]);
+    expect(AntAnimation.bitmapRect(meta([3, 4, 23, 14]))).toEqual([1, 2, 27, 18]);
+    expect([a.width, a.height]).toEqual([27, 18]);
+    expect([a.offsetX[0], a.offsetY[0]]).toEqual([-20 + 1, -15 + 2]);
+    const actor = new AntActor();
+    actor.addAnimation(a);
+    expect([actor.width, actor.height]).toEqual([27, 18]);
+    expect([actor.origin.x, actor.origin.y]).toEqual([-19, -13]);
+    expect(actor.bitmapOffset).toEqual([1, 2]);
+  });
+
+  it('a level layer keeps its whole frame', () => {
+    const a = new AntAnimation('Level01BG_mc');
+    a.makeFromFrames([meta([0, 0, 40, 30])]);
+    expect(a.bitmapFrames).toBe(false);
+    expect([a.width, a.height]).toEqual([40, 30]);
+    expect([a.offsetX[0], a.offsetY[0]]).toEqual([-20, -15]);
+    expect(a.dublicateWithFrames([0]).bitmapFrames).toBe(false);
   });
 });
 

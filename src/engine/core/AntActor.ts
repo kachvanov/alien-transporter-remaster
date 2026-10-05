@@ -205,7 +205,9 @@ export class AntActor extends AntEntity {
         const px = Math.floor((aX - this.globalX) / this.scaleX + o.x) | 0; // :int
         const py = Math.floor((aY - this.globalY) / this.scaleY + o.y) | 0; // :int
         const p = AntMath.rotateDeg(px, py, o.x, o.y, -this.globalAngle);
-        hit = pixelTest(this._pixels, p.x, p.y);
+        // p is a point of the BitmapData of the original; the hook reads the untrimmed frame (see bitmapRect)
+        const rect = AntAnimation.bitmapRect(this._pixels, (this._curAnim as AntAnimation).bitmapFrames);
+        hit = pixelTest(this._pixels, p.x + rect[0], p.y + rect[1]);
       }
     }
 
@@ -247,8 +249,11 @@ export class AntActor extends AntEntity {
     }
 
     this._pixels = frame;
-    this.width = frame.size1x[0];
-    this.height = frame.size1x[1];
+    // T4.2: the original width/height are the size of the BitmapData of the frame (the colour bounds + 2 px of indent
+    // on each side), see AntAnimation.bitmapRect; `origin` above is the offset of that bitmap.
+    const rect = AntAnimation.bitmapRect(frame, anim.bitmapFrames);
+    this.width = rect[2];
+    this.height = rect[3];
   }
 
   protected updateAnimation(): void {
@@ -378,6 +383,19 @@ export class AntActor extends AntEntity {
   /** The frame of the current animation (the original: BitmapData `pixels`). */
   get pixels(): FrameMeta | null {
     return this._pixels;
+  }
+
+  /**
+   * T4.2: `[x, y]` of the BitmapData of the original (the colour bounds + 2 px of indent) inside the untrimmed frame of
+   * the manifest; [0, 0] when there is no frame. `origin` is the offset of that bitmap from the registration point.
+   */
+  get bitmapOffset(): readonly [number, number] {
+    if (this._pixels == null || this._curAnim == null) {
+      return [0, 0];
+    }
+
+    const rect = AntAnimation.bitmapRect(this._pixels, this._curAnim.bitmapFrames);
+    return [rect[0], rect[1]];
   }
 
   get memSize(): number {
