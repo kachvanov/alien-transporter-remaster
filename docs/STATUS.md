@@ -5,7 +5,7 @@
 ## В работе
 | ID | попытка | ветка | worktree | запущено |
 |---|---|---|---|---|
-| T4.2 | 2 | (worktree агента) | .claude/worktrees/… | 2026-10-05 |
+| — | | | | |
 
 ## Ворота
 | Милстоун | статус |
@@ -157,3 +157,6 @@
 - 2026-10-05 логи для T5.2: приложение сейчас вообще не пишет логов (нет crashReporter, нет файла лога; в userData только save.json/settings.json и кэши Chromium; на Mac DiagnosticReports и unified log за 20 ч пусты). Единственные внешние следы на Windows — Просмотр событий (Application Error/Hang) и Reliability Monitor; поэтому T5.2 начинается с crash.log.
 - 2026-10-05 эталоны Ruffle сняты пользователем (8 сцен: main-menu, credits, select-level, garage, level01, pause, level-complete, level02) → tests/visual/reference/ (в .gitignore: графика оригинала, не коммитить). Запущена T4.2 попытка 2: визуальная сверка и разбор расхождений. Поведенческая колонка docs/05 §5 (запись Ruffle `--frame-rate 35`, сценарии 1–7) — отдельный ручной этап, ждёт пользователя.
 - 2026-10-05 репозиторий опубликован: https://github.com/kachvanov/alien-transporter-remaster (Public, main, история 200 коммитов как есть — решение пользователя). README: раздел «Статус проверки» убран; добавлены docs/README.md и .github/ISSUE_TEMPLATE. Ник GitHub пользователя — kachvanov (старый redm0unt убран из gh). Дальнейшие merge в main на GitHub не уходят сами: `git push` только по команде пользователя.
+- 2026-10-05 T4.2 merged dfab79f (попытка 2; 1176 тестов; golden-хэши не менялись). Визуально все 8 сцен в порогах: diff% raw → без намеренных зон: main-menu 2.16→0.27, credits 0.76→0.25, select-level 0.85→0.27, garage 0.28, pause 0.54→0.18, level-complete 2.51→0.30, level01 1.00→0.73, level02 1.46→1.20. Системная находка: AntActor/AntButton width/height = BitmapData (colour bounds + 2 px) как в AntAnimation.makeFromMovieClip, а не size1x (сдвигало подписи «Level N», ButtonSwitch). Правились существующие тесты actor.test.ts/assets.test.ts (их ожидания кодировали старую модель; обоснование — в отчёте). Добавлен dev-флаг `--start-screen=LevelComplete`.
+- T4.2 вне задачи: пустой кадр: наш width 5, в оригинале 4; края обрезки по alpha>0 растра JPEXS могут расходиться на ±1 px; эталоны уровней только Level01/02 (03–20 не снимались).
+- Ждёт пользователя (необязательно для ворот M4?): колонка «оригинал» docs/05 §5 — запись Ruffle `--frame-rate 35` (QuickTime), практичнее сценарии 1, 2, 5, 6.

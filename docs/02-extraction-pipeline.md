@@ -98,7 +98,7 @@ done
   "atlases": { "2x": { "ui-0": "gfx/2x/ui-0.png", ... }, ... },
   "frames": [                       // texId = индекс в этом массиве (u16), стабилен при одинаковом входе
     { "key": "Coin_mc#0", "group": "game-common",
-      "size1x": [24.4, 23.65],      // логический размер кадра до trim (для AntActor.width/height)
+      "size1x": [24.4, 23.65],      // логический размер кадра до trim (НЕ для AntActor.width/height: у актора они = trim1x + 2 px с каждой стороны, как BitmapData в AntAnimation.makeFromMovieClip; T4.2)
       "origin1x": [11.9, 11.95],    // регистрационная точка относительно левого верхнего угла НЕобрезанного кадра, в 1x
       "trim1x": [x, y, w, h],       // обрезанный прямоугольник относительно необрезанного кадра, в 1x
       "tiers": { "2x": { "atlas": "game-common-0", "rect": [x, y, w, h] }, "3x": { ... }, "1x": { ... } } }
