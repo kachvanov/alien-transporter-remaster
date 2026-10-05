@@ -1,0 +1,38 @@
+#!/bin/sh
+# post-merge hook (T5.3): after a merge into `main` in the MAIN checkout, start `dist:all` in the background so that an
+# up-to-date dmg + exe pair appears in dist/. Enable once with `npm run hooks:install` (git config core.hooksPath .githooks).
+#
+# The hook only decides "main checkout on branch main" and returns at once. Everything else (is a build needed for the
+# changed files, the lock, the queue, the build itself, the notification) is done by tools/build/dist-all.ts in a detached
+# process that logs to dist/build.log. It must never break or slow down the merge, so it always exits 0.
+# Set AT_NO_AUTOBUILD=1 to skip it for one merge.
+
+top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+# The hook also fires in the agents' worktrees (core.hooksPath is shared): never build there.
+case "$top" in
+  */.claude/worktrees/*) exit 0 ;;
+esac
+[ -n "$AT_NO_AUTOBUILD" ] && exit 0
+[ "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" = "main" ] || exit 0
+
+mkdir -p "$top/dist" 2>/dev/null
+log="$top/dist/build.log"
+commit=$(git rev-parse HEAD 2>/dev/null) || exit 0
+
+tsx="$top/node_modules/.bin/tsx"
+if [ ! -x "$tsx" ]; then
+  echo "[hook $(date '+%Y-%m-%dT%H:%M:%S')] post-merge: node_modules/.bin/tsx is missing (run npm install); no build for $commit" >> "$log"
+  exit 0
+fi
+
+# git's own variables (GIT_DIR, GIT_INDEX_FILE, ...) would confuse the git calls of the build; node must be on PATH.
+(
+  cd "$top" || exit 0
+  PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+  export PATH
+  nohup env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX -u GIT_EXEC_PATH \
+    "$tsx" tools/build/dist-all.ts --trigger --commit "$commit" >> "$log" 2>&1 < /dev/null &
+) >/dev/null 2>&1
+
+exit 0

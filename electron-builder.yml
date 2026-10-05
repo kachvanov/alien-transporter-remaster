@@ -20,7 +20,8 @@ mac:
   category: public.app-category.games
   # resources/icon.icns is generated from the game art by tools/build/make-icon.ts (npm run build:mac).
   icon: icon.icns
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  # BUILD_ID (short commit hash) is set by tools/build/builder.ts / dist-all.ts; electron-builder fails without it.
+  artifactName: ${productName}-${version}-${env.BUILD_ID}-${arch}.${ext}
   # No Apple Developer ID: unsigned by electron-builder, ad-hoc signed by the afterPack hook below.
   identity: null
   hardenedRuntime: false
@@ -43,11 +44,11 @@ win:
       filter:
         - '**/*'
         - '!gfx/3x/**'
-  # Same names for both: "<productName> Setup <ver>.exe" (installer) and "<productName> <ver>.exe" (portable).
-  artifactName: ${productName} ${version}.${ext}
+  # "<productName> Setup <ver>-<hash>.exe" (installer) and "<productName> <ver>-<hash>.exe" (portable).
+  artifactName: ${productName} ${version}-${env.BUILD_ID}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  artifactName: ${productName} Setup ${version}.${ext}
+  artifactName: ${productName} Setup ${version}-${env.BUILD_ID}.${ext}
