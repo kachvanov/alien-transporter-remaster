@@ -5,6 +5,8 @@ Updated: 2026-10-05 · Last merge: T5.6 7863b72
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
+| FIX-7 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
+| FIX-8 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -194,3 +196,4 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - 2026-10-05 T5.6 merged 7863b72 (attempt 1; 1306 tests). Cause: the soft elements are 1x bitmaps in the original SWF (delivery marker Indicator*, Btn*, *TextEN, Icon*, HUD bars, menu backgrounds, 12 bitmap fonts); JPEXS rendered smoothed bitmap fills (type 65) with bilinear filtering at 2x/3x, the fonts were stretched from 1x and linearly filtered. Fix (extraction only, no renderer change): tools/extract/bitmapSymbols.ts marks pixelArt symbols, sprites.ts builds their 2x/3x frames by k x k nearest replication; fontglyphs.ts scales glyph rects by the tier zoom; asset-overrides.json {"X_mc":{"pixelArt":false}} returns a symbol to JPEXS. assets/ was re-extracted (idempotent). 1x manifest identical (6625 frames). Memory: 3x VRAM 565-580 MB (+2.6%, already above the 350 MB target before), 2x 286-293 MB, 1x 119 MB; 3x disk 46->34 MB. docs/02 §4.3 note. T4.2 visual thresholds were not re-run (references are not in a worktree).
 - T5.6 out of scope: symbols mixing bitmaps and vectors keep the soft raster (IconFuel/Heart/Magnet/Random/Repair/Trophy, NotifyIconLeft, ColumnBar, MissionBar, ShuttleHull*, *Roller_mc, Shuttle0NBodyPreview, CreditsScreenBG, BtnShip_mc); fixing them needs an SWF patch + JPEXS re-export. 3x VRAM above the 350 MB target (predates T5.6). A new dist build is needed to see the change.
 - 2026-10-05 until=T5.6 reached: stopped. FIX-7 (dim the pause popup for the client) is still queued, not started. T5.2 stays open until the user's long Mac <-> Windows check.
+- 2026-10-05 the user rebuilt by hand (`npm run dist:all`, ea4300f, 55 s): dist/latest has the T5.6 graphics, FIX-6, T5.2. The auto-build hook did not fire after T5.6 because assets/ is untracked and tools/extract/** counted as 'tools' -> FIX-8 started (hook/dist:status must watch the generated assets via a fingerprint + tools/extract/**). FIX-7 (dim the pause popup on the client) started in parallel (no shared files). Instruction: stop after these two.
