@@ -1,10 +1,11 @@
 # STATUS — state of the work (maintained only by the orchestrator `/orchestrate`)
 
-Updated: 2026-10-04 · Last merge: FIX(M3) 2b4167a
+Updated: 2026-10-05 · Last merge: T5.5 6db99d5
 
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
+| FIX-6 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
