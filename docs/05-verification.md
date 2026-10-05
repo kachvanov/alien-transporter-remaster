@@ -124,5 +124,22 @@ Measurement: `--perf-log=perf.json` writes once per second the FPS, p50/p95 of t
 
 - Builds are made on this Mac, never in the cloud (the build needs the original's assets, which must not leave the machine). One-time setup: `npm run hooks:install` (`git config core.hooksPath .githooks`).
 - After a merge into `main` in the main checkout, `.githooks/post-merge` starts `npm run dist:all` in the background (log: `dist/build.log`) if `src/`, `electron/`, `resources/`, `package.json`, `package-lock.json`, `electron-builder.yml`, `index.html` or `electron.vite.config.ts` changed since the last successful build. Docs/tests/tools-only merges and agent worktrees do not trigger it; `AT_NO_AUTOBUILD=1` skips one merge.
-- `npm run dist:all` builds the committed state of HEAD (`git archive` into a temporary folder), one build at a time; a merge during a build queues exactly one follow-up build. Result: `dist/` holds the dmg (arm64), the Setup and the portable exe (x64) named with the version and the short commit hash, plus `dist/BUILD-INFO.json`; the 2 newest builds are kept. A macOS notification reports success or failure.
-- `npm run dist:status` shows whether a build is running, the last built commit and whether `main` is behind it.
+- `npm run dist:all` builds the committed state of HEAD (`git archive` into a temporary folder), one build at a time; a merge during a build queues exactly one follow-up build. Result: see the layout below. A macOS notification ("Build <hash> is ready: dmg + exe in dist/latest") reports success or failure.
+- `npm run dist:status` shows whether a build is running, the commit and files of `dist/latest/`, the archive and whether `main` is behind the last build. `npm run dist:open` opens `dist/latest/` in Finder (with no finished build it only prints a message).
+
+### Layout of `dist/` (T5.5)
+
+```
+dist/
+  latest/     the newest build, stable names without spaces (safe to bookmark, drag to Applications, copy to another machine):
+              Alien-Transporter-Remaster-mac-arm64.dmg, Alien-Transporter-Remaster-win-setup.exe,
+              Alien-Transporter-Remaster-win-portable.exe, BUILD-INFO.json (commit, date, version, per-file sizes, per-stage result)
+  archive/<date>-<hash>/   the builds with their original hash-named files + BUILD-INFO.json: the newest one and 1 previous
+  build.log   rotated: the last ~1 MB is kept
+  .state/     lock, queue, state (hidden)
+```
+
+- A build is produced into `archive/<date>-<hash>.partial/`, then renamed to `archive/<date>-<hash>/`; `latest/` is refilled with **hard links** to those files (a copy only if links fail), so nothing is stored twice. `latest/` is prepared in `.state/latest.next/` and swapped in, so it never shows a half-written set and never mixes commits.
+- A platform that failed in the newest build is absent from `latest/` (the failure is in its `BUILD-INFO.json`; the earlier build of that platform stays in `archive/`, it is not carried over). A build that produced no file at all does not touch `latest/`; its result is in `.state/last-attempt.json` (`dist:status` shows it).
+- Rotation: `latest` + 1 previous build; older archive folders and unfinished `.partial` folders are removed. Only folders named `<date>-<hash>` are ever removed.
+- The first `dist:all` after the T5.3 flat layout moves the loose files of that layout (names produced by `dist:all`) into these places and removes older ones; any other file in `dist/` is left alone.

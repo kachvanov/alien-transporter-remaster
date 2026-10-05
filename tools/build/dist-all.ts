@@ -6,7 +6,10 @@
 // - One build at a time (dist/.build.lock); a request that arrives meanwhile waits in a single "pending" slot, several
 //   requests coalesce into one extra build (dist-lib.ts: processQueue).
 // - Output names carry the version and the short commit hash (BUILD_ID, electron-builder.yml). dist/BUILD-INFO.json
-//   describes the last attempt; the 2 newest builds are kept, older ones are deleted.
+//   describes the build; the 2 newest builds are kept, older ones are deleted.
+// - Layout of dist/ (T5.5, dist-layout.ts): the files are produced into dist/archive/<date>-<hash>/ with their hash names,
+//   then dist/latest/ is refilled (atomically) with hard links to them under stable names. The loose files of the old
+//   flat layout are moved into the new places on the first run.
 // - A failure of one platform does not erase the other one's result.
 //
 // Usage:
@@ -39,6 +42,7 @@ import {
   type BuildState,
   type StageResult,
   EMPTY_STATE,
+  archiveDirName,
   classifyArtifact,
   enqueue,
   formatDuration,
@@ -47,13 +51,12 @@ import {
   notificationFor,
   processQueue,
   readJson,
-  recordBuild,
   releaseLock,
-  rotateBuilds,
   shortHash,
   writeJsonAtomic,
 } from './dist-lib';
 import { type DistPaths, changedFiles, cleanGitEnv, distPaths, git, resolveCommit } from './dist-env';
+import { finalizeBuild, migrateFlatLayout, recoverLatest, rotateLog, sweepArchive } from './dist-layout';
 
 /** Folders of this checkout that the temporary build folder links to instead of copying (they are not in git or are huge). */
 const SHARED_DIRS = ['node_modules', 'assets', 'vendor', 'build', 'reference'];
@@ -187,8 +190,11 @@ function removeWorkTree(work: string): void {
 export async function buildCommit(paths: DistPaths, commit: string): Promise<BuildInfo> {
   const startedAt = Date.now();
   const id = shortHash(commit);
+  const archiveDir = archiveDirName(new Date(startedAt), commit);
+  // Hash-named files are produced here; finalizeBuild turns it into archive/<archiveDir> and refills latest/.
+  const partialDir = join(paths.archive, `${archiveDir}.partial`);
   const stages: StageResult[] = [];
-  const files: BuildFile[] = [];
+  const files: Array<Omit<BuildFile, 'latestName'>> = [];
   let version = '?';
   let work: string | null = null;
 
@@ -243,13 +249,13 @@ export async function buildCommit(paths: DistPaths, commit: string): Promise<Bui
         await stage(name, async () => {
           // `--publish never`: nothing is uploaded, whatever electron-builder's CI detection thinks.
           await runOrThrow(builder, [...args, '--publish', 'never', `-c.directories.output=${out}`], w, env);
-          mkdirSync(paths.dist, { recursive: true });
+          mkdirSync(partialDir, { recursive: true });
           let n = 0;
           for (const f of listFiles(out)) {
             const kind = classifyArtifact(f, id);
             if (kind === null) continue;
-            moveInto(join(out, f), join(paths.dist, f));
-            files.push({ kind, name: f, bytes: statSync(join(paths.dist, f)).size });
+            moveInto(join(out, f), join(partialDir, f));
+            files.push({ kind, name: f, bytes: statSync(join(partialDir, f)).size });
             n++;
           }
           if (n === 0) throw new Error(`electron-builder produced no deliverable with "-${id}" in its name`);
@@ -275,25 +281,36 @@ export async function buildCommit(paths: DistPaths, commit: string): Promise<Bui
     stages,
     files,
     durationMs: Date.now() - startedAt,
+    archiveDir,
   });
   finishBuild(paths, info);
   return info;
 }
 
-/** BUILD-INFO.json, state, rotation of old builds, the notification. */
+/** Archive folder + latest/ (hard links), BUILD-INFO.json, state, rotation of old builds, the notification. */
 function finishBuild(paths: DistPaths, info: BuildInfo): void {
-  mkdirSync(paths.dist, { recursive: true });
-  writeJsonAtomic(paths.info, info);
-  const state = recordBuild(readJson<BuildState>(paths.state, EMPTY_STATE), info);
-  const rotated = rotateBuilds(state.history);
-  for (const f of rotated.remove) {
-    rmSync(join(paths.dist, f), { force: true });
-    log(`rotation: removed ${f}`);
-  }
-  writeJsonAtomic(paths.state, { lastSuccess: state.lastSuccess, history: rotated.history });
+  mkdirSync(paths.stateDir, { recursive: true });
+  const done = finalizeBuild(paths, info, readJson<BuildState>(paths.state, EMPTY_STATE));
+  writeJsonAtomic(paths.state, done.state);
+  for (const d of done.removed) log(`rotation: removed archive/${d}`);
   log(`build ${info.shortCommit}: ${info.status} in ${formatDuration(info.durationMs)}`);
-  for (const f of info.files) log(`  ${paths.dist}/${f.name} (${(f.bytes / 1048576).toFixed(1)} MB)`);
+  for (const f of info.files) {
+    log(`  ${paths.latest}/${f.latestName} <- archive/${info.archiveDir}/${f.name} (${(f.bytes / 1048576).toFixed(1)} MB)`);
+  }
+  if (info.files.length === 0) log('nothing was produced: dist/latest is left as it was');
   notify(notificationFor(info));
+}
+
+/** Housekeeping at the start of a build (under the lock): the old flat layout, a crashed latest/ swap, build folders that never finished. */
+function tidyDist(paths: DistPaths): void {
+  const m = migrateFlatLayout(paths);
+  if (m.skipped) log('migration of the old flat dist/ layout skipped: an old-layout build is still running');
+  else if (m.archived.length > 0 || m.removed.length > 0) {
+    log(`migrated the old flat dist/ layout: archived ${m.archived.join(', ') || 'nothing'}; removed ${m.removed.join(', ') || 'nothing'}`);
+  }
+  recoverLatest(paths);
+  const state = readJson<BuildState>(paths.state, EMPTY_STATE);
+  for (const d of sweepArchive(paths, state.history.map((h) => h.dir))) log(`removed stale archive/${d}`);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -308,7 +325,8 @@ function argValue(name: string): string | undefined {
 async function main(): Promise<number> {
   const root = process.cwd();
   const paths = distPaths(root);
-  mkdirSync(paths.dist, { recursive: true });
+  mkdirSync(paths.stateDir, { recursive: true });
+  rotateLog(paths.log);
   const trigger = process.argv.includes('--trigger');
   if (process.stdout.isTTY === true) teeLog = paths.log;
 
@@ -347,6 +365,7 @@ async function main(): Promise<number> {
         return changed === null || needsBuild(changed);
       },
       build: async (r) => {
+        tidyDist(paths);
         log(`building ${shortHash(r.commit)}`);
         await buildCommit(paths, r.commit);
       },
