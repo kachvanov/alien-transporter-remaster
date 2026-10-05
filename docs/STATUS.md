@@ -5,6 +5,7 @@ Updated: 2026-10-05 · Last merge: FIX-11 9854ec1
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
+| FIX-12 volume control | 1 | (worktree) | (set by the agent) | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
