@@ -65,7 +65,7 @@ async function poll<T>(fn: () => Promise<T> | T, ok: (v: T) => boolean, timeoutM
 
 async function launch(extraArgs: string[], profile: string): Promise<Session> {
   const app = await electron.launch({
-    args: ['.', `--profile=${profile}`, '--tier=1x', ...extraArgs],
+    args: ['.', '--mute-audio', `--profile=${profile}`, '--tier=1x', ...extraArgs],
     env: cleanEnv(),
   });
   const page = await app.firstWindow();
