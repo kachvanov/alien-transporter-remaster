@@ -13,7 +13,13 @@ import { AtlasLoader } from '../render/AtlasLoader';
 import { ClientOverlay } from '../render/ClientOverlay';
 import { ClientOverlayModel } from '../render/ClientOverlayModel';
 import type { ClientOverlayResult } from '../render/ClientOverlayModel';
-import { buildButtonFaces, ClientViewModel, VIEW_ONLY_HINT } from '../render/ClientViewModel';
+import {
+  buildButtonFaces,
+  buildGameOverMarks,
+  ClientViewModel,
+  frameHasGameOverPopup,
+  VIEW_ONLY_HINT,
+} from '../render/ClientViewModel';
 import { FramePlayer } from '../render/FramePlayer';
 import { InputCollector } from '../render/InputCollector';
 import { PerfOverlay } from '../render/PerfOverlay';
@@ -198,8 +204,9 @@ async function bootstrap(): Promise<void> {
   // previous level atlas)
   if ((perfLog || flags.startLevel !== null) && sim !== null) {
     const s = sim;
-    (window as unknown as { __atDev: { startLevel(level: string): void } }).__atDev = {
+    (window as unknown as { __atDev: { startLevel(level: string): void; crashShuttle(): void } }).__atDev = {
       startLevel: (level) => s.command('startLevel', [level]),
+      crashShuttle: () => s.command('crashShuttle'), // (FIX-9, e2e: the real game over of the host)
     };
   }
   // The port of the network bridge (electron/preload.ts): main -> the page -> the sim worker.
@@ -344,9 +351,12 @@ async function bootstrap(): Promise<void> {
     const overlayModel = new ClientOverlayModel();
     // DEVIATION: online (T5.1). The host on a menu screen (no level in the frames): the client only watches, its buttons are muted.
     const view = new ClientViewModel();
-    renderer.buttonFaces = buildButtonFaces((manifest.frames as unknown as readonly { key: string }[]).map((f) => f.key));
+    const frameKeys = (manifest.frames as unknown as readonly { key: string }[]).map((f) => f.key);
+    renderer.buttonFaces = buildButtonFaces(frameKeys);
+    const gameOverMarks = buildGameOverMarks(frameKeys); // (FIX-9: the title of the host's game over popup)
     root.dataset['viewOnly'] = 'false';
     root.dataset['hostPaused'] = 'false';
+    root.dataset['hostGameOver'] = 'false';
     // The way back is the local game (the renderer reloads): the main menu, or JoinScreen with the reason when the session failed.
     let closeReason: SessionCloseReason | null = null;
     const goToMenu = (): void => {
@@ -399,12 +409,13 @@ async function bootstrap(): Promise<void> {
         tickCostMs = r.frame.tickCost / 100;
         root.dataset['ticks'] = String(r.frame.tick + 1);
         root.dataset['levelGroup'] = String(r.frame.levelGroup);
-        view.push(r.frame.levelGroup, r.frame.flags);
+        view.push(r.frame.levelGroup, r.frame.flags, frameHasGameOverPopup(r.frame.nodes, gameOverMarks));
       }
-      // (FIX-7: the host's pause popup is dimmed like a menu: the client cannot press it, only ask for the pause with P)
+      // (FIX-7, FIX-9: the host's pause and game over popups are dimmed like a menu: the client cannot press them)
       renderer.dimButtons = view.dim;
       root.dataset['viewOnly'] = String(view.viewOnly);
       root.dataset['hostPaused'] = String(view.hostPaused);
+      root.dataset['hostGameOver'] = String(view.hostGameOver);
       clientOverlay?.setHint(view.dim && !overlayModel.isOpen ? VIEW_ONLY_HINT : null);
       root.dataset['jitterDelay'] = jb.delayTicks.toFixed(2);
       root.dataset['jitterUnderruns'] = String(jb.underruns); // (T3.7: the smoothness of the client)

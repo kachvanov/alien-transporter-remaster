@@ -183,3 +183,60 @@ test('client: the host pauses inside a level -> the popup is dimmed (data-host-p
     for (const a of apps.reverse()) await a.close().catch(() => undefined);
   }
 });
+
+// FIX-9 (DEVIATION: online): the game over popup of the host (Main menu / Restart) is driven by the host and has no header flag
+// (G.gamePause is not raised for it); the client sees it dimmed (data-host-game-over, read from the title node of the frame, the
+// muted faces and the hint) from the moment the shuttle is lost with no lives, and the normal look returns when the host restarts.
+test('client: the host crashes with no lives -> the game over popup is dimmed (data-host-game-over); the host restarts -> normal', async () => {
+  test.skip(!(await portIsFree(PORT)), `port ${PORT} is taken (a game is running?)`);
+  const stamp = Date.now() % 1e9;
+  const apps: ElectronApplication[] = [];
+  try {
+    const host = await launchApp({
+      args: ['.', '--host-start', '--start-level=1', `--profile=e2e-fix9h-${stamp}`],
+      env: cleanEnv(),
+    });
+    apps.push(host);
+    const hostPage = await host.firstWindow();
+    await hostPage.waitForSelector('canvas');
+    await setSize(host);
+    await expect.poll(() => read(hostPage, 'ticks').then(Number), { timeout: 30_000 }).toBeGreaterThan(40);
+    const client = await launchApp({
+      args: ['.', `--join=127.0.0.1:${PORT}`, `--profile=e2e-fix9c-${stamp}`],
+      env: cleanEnv(),
+    });
+    apps.push(client);
+    const page = await client.firstWindow();
+    const problems: string[] = [];
+    page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
+    await page.waitForSelector('canvas');
+    await setSize(client);
+    await expect.poll(() => read(page, 'netState'), { timeout: 20_000 }).toBe('playing');
+    await expect.poll(() => read(page, 'levelGroup'), { timeout: 10_000 }).toBe('1');
+    await page.waitForTimeout(2000);
+    expect(await read(page, 'hostGameOver')).toBe('false');
+    expect(await read(page, 'hostPaused')).toBe('false');
+
+    // The host loses its last life (the dev hook raises the real chain: hull 0 -> UISystem.onShuttleRemoved -> game over popup).
+    await hostPage.evaluate(() => (window as unknown as { __atDev: { crashShuttle(): void } }).__atDev.crashShuttle());
+    await expect.poll(() => read(page, 'hostGameOver'), { timeout: 10_000 }).toBe('true');
+    expect(await read(page, 'hostPaused')).toBe('false'); // (not the pause flag: that is why FIX-7 does not cover it)
+    expect(await read(page, 'viewOnly')).toBe('false');
+    expect(await read(hostPage, 'hostGameOver')).toBe(''); // (the host is not dimmed)
+    await page.waitForTimeout(2000);
+    expect(await read(page, 'hostGameOver')).toBe('true');
+    await page.screenshot({ path: test.info().outputPath('client-gameover-dimmed.png') });
+    await hostPage.screenshot({ path: test.info().outputPath('host-gameover.png') });
+
+    // The host presses Restart (the selected button): the level restarts, the normal look returns.
+    await tapKey(hostPage, 'Enter');
+    await expect.poll(() => read(page, 'hostGameOver'), { timeout: 10_000 }).toBe('false');
+    await expect.poll(() => read(page, 'levelGroup'), { timeout: 10_000 }).toBe('1');
+    await page.waitForTimeout(1500);
+    expect(await read(page, 'hostGameOver')).toBe('false');
+    await page.screenshot({ path: test.info().outputPath('client-after-gameover-restart.png') });
+    expect(problems).toEqual([]);
+  } finally {
+    for (const a of apps.reverse()) await a.close().catch(() => undefined);
+  }
+});
