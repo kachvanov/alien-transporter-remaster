@@ -66,6 +66,12 @@ export const FrameSchema = z.object({
     '2x': TierFrameSchema,
     '3x': TierFrameSchema,
   }),
+  /**
+   * FIX-11: the smooth variant of a pixel-art frame (a button, a caption, an icon, a glyph, ...): the same trimmed rectangle
+   * in size, resampled smoothly from the 1x pixels instead of replicated k x k. `tiers` holds the pixel-exact variant (the
+   * default); the renderer takes this one when the UI scaling is `smooth`. Only 2x and 3x have it (at 1x both are the same).
+   */
+  smooth: z.object({ '2x': TierFrameSchema.optional(), '3x': TierFrameSchema.optional() }).optional(),
 });
 export type Frame = z.infer<typeof FrameSchema>;
 

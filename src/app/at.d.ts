@@ -1,6 +1,7 @@
 // Types of `window.at`: the API that electron/preload.ts exposes to the renderer (docs/01-architecture.md §9).
 // The net part: discovery (T3.5), the WebSocket server of the host (T3.2).
 
+import type { UiScaling } from '../engine/assets/uiScaling';
 import type { Replay } from '../sim/replay';
 
 export type TierName = '1x' | '2x' | '3x';
@@ -11,6 +12,8 @@ export interface DevFlags {
   startLevel: string | null;
   /** `--tier=1x|2x|3x`, null = automatic. */
   tier: TierName | null;
+  /** `--ui-scaling=pixel|smooth` (FIX-11): how the pixel-art UI is scaled at 2x/3x; absent = the setting of settings.json. */
+  uiScaling?: UiScaling;
   /** `--classic`: draw the frames as they are, without interpolation (35 fps). */
   classic: boolean;
   /** `--join=ip[:port]` (T3.3, until the Join screen of T3.4): start as a network client of that host. */

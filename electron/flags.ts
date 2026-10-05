@@ -1,8 +1,10 @@
 // Command line of the app: --profile=N, --start-level=LevelNN, --tier=1x|2x|3x, --classic, --join=ip[:port], --host-start,
-// --perf-log=perf.json (T4.3), --start-screen=LevelComplete (T4.2).
+// --perf-log=perf.json (T4.3), --start-screen=LevelComplete (T4.2), --ui-scaling=pixel|smooth (FIX-11).
 // Pure (no Electron import): unit-tested in tests/unit/electron.test.ts.
 
 import type { DevFlags, TierName } from '../src/app/at';
+import { isUiScaling } from '../src/engine/assets/uiScaling';
+import type { UiScaling } from '../src/engine/assets/uiScaling';
 
 /** main -> preload: `additionalArguments` entry that carries the flags as JSON. */
 export const FLAGS_ARG_PREFIX = '--at-flags=';
@@ -13,6 +15,10 @@ function valueOf(argv: readonly string[], name: string): string | null {
     if (a.startsWith(prefix)) return a.slice(prefix.length);
   }
   return null;
+}
+
+function uiScalingOf(aValue: unknown): UiScaling | null {
+  return isUiScaling(aValue) ? aValue : null;
 }
 
 /** Longest `--profile=` id (dev/test flag; e2e tests build ids like `e2e-n37h-<9 digits>`). */
@@ -50,6 +56,8 @@ export function parseDevFlags(argv: readonly string[]): DevFlags {
   if (perfLog !== null && perfLog.length > 0) flags.perfLog = perfLog;
   const startScreen = valueOf(argv, 'start-screen');
   if (startScreen !== null && /^[A-Za-z]+$/.test(startScreen)) flags.startScreen = startScreen;
+  const uiScaling = uiScalingOf(valueOf(argv, 'ui-scaling'));
+  if (uiScaling !== null) flags.uiScaling = uiScaling;
   return flags;
 }
 
@@ -72,6 +80,8 @@ export function decodeFlagsArg(argv: readonly string[]): DevFlags {
       if (o.hostStart === true) flags.hostStart = true;
       if (typeof o.perfLog === 'string' && o.perfLog.length > 0) flags.perfLog = o.perfLog;
       if (typeof o.startScreen === 'string' && /^[A-Za-z]+$/.test(o.startScreen)) flags.startScreen = o.startScreen;
+      const uiScaling = uiScalingOf(o.uiScaling);
+      if (uiScaling !== null) flags.uiScaling = uiScaling;
       return flags;
     } catch {
       // fall through to the defaults

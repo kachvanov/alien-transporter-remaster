@@ -25,6 +25,7 @@ import {
   type Raw,
 } from './sprites';
 import { loadSymbols } from './types';
+import { chooseKernel, upscaleSmooth } from './upscale';
 import { BLACKLIST_NAMES, buildWhitelist, isBlacklisted } from './whitelist';
 
 const ROOT = process.cwd();
@@ -470,5 +471,92 @@ describe('sprites manifest (needs `npm run extract`)', () => {
       }
     }
     expect(bad).toBe(0);
+  });
+
+  // ------------------------------------------------------------ FIX-11: the smooth variant
+
+  const SMOOTH_NAMES = ['Indicator01Color01_mc', 'BtnPlay_mc', 'ConfirmTextEN_mc', 'IconShuttleBlue_mc', 'LivesIcon_mc', 'Font:font01', 'Font:font04'];
+
+  dataIt('FIX-11: a pixel-art frame has a smooth variant at 2x/3x, the same size as the replicated one (rect = k x 1x), no scale', () => {
+    const m = manifest();
+    for (const name of SMOOTH_NAMES) {
+      const sym = m.symbols[name]!;
+      for (let i = 0; i < sym.frames; i++) {
+        const f = m.frames[sym.firstTexId + i]!;
+        expect(f.smooth, `${name}#${i}`).toBeDefined();
+        for (const tier of ['2x', '3x'] as const) {
+          const sm = f.smooth![tier]!;
+          expect(sm.scale, `${name}#${i} ${tier}`).toBeUndefined();
+          expect(sm.rect.slice(2), `${name}#${i} ${tier}`).toEqual(f.tiers['1x'].rect.slice(2).map((v) => v * TIER_ZOOM[tier]));
+          // the same footprint as the replicated frame: identical trim and size, only the page differs
+          expect(sm.trim).toEqual(f.tiers[tier].trim);
+          expect(sm.rect.slice(2)).toEqual(f.tiers[tier].rect.slice(2));
+        }
+        expect(f.smooth!['1x' as never]).toBeUndefined();
+      }
+    }
+  });
+
+  dataIt('FIX-11: the pages of the variants are separate groups (<group>-px, <group>-sm) and exist on disk; 1x is unchanged', () => {
+    const m = manifest();
+    for (const tier of ['2x', '3x'] as const) {
+      const keys = Object.keys(m.atlases[tier]);
+      expect(keys.some((k) => /^ui-px-\d+$/.test(k)), tier).toBe(true);
+      expect(keys.some((k) => /^ui-sm-\d+$/.test(k)), tier).toBe(true);
+      expect(keys.some((k) => /^shuttles-sm-\d+$/.test(k)), tier).toBe(true);
+    }
+    expect(Object.keys(m.atlases['1x']).some((k) => /-(px|sm)-/.test(k))).toBe(false);
+    for (const f of m.frames) {
+      for (const tier of ['2x', '3x'] as const) {
+        const sm = f.smooth?.[tier];
+        if (sm === undefined) continue;
+        expect(sm.atlas, f.key).toMatch(/-sm-\d+$/);
+        expect(m.atlases[tier][sm.atlas], f.key).toBeDefined();
+        expect(existsSync(join(ROOT, 'assets', m.atlases[tier][sm.atlas]!)), f.key).toBe(true);
+        expect(f.tiers[tier].atlas, f.key).toMatch(/-px-\d+$/);
+      }
+      // the replicated variant of a frame with a smooth one is in -px pages, a frame without one is in the plain group pages
+      if (f.smooth === undefined && !f.key.startsWith('Font:')) expect(f.tiers['3x'].atlas).not.toMatch(/-sm-/);
+    }
+  });
+
+  dataIt('FIX-11: symbols that are not pixel art, and 1x, have no smooth variant', () => {
+    const m = manifest();
+    for (const name of ['Shuttle01Body_mc', 'Coin_mc', 'Level01BG_mc']) {
+      const sym = m.symbols[name]!;
+      for (let i = 0; i < sym.frames; i++) expect(m.frames[sym.firstTexId + i]!.smooth, `${name}#${i}`).toBeUndefined();
+    }
+  });
+
+  dataIt('FIX-11: the smooth pixels in the atlas are the deterministic upscale of the 1x frame (hash stable)', async () => {
+    const m = manifest();
+    const grab = async (tier: '1x' | '2x' | '3x', t: { atlas: string; rect: number[] }): Promise<Raw> => {
+      const { data, info } = await sharp(join(ROOT, 'assets', m.atlases[tier][t.atlas]!))
+        .extract({ left: t.rect[0]!, top: t.rect[1]!, width: t.rect[2]!, height: t.rect[3]! })
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      return { data, w: info.width, h: info.height };
+    };
+    for (const name of ['ConfirmTextEN_mc', 'LivesIcon_mc']) {
+      const sym = m.symbols[name]!;
+      expect(sym.frames).toBe(1);
+      const f = m.frames[sym.firstTexId]!;
+      const one = await grab('1x', f.tiers['1x']);
+      const kernel = chooseKernel([one]);
+      for (const tier of ['2x', '3x'] as const) {
+        const expected = upscaleSmooth(one, TIER_ZOOM[tier], kernel);
+        const actual = await grab(tier, f.smooth![tier]!);
+        expect(actual.w).toBe(expected.w);
+        expect(actual.data.equals(expected.data), `${name} ${tier}`).toBe(true);
+      }
+    }
+  });
+
+  dataIt('FIX-11: asset-overrides.json accepts `smooth` only as false, "lanczos" or "edge" and names known symbols', () => {
+    const overrides = loadOverrides(ROOT);
+    for (const [name, o] of Object.entries(overrides)) {
+      if (o.smooth !== undefined) expect([false, 'lanczos', 'edge'], name).toContain(o.smooth);
+    }
   });
 });

@@ -110,6 +110,28 @@ describe.skipIf(!hasAssets)('Font', () => {
   });
 });
 
+describe.skipIf(!hasAssets)('FIX-11 smooth glyphs', () => {
+  it('a glyph has a smooth variant: the same size as the replicated one, inside the smooth font bitmap, k x the 1x glyph', async () => {
+    const registry = await loadAssets();
+    for (const name of ['font01', 'font04']) {
+      const a = registry.getFrame(registry.glyphTexId(name, 65) as number);
+      const bitmap = registry.getFrame(registry.findFrame(`Font:${name}#0`) as number);
+      expect(a.smooth, name).toBeDefined();
+      for (const [tier, zoom] of [['2x', 2], ['3x', 3]] as const) {
+        const sm = a.smooth![tier]!;
+        const bsm = bitmap.smooth![tier]!;
+        expect(sm.atlas).toBe(bsm.atlas);
+        expect(sm.atlas).toMatch(/^ui-sm-\d+$/);
+        expect(sm.scale).toBeUndefined();
+        expect(sm.rect.slice(2)).toEqual(a.tiers['1x'].rect.slice(2).map((v) => v * zoom));
+        expect(sm.rect.slice(2)).toEqual(a.tiers[tier].rect.slice(2));
+        expect(sm.rect[0] - bsm.rect[0]).toBe(a.tiers[tier].rect[0] - bitmap.tiers[tier].rect[0]);
+        expect(sm.rect[1] - bsm.rect[1]).toBe(a.tiers[tier].rect[1] - bitmap.tiers[tier].rect[1]);
+      }
+    }
+  });
+});
+
 describe.skipIf(!hasAssets)('Label', () => {
   beforeEach(() => {
     AntBasic.resetEntityIds();
@@ -308,6 +330,21 @@ describe('fontglyphs step: buildGlyphFrames', () => {
     expect(f.tiers['1x'].rect).toEqual([103, 204, 10, 12]);
     expect(f.tiers['2x']).toEqual({ atlas: 'ui-1', rect: [13, 24, 10, 12], trim: [0, 0, 10, 12], scale: 0.5 });
     expect(f.tiers['3x'].scale).toBeCloseTo(1 / 3, 12);
+  });
+
+  it('FIX-11: the smooth variant of the font bitmap gives every glyph a smooth frame with the same geometry', () => {
+    const m = manifestWith([50, 40]);
+    const base = m.frames[0]!;
+    base.smooth = {
+      '2x': { atlas: 'ui-sm-0', rect: [30, 40, 100, 80], trim: [0, 0, 100, 80] },
+      '3x': { atlas: 'ui-sm-1', rect: [60, 90, 150, 120], trim: [0, 0, 150, 120] },
+    };
+    const [f] = buildGlyphFrames(m, font([{ name: 'A', x: 3, y: 4, w: 10, h: 12 }]));
+    expect(f!.smooth!['2x']).toEqual({ atlas: 'ui-sm-0', rect: [36, 48, 20, 24], trim: [0, 0, 20, 24] });
+    expect(f!.smooth!['3x']).toEqual({ atlas: 'ui-sm-1', rect: [69, 102, 30, 36], trim: [0, 0, 30, 36] });
+    // a manifest without the smooth variant gives no smooth frames
+    const [g] = buildGlyphFrames(manifestWith([50, 40]), font([{ name: 'A', x: 3, y: 4, w: 10, h: 12 }]));
+    expect(g!.smooth).toBeUndefined();
   });
 
   it('a duplicate name: the last rectangle wins (Font.regions), one frame', () => {

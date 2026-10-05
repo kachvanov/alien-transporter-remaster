@@ -19,9 +19,11 @@ import {
 } from '../../src/engine/assets/schemas';
 import { composePage, packItems, type Blit } from './atlas';
 import { classifySymbol, readBitmapGraph, type BitmapGraph } from './bitmapSymbols';
+import { convertFont } from './data';
 import { javaBin, sha256File, type Paths } from './decompile';
 import type { Rect, SymbolInfo } from './types';
 import { loadSymbols } from './types';
+import { chooseKernel, upscaleGlyphSheet, upscaleSmooth, type SmoothKernel } from './upscale';
 import { buildWhitelist, type WhitelistReport } from './whitelist';
 
 // ---------------------------------------------------------------- configuration
@@ -38,6 +40,11 @@ export interface OverrideEntry {
   maxTier?: TierName;
   /** `false` keeps the JPEXS raster for a symbol that bitmapSymbols.ts takes for a 1:1 bitmap (T5.6). */
   pixelArt?: boolean;
+  /**
+   * FIX-11: the smooth variant (the player's "UI scaling: smooth") of a pixel-art symbol. `false`: the symbol has none (it stays
+   * pixel-exact in both modes); `"lanczos"` / `"edge"`: force the upscaler (default: `chooseKernel` in upscale.ts decides).
+   */
+  smooth?: false | SmoothKernel;
 }
 export type Overrides = Record<string, OverrideEntry>;
 
@@ -97,6 +104,10 @@ export interface Source {
    * export at those zooms), so buttons, indicators and captions stay as sharp as the original bitmap at any tier.
    */
   pixelArt: boolean;
+  /** FIX-11: the smooth variant of a pixel-art symbol: the forced upscaler, `auto` (chosen from the pixels) or `none`. */
+  smooth: SmoothKernel | 'auto' | 'none';
+  /** Fonts: the glyph rectangles of the bitmap (reference/data/fonts/<name>.xml), clipped to it; each is resampled on its own. */
+  glyphs?: IntRect[];
 }
 
 const FONT_PREFIX = 'Font:';
@@ -108,6 +119,21 @@ export function fontFiles(p: Paths): { name: string; file: string }[] {
     .filter((f) => f.endsWith('.png'))
     .sort()
     .map((f) => ({ name: `${FONT_PREFIX}${f.slice(0, -4)}`, file: join(p.refFonts, f) }));
+}
+
+function smoothMode(o: OverrideEntry | undefined): Source['smooth'] {
+  return o?.smooth === false ? 'none' : (o?.smooth ?? 'auto');
+}
+
+/** `<font>.xml` next to `<font>.png`: the glyph rectangles, clipped to the bitmap like `copyPixels` of Font.copyBitmap does. */
+function fontGlyphRects(pngFile: string, w: number, h: number): IntRect[] {
+  const xmlFile = pngFile.replace(/\.png$/, '.xml');
+  if (!existsSync(xmlFile)) return [];
+  return convertFont(readFileSync(xmlFile, 'utf8')).chars.map((c): IntRect => {
+    const x = Math.max(0, c.x);
+    const y = Math.max(0, c.y);
+    return [x, y, Math.max(0, Math.min(c.w, w - x)), Math.max(0, Math.min(c.h, h - y))];
+  });
 }
 
 async function fontSize(file: string): Promise<{ w: number; h: number }> {
@@ -147,11 +173,8 @@ export async function buildSources(
         overrides[w.name]?.pixelArt !== false &&
         !LEVEL_LAYER_RE.test(w.name) &&
         classifySymbol(graph, w.id) === 'pixel',
+      smooth: smoothMode(overrides[w.name]),
     });
-  }
-  for (const name of Object.keys(overrides)) {
-    if (!out.some((s) => s.name === name))
-      throw new Error(`asset-overrides.json: unknown symbol ${name}`);
   }
   for (const name of maskNames) {
     if (!out.some((s) => s.name === name))
@@ -172,7 +195,14 @@ export async function buildSources(
       group: groupOf(f.name, groups),
       fontFile: f.file,
       pixelArt: true,
+      smooth: smoothMode(overrides[f.name]),
+      glyphs: fontGlyphRects(f.file, w, h),
     });
+  }
+  // (the bitmap fonts take overrides too, `Font:font01`: only `smooth`, FIX-11)
+  for (const name of Object.keys(overrides)) {
+    if (!out.some((s) => s.name === name))
+      throw new Error(`asset-overrides.json: unknown symbol ${name}`);
   }
   out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return out;
@@ -384,6 +414,10 @@ interface ProcessedSymbol {
   src: Source;
   frames: ProcessedFrame[];
   uniques: Raw[];
+  /** FIX-11: the smooth variant of every unique frame (same size, same trim), only for pixel-art symbols at zoom > 1. */
+  smoothUniques?: Raw[];
+  /** The upscaler that made `smoothUniques`. */
+  smoothKernel?: SmoothKernel;
   /** 1x only, masks of the untrimmed frames. */
   masks?: { bits: Buffer; w: number; h: number }[];
 }
@@ -396,8 +430,11 @@ async function processSymbol(
   pixelDirs: Map<number, string> | undefined = undefined,
 ): Promise<ProcessedSymbol> {
   const fromPixels = src.pixelArt && zoom > 1;
+  const wantSmooth = fromPixels && src.smooth !== 'none';
   const frames: ProcessedFrame[] = [];
   const uniques: Raw[] = [];
+  /** FIX-11: the 1x source of every unique frame (trimmed to the alpha bounds; a font: the whole bitmap). */
+  const sources1x: Raw[] = [];
   const seen = new Map<string, number>();
   const masks: { bits: Buffer; w: number; h: number }[] = [];
   const dir = src.kind === 'sprite' ? (fromPixels ? pixelDirs : exportDirs)?.get(src.id) : undefined;
@@ -406,14 +443,17 @@ async function processSymbol(
 
   for (let i = 0; i < src.frames; i++) {
     let raw: Raw;
+    let raw1x: Raw | null = null;
     if (src.kind === 'font') {
-      raw = upscaleNearest(await loadRaw(src.fontFile as string), zoom);
+      raw1x = await loadRaw(src.fontFile as string);
+      raw = upscaleNearest(raw1x, zoom);
     } else {
       const file = join(dir as string, `${i + 1}.png`);
       if (!existsSync(file)) throw new Error(`${src.name}: missing frame ${i + 1} at ${fromPixels ? 1 : zoom}x`);
       raw = await loadRaw(file);
       if (fromPixels) {
         checkCanvasSize(`${src.name}#${i}`, raw, src.rect, 1);
+        raw1x = raw;
         raw = upscaleNearest(raw, zoom);
       } else checkCanvasSize(`${src.name}#${i}`, raw, src.rect, zoom);
     }
@@ -447,10 +487,39 @@ async function processSymbol(
       u = uniques.length;
       uniques.push(frame);
       seen.set(key, u);
+      if (wantSmooth) {
+        // the same footprint as the replicated frame: the 1x pixels trimmed to their alpha bounds (the trim above is exactly
+        // k x these bounds), whose border pixels are replicated outward by the upscaler
+        const b1 = src.kind === 'font' ? null : alphaBounds(raw1x as Raw);
+        sources1x.push(
+          src.kind === 'font'
+            ? (raw1x as Raw)
+            : b1
+              ? cropRaw(raw1x as Raw, b1[0], b1[1], b1[2], b1[3])
+              : { data: Buffer.alloc(4), w: 1, h: 1 },
+        );
+      }
     }
     frames.push({ unique: u, trim });
   }
-  return { src, frames, uniques, masks: masks.length ? masks : undefined };
+  const result: ProcessedSymbol = { src, frames, uniques, masks: masks.length ? masks : undefined };
+  if (wantSmooth) {
+    const kernel: SmoothKernel = src.smooth === 'auto' || src.smooth === 'none' ? chooseKernel(sources1x) : src.smooth;
+    result.smoothKernel = kernel;
+    result.smoothUniques = sources1x.map((r, i) =>
+      isBlank(uniques[i] as Raw) // (the single transparent pixel of an empty frame stays one)
+        ? (uniques[i] as Raw)
+        : src.kind === 'font'
+          ? upscaleGlyphSheet(r, src.glyphs ?? [], zoom, kernel)
+          : upscaleSmooth(r, zoom, kernel),
+    );
+    uniques.forEach((u, i) => {
+      const sm = (result.smoothUniques as Raw[])[i] as Raw;
+      if (sm.w !== u.w || sm.h !== u.h)
+        throw new Error(`${src.name}: smooth frame ${sm.w}x${sm.h} differs from the replicated ${u.w}x${u.h}`);
+    });
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------- the step
@@ -477,7 +546,20 @@ interface FrameDraft {
   trim1x?: IntRect;
   mask?: MaskRef;
   tiers: Partial<Record<TierName, TierFrame>>;
+  /** FIX-11: the smooth variant (2x/3x of the pixel-art frames). */
+  smooth: Partial<Record<'2x' | '3x', TierFrame>>;
 }
+
+/** What goes into one atlas group: the unique frames of a symbol and where their entries are written in the manifest. */
+interface PoolEntry {
+  ps: ProcessedSymbol;
+  uniques: Raw[];
+  slot: 'tiers' | 'smooth';
+}
+
+/** FIX-11: the atlas groups of the pixel-art frames at 2x/3x: `<group>-px` (replicated pixels) and `<group>-sm` (smooth). */
+export const PIXEL_SUFFIX = '-px';
+export const SMOOTH_SUFFIX = '-sm';
 
 export function manifestPath(p: Paths): string {
   return join(p.root, 'assets', 'manifest.json');
@@ -499,7 +581,7 @@ export function computeBuildHash(m: Manifest): string {
   return createHash('sha256').update(JSON.stringify(rest)).digest('hex');
 }
 
-const SCRIPT_FILES = ['sprites.ts', 'atlas.ts', 'whitelist.ts', 'types.ts', 'bitmapSymbols.ts'];
+const SCRIPT_FILES = ['sprites.ts', 'atlas.ts', 'whitelist.ts', 'types.ts', 'bitmapSymbols.ts', 'upscale.ts'];
 const CONFIG_FILES = ['groups.json', 'asset-overrides.json', 'alphamask-symbols.json'];
 
 /** Everything the `sprites` step consumes, hashed into the cache key. */
@@ -572,7 +654,7 @@ export async function runSprites(p: Paths): Promise<{ summary: string }> {
   const drafts = new Map<string, FrameDraft>();
   for (const s of sources) {
     for (let i = 0; i < s.frames; i++)
-      drafts.set(`${s.name}#${i}`, { src: s, index: i, tiers: {} });
+      drafts.set(`${s.name}#${i}`, { src: s, index: i, tiers: {}, smooth: {} });
   }
   const atlases: Manifest['atlases'] = { '1x': {}, '2x': {}, '3x': {} };
   const groupStats = { '1x': {}, '2x': {}, '3x': {} } as SpritesReport['groups'];
@@ -591,6 +673,84 @@ export async function runSprites(p: Paths): Promise<{ summary: string }> {
     const dirs = new Map<number, Map<number, string>>();
     for (const z of [1, 2, 3]) if (z <= zoom) dirs.set(z, indexExport(spritesDir(p, z)));
     mkdirSync(join(gfxRoot, tier), { recursive: true });
+
+    /** Packs the frames of one pool (an atlas group), writes its pages and fills the manifest entries of the frames. */
+    const emitPool = async (poolName: string, entries: PoolEntry[], counted: boolean): Promise<void> => {
+      const items: { id: number; w: number; h: number; hash: string }[] = [];
+      const owner: { entry: PoolEntry; unique: number }[] = [];
+      for (const entry of entries) {
+        entry.uniques.forEach((u, ui) => {
+          items.push({ id: owner.length, w: u.w, h: u.h, hash: `${entry.ps.src.name}#${ui}` });
+          owner.push({ entry, unique: ui });
+        });
+      }
+      if (items.length === 0) return;
+      if (counted) uniqueFrames[tier] += items.length;
+      const packed = packItems(items);
+      const stat: GroupStat = { pages: packed.bins.length, pixels: 0 };
+      groupStats[tier][poolName] = stat;
+
+      const blitsByBin: Blit[][] = packed.bins.map(() => []);
+      const placeOf = new Map<number, { bin: number; x: number; y: number }>();
+      for (const pl of packed.placed) {
+        const o = owner[pl.id] as { entry: PoolEntry; unique: number };
+        const raw = o.entry.uniques[o.unique] as Raw;
+        (blitsByBin[pl.bin] as Blit[]).push({
+          rgba: raw.data,
+          w: raw.w,
+          h: raw.h,
+          x: pl.x,
+          y: pl.y,
+        });
+        placeOf.set(pl.id, pl);
+      }
+      packed.bins.forEach((bin, n) => {
+        const name = `${poolName}-${n}`;
+        const rel = `gfx/${tier}/${name}.png`;
+        atlases[tier][name] = rel;
+        stat.pixels += bin.w * bin.h;
+        megapixels[tier] += bin.w * bin.h;
+        const page = composePage(bin.w, bin.h, blitsByBin[n] as Blit[]);
+        const write = sharp(page, { raw: { width: bin.w, height: bin.h, channels: 4 } })
+          .png({ compressionLevel: 9 })
+          .toFile(join(p.root, 'assets', rel))
+          .then(() => undefined);
+        pendingWrites.add(write);
+        void write.finally(() => pendingWrites.delete(write));
+      });
+      // Bound memory: at most 3 page encodes in flight.
+      while (pendingWrites.size > 3) await Promise.race(pendingWrites);
+
+      // Fill manifest tier entries.
+      const firstUnique = new Map<PoolEntry, number>();
+      let base = 0;
+      for (const entry of entries) {
+        firstUnique.set(entry, base);
+        base += entry.uniques.length;
+      }
+      for (const entry of entries) {
+        const ps = entry.ps;
+        const rz = Math.min(zoom, ps.src.maxZoom);
+        const scale = rz / zoom;
+        ps.frames.forEach((f, i) => {
+          const pl = placeOf.get((firstUnique.get(entry) as number) + f.unique) as {
+            bin: number;
+            x: number;
+            y: number;
+          };
+          const u = entry.uniques[f.unique] as Raw;
+          const tf: TierFrame = {
+            atlas: `${poolName}-${pl.bin}`,
+            rect: [pl.x, pl.y, u.w, u.h],
+            trim: f.trim,
+          };
+          if (scale !== 1) tf.scale = scale;
+          const d = drafts.get(`${ps.src.name}#${i}`) as FrameDraft;
+          if (entry.slot === 'tiers') d.tiers[tier] = tf;
+          else d.smooth[tier as '2x' | '3x'] = tf;
+        });
+      }
+    };
 
     for (const group of groupNames) {
       const members = sources.filter((s) => s.group === group);
@@ -642,77 +802,27 @@ export async function runSprites(p: Paths): Promise<{ summary: string }> {
         }
       }
 
-      // Pack all unique frames of the group.
-      const items: { id: number; w: number; h: number; hash: string }[] = [];
-      const owner: { ps: ProcessedSymbol; unique: number }[] = [];
-      for (const ps of processed) {
-        ps.uniques.forEach((u, ui) => {
-          items.push({ id: owner.length, w: u.w, h: u.h, hash: `${ps.src.name}#${ui}` });
-          owner.push({ ps, unique: ui });
-        });
-      }
-      uniqueFrames[tier] += items.length;
-      const packed = packItems(items);
-      const stat: GroupStat = { pages: packed.bins.length, pixels: 0 };
-      groupStats[tier][group] = stat;
-
-      const blitsByBin: Blit[][] = packed.bins.map(() => []);
-      const placeOf = new Map<number, { bin: number; x: number; y: number }>();
-      for (const pl of packed.placed) {
-        const o = owner[pl.id] as { ps: ProcessedSymbol; unique: number };
-        const raw = o.ps.uniques[o.unique] as Raw;
-        (blitsByBin[pl.bin] as Blit[]).push({
-          rgba: raw.data,
-          w: raw.w,
-          h: raw.h,
-          x: pl.x,
-          y: pl.y,
-        });
-        placeOf.set(pl.id, pl);
-      }
-      packed.bins.forEach((bin, n) => {
-        const name = `${group}-${n}`;
-        const rel = `gfx/${tier}/${name}.png`;
-        atlases[tier][name] = rel;
-        stat.pixels += bin.w * bin.h;
-        megapixels[tier] += bin.w * bin.h;
-        const page = composePage(bin.w, bin.h, blitsByBin[n] as Blit[]);
-        const write = sharp(page, { raw: { width: bin.w, height: bin.h, channels: 4 } })
-          .png({ compressionLevel: 9 })
-          .toFile(join(p.root, 'assets', rel))
-          .then(() => undefined);
-        pendingWrites.add(write);
-        void write.finally(() => pendingWrites.delete(write));
-      });
-      // Bound memory: at most 3 page encodes in flight.
-      while (pendingWrites.size > 3) await Promise.race(pendingWrites);
-
-      // Fill manifest tier entries.
-      const firstUnique = new Map<ProcessedSymbol, number>();
-      let base = 0;
-      for (const ps of processed) {
-        firstUnique.set(ps, base);
-        base += ps.uniques.length;
-      }
-      for (const ps of processed) {
-        const rz = Math.min(zoom, ps.src.maxZoom);
-        const scale = rz / zoom;
-        ps.frames.forEach((f, i) => {
-          const pl = placeOf.get((firstUnique.get(ps) as number) + f.unique) as {
-            bin: number;
-            x: number;
-            y: number;
-          };
-          const u = ps.uniques[f.unique] as Raw;
-          const entry: TierFrame = {
-            atlas: `${group}-${pl.bin}`,
-            rect: [pl.x, pl.y, u.w, u.h],
-            trim: f.trim,
-          };
-          if (scale !== 1) entry.scale = scale;
-          (drafts.get(`${ps.src.name}#${i}`) as FrameDraft).tiers[tier] = entry;
-        });
-      }
+      // FIX-11: the pixel-art frames of 2x/3x live in pages of their own, `<group>-px` (replicated pixels, the default) and
+      // `<group>-sm` (smooth): the renderer loads only the variant the player chose, so the choice costs no extra memory.
+      const isPx = (ps: ProcessedSymbol): boolean => ps.src.pixelArt && Math.min(zoom, ps.src.maxZoom) > 1;
+      await emitPool(
+        group,
+        processed.filter((ps) => !isPx(ps)).map((ps) => ({ ps, uniques: ps.uniques, slot: 'tiers' as const })),
+        true,
+      );
+      const pixelArt = processed.filter(isPx);
+      await emitPool(
+        group + PIXEL_SUFFIX,
+        pixelArt.map((ps) => ({ ps, uniques: ps.uniques, slot: 'tiers' as const })),
+        true,
+      );
+      await emitPool(
+        group + SMOOTH_SUFFIX,
+        pixelArt
+          .filter((ps) => ps.smoothUniques !== undefined)
+          .map((ps) => ({ ps, uniques: ps.smoothUniques as Raw[], slot: 'smooth' as const })),
+        false,
+      );
     }
     while (pendingWrites.size > 0) await Promise.race(pendingWrites);
   }
@@ -744,6 +854,7 @@ export async function runSprites(p: Paths): Promise<{ summary: string }> {
         tiers: d.tiers as Frame['tiers'],
       };
       if (d.mask) frame.mask = d.mask;
+      if (Object.keys(d.smooth).length > 0) frame.smooth = d.smooth;
       frames.push(frame);
     }
   }

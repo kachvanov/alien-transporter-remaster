@@ -29,7 +29,7 @@ import { RemasterSettingsOverlay } from '../render/RemasterSettingsOverlay';
 import { installErrorReporting, watchCanvas, watchVisibility, type DiagReport } from './diagnostics';
 import { failureFromHash, joinFailureOf, joinHash, localHash, noticeFromHash, resolveJoinTarget } from './joinTarget';
 import { OnlineController } from './OnlineController';
-import { SettingsStore } from './settings';
+import { resolveUiScaling, SettingsStore } from './settings';
 import { SimClient } from './SimClient';
 
 const ASSETS_URL = 'app://assets/';
@@ -71,7 +71,9 @@ async function bootstrap(): Promise<void> {
   const classic = flags.classic || settings.value.classic35;
   root.dataset['classic'] = String(classic);
 
-  const atlas = new AtlasLoader(manifest, tier, ASSETS_URL);
+  // FIX-11: `--ui-scaling=` wins over settings.json; the loader keeps the variant it was made with (a change in F2 is for the next start)
+  const atlas = new AtlasLoader(manifest, tier, ASSETS_URL, undefined, resolveUiScaling(flags.uiScaling, settings.value.uiScaling));
+  root.dataset['uiScaling'] = atlas.uiScaling;
   void atlas.loadStartup();
   const renderer = await PixiRenderer.create(document.body, atlas);
   watchCanvas(renderer.app.canvas, report);
@@ -247,6 +249,7 @@ async function bootstrap(): Promise<void> {
       }
     },
     activeTier: () => tier,
+    activeUiScaling: () => atlas.uiScaling,
     availableTiers: () => tiersAvailable,
     isFullscreen: () => fullscreen,
     toggleFullscreen,

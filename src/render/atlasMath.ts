@@ -2,9 +2,31 @@
 
 import type { Frame, Manifest, TierName } from '../engine/assets/schemas';
 import { TIER_NAMES, TIER_ZOOM } from '../engine/assets/schemas';
+import type { UiScaling } from '../engine/assets/uiScaling';
 
 /** Groups that are loaded at start; `level-NN` follows the `levelGroup` of the Frame header. */
 export const STARTUP_GROUPS = ['ui', 'game-common', 'shuttles', 'passengers', 'effects'] as const;
+
+/** Suffixes of the atlas groups of the pixel-art frames at 2x/3x (tools/extract/sprites.ts: PIXEL_SUFFIX, SMOOTH_SUFFIX). */
+const PIXEL_GROUP_SUFFIX = '-px';
+const SMOOTH_GROUP_SUFFIX = '-sm';
+
+/**
+ * The scaling that can really be used: `smooth` needs the smooth pages of the tier in the manifest (there are none at 1x,
+ * where both looks are the same, and in an older assets folder); otherwise it is `pixel`.
+ */
+export function effectiveUiScaling(manifest: Pick<Manifest, 'atlases'>, tier: TierName, requested: UiScaling): UiScaling {
+  if (requested === 'pixel') return 'pixel';
+  return Object.keys(manifest.atlases[tier]).some((k) => parseAtlasKey(k)?.group.endsWith(SMOOTH_GROUP_SUFFIX) === true)
+    ? 'smooth'
+    : 'pixel';
+}
+
+/** The groups that are loaded at start for the given scaling: the startup groups and the pages of their pixel-art variant. */
+export function startupGroups(uiScaling: UiScaling): string[] {
+  const suffix = uiScaling === 'smooth' ? SMOOTH_GROUP_SUFFIX : PIXEL_GROUP_SUFFIX;
+  return [...STARTUP_GROUPS, ...STARTUP_GROUPS.map((g) => g + suffix)];
+}
 
 /** Physical pixels of the window height from which the 3x tier is used. */
 export const TIER_3X_MIN_PIXELS = 1500;
@@ -63,8 +85,9 @@ export interface FrameGeometry {
  * exact (the trimmed raster rectangle is not exactly `trim1x * zoom`): `origin1x * rasterZoom - trim.xy`
  * over `rect.wh`. `rasterZoom` = tier zoom * `scale` (`scale` is set when a lower raster stands in for the tier).
  */
-export function frameGeometry(frame: Frame, tier: TierName): FrameGeometry {
-  const t = frame.tiers[tier];
+export function frameGeometry(frame: Frame, tier: TierName, uiScaling: UiScaling = 'pixel'): FrameGeometry {
+  // FIX-11: the smooth variant of a pixel-art frame (2x/3x), when the player chose it
+  const t = (uiScaling === 'smooth' && tier !== '1x' ? frame.smooth?.[tier] : undefined) ?? frame.tiers[tier];
   const rasterZoom = TIER_ZOOM[tier] * (t.scale ?? 1);
   const [rx, ry, rw, rh] = t.rect;
   const anchorX = (frame.origin1x[0] * rasterZoom - t.trim[0]) / rw;
