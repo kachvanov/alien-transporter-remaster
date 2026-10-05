@@ -5,7 +5,6 @@ Updated: 2026-10-04 · Last merge: FIX(M3) 2b4167a
 ## In progress
 | ID | attempt | branch | worktree | started |
 |---|---|---|---|---|
-| T5.5 | 1 | (agent worktree) | .claude/worktrees/… | 2026-10-05 |
 
 ## Gates
 | Milestone | status |
@@ -181,3 +180,4 @@ The user checked the README (T4.7) and the dmg (T4.5) on 2026-10-05, README: the
 - 2026-10-05 T5.5: the earlier agent left no worktree/branch (interrupted) — restarted, attempt 1. User scope for this session: only T5.5, then report what is left.
 - 2026-10-05 the user's decision: the behaviour-parity scenarios of docs/05 §5 (#3, #4, #7 not measured; #6 Hardcore at the limit) are accepted as is, no more Ruffle recordings. Closed, not a gate item.
 - 2026-10-05 the user reports: they play over Tailscale (addresses 100.x.y.z, no LAN); auto-discovery does not find the host, a manual IP+port join works. FIX-6 started in parallel with T5.5 (no shared files expected: electron/net/discovery*, src/app, docs/03/06). The manual Mac <-> Windows check (§8 item 6) will also run over Tailscale.
+- 2026-10-05 T5.5 merged 6db99d5 (attempt 1; 1244 tests). dist/ layout: latest/ (stable hyphenated names, hard links to archive/<date>_<time>-<hash>/), archive/ keeps the newest build + 1 previous, hidden .state/, build.log trimmed; the old flat dist/ is migrated by the first `npm run dist:all` (foreign files are never deleted); `npm run dist:open` opens dist/latest. Deviation: archive holds 2 folders (latest's build + 1 previous); a build with no files does not replace latest/ (its info goes to .state/last-attempt.json). The merging hook built nothing (tools/ only), so run `npm run dist:all` once to migrate.

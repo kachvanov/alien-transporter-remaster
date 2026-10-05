@@ -91,7 +91,7 @@ T3.1, T3.2, T3.3, T3.5 can start in parallel with M2.
 | [x] | T5.1 | Client in a network game: menu buttons look unavailable, "the host's turn" hint | T3.6, T3.4 | S | (merge cd572dd)
 | [ ] | T5.2 | White screen/window freeze during long network play (Windows more often, Mac less): diagnosis, cause, fix, watchdog | T3.6, T4.5, T4.6 | M |
 | [x] | T5.3 | Automatic dmg+exe build on the Mac after a merge into main (local, git hook, no cloud CI: original assets) | T4.5, T4.6 | S–M | (merge 49ec902)
-| [ ] | T5.5 | Tidy `dist/` layout: `latest/` with stable names, `archive/` with one previous build, hard links, migration of the flat folder | T5.3 | S |
+| [x] | T5.5 | Tidy `dist/` layout: `latest/` with stable names, `archive/` with one previous build, hard links, migration of the flat folder | T5.3 | S | (merge 6db99d5)
 
 Do not start until the user says so (or the M4 gates are closed).
 
