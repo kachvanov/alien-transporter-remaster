@@ -17,6 +17,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { adoptAssetsFingerprint, assetsFingerprint, evaluateBuild } from './dist-assets';
 import type { DistPaths } from './dist-env';
 import { distPaths } from './dist-env';
 import {
@@ -42,6 +43,8 @@ import {
   acquireLock,
   archiveDirName,
   classifyArtifact,
+  compareAssets,
+  decideBuild,
   enqueue,
   formatStatus,
   lockIsActive,
@@ -58,6 +61,7 @@ import {
   resolveBuildId,
   rotateBuilds,
   shortHash,
+  successOf,
   takePending,
 } from './dist-lib';
 
@@ -384,7 +388,7 @@ function fakeBuild(
   hash: string,
   when: Date,
   kinds: ArtifactKind[] = KINDS,
-  opts: { link?: LinkFn } = {},
+  opts: { link?: LinkFn; assets?: string } = {},
 ): { info: BuildInfo; state: BuildState; removed: string[] } {
   const archiveDir = archiveDirName(when, commitOf(hash));
   const partial = join(paths.archive, `${archiveDir}.partial`);
@@ -402,6 +406,7 @@ function fakeBuild(
     files: kinds.map((k) => ({ kind: k, name: hashed[k](hash), bytes: `${k} of ${hash}`.length })),
     durationMs: 5,
     archiveDir,
+    ...(opts.assets !== undefined ? { assets: opts.assets } : {}),
   });
   const done = finalizeBuild(paths, i, state, opts.link);
   return { info: i, state: done.state, removed: done.removed };
@@ -744,5 +749,284 @@ describe('post-merge hook', () => {
     rmSync(join(top, 'node_modules'), { recursive: true });
     runHook(top);
     expect(readFileSync(join(top, 'dist', 'build.log'), 'utf8')).toContain('tsx is missing');
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// FIX-8: the generated assets/ (not in the repository) and tools/extract/** decide whether a build is needed
+// ---------------------------------------------------------------------------------------------------------------
+
+describe('generated assets watch (FIX-8)', () => {
+  function writeAsset(root: string, rel: string, content: string): string {
+    const p = join(root, 'assets', rel);
+    mkdirSync(join(p, '..'), { recursive: true });
+    writeFileSync(p, content);
+    return p;
+  }
+
+  /** What `npm run extract` does on a re-run: the same bytes are written again (new mtime). */
+  function rewriteSame(path: string): void {
+    const content = readFileSync(path);
+    writeFileSync(path, content);
+    const later = new Date(Date.now() + 5000);
+    utimesSync(path, later, later);
+  }
+
+  /** Runs `git <args>` in `root` with a fixed identity; returns trimmed stdout. */
+  function vcs(root: string, ...args: string[]): string {
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null' },
+    });
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+    return r.stdout.trim();
+  }
+
+  function repoWithAssets(): { root: string; paths: DistPaths; c1: string } {
+    const root = join(dir, 'repo');
+    mkdirSync(root, { recursive: true });
+    vcs(root, 'init', '-q', '-b', 'main');
+    mkdirSync(join(root, 'src'));
+    mkdirSync(join(root, 'docs'));
+    mkdirSync(join(root, 'tools', 'extract'), { recursive: true });
+    writeFileSync(join(root, 'src', 'a.ts'), 'export {};\n');
+    writeFileSync(join(root, 'docs', 'a.md'), 'a\n');
+    writeFileSync(join(root, 'tools', 'extract', 'x.ts'), 'export {};\n');
+    writeAsset(root, 'manifest.json', '{"v":1}');
+    writeAsset(root, 'gfx/2x/atlas.png', 'PNG-1');
+    vcs(root, 'add', '-A');
+    vcs(root, 'commit', '-q', '-m', 'one');
+    return { root, paths: distPaths(root), c1: vcs(root, 'rev-parse', 'HEAD') };
+  }
+
+  function commitFile(root: string, rel: string, content: string): string {
+    const p = join(root, rel);
+    mkdirSync(join(p, '..'), { recursive: true });
+    writeFileSync(p, content);
+    vcs(root, 'add', '-A');
+    vcs(root, 'commit', '-q', '-m', `edit ${rel}`);
+    return vcs(root, 'rev-parse', 'HEAD');
+  }
+
+  it('the path filter: tools/extract/** (not its tests) and what packs the assets trigger a build; other tools and docs do not', () => {
+    for (const f of [
+      'tools/extract/atlas.ts',
+      'tools/extract/groups.json',
+      'tools/extract/java/Foo.java',
+      'tools/build/prepack.ts',
+      'tools/build/make-icon.ts',
+      'tools/build/adhocSign.cjs',
+    ]) {
+      expect(needsBuild(['docs/x.md', f]), f).toBe(true);
+    }
+    for (const f of [
+      'tools/extract/atlas.test.ts',
+      'tools/extract/sounds.test.ts',
+      'tools/build/dist-lib.ts',
+      'tools/build/dist.test.ts',
+      'tools/viewer/x.ts',
+      'tools/extract-notes.md',
+      'docs/02-extraction-pipeline.md',
+    ]) {
+      expect(needsBuild([f]), f).toBe(false);
+    }
+  });
+
+  it('fingerprint: depends on the content only; an idempotent re-extract (same bytes, new mtimes) does not change it', () => {
+    const root = join(dir, 'fp');
+    const a = writeAsset(root, 'gfx/1x/a.png', 'AAAA');
+    writeAsset(root, 'data/levels.json', '{"x":1}');
+    const cache = join(dir, 'cache.json');
+    const f1 = assetsFingerprint(root, cache);
+    expect(f1?.files).toBe(2);
+    expect(f1?.hashed).toBe(2);
+    expect(assetsFingerprint(root, cache)?.fingerprint).toBe(f1?.fingerprint);
+    expect(assetsFingerprint(root, cache)?.hashed).toBe(0); // unchanged files are only stat'ed
+    rewriteSame(a);
+    const again = assetsFingerprint(root, cache);
+    expect(again?.fingerprint).toBe(f1?.fingerprint);
+    expect(again?.hashed).toBe(1); // re-read because of the new mtime, same hash
+    expect((again?.newestMtimeMs ?? 0) > (f1?.newestMtimeMs ?? 0)).toBe(true);
+    // without a cache the result is the same
+    expect(assetsFingerprint(root)?.fingerprint).toBe(f1?.fingerprint);
+  });
+
+  it('fingerprint: changes with any content change, an added, removed or renamed file; null without assets/', () => {
+    const root = join(dir, 'fp2');
+    const a = writeAsset(root, 'gfx/a.png', 'AAAA');
+    const base = assetsFingerprint(root)?.fingerprint;
+    writeFileSync(a, 'AAAB'); // same size, different content
+    const edited = assetsFingerprint(root)?.fingerprint;
+    expect(edited).not.toBe(base);
+    const b = writeAsset(root, 'gfx/b.png', 'B');
+    const added = assetsFingerprint(root)?.fingerprint;
+    expect(added).not.toBe(edited);
+    rmSync(b);
+    expect(assetsFingerprint(root)?.fingerprint).toBe(edited);
+    renameSync(a, join(root, 'assets', 'gfx', 'c.png'));
+    expect(assetsFingerprint(root)?.fingerprint).not.toBe(edited);
+    expect(assetsFingerprint(join(dir, 'nothing-here'))).toBeNull();
+  });
+
+  const fp = { fingerprint: 'new', newestMtimeMs: Date.parse('2026-01-01T00:00:00Z') };
+  const last = (assets?: string): { commit: string; date: string; assets?: string } => ({
+    commit: 'a'.repeat(40),
+    date: '2026-01-02T00:00:00Z',
+    ...(assets !== undefined ? { assets } : {}),
+  });
+
+  it('decision: sources, tools/extract and the unknown base build; docs-only does not; changed assets build even on the same commit', () => {
+    expect(decideBuild({ lastSuccess: null, changed: [], assets: fp }).build).toBe(true);
+    expect(decideBuild({ lastSuccess: last('new'), changed: null, assets: fp }).build).toBe(true);
+    expect(decideBuild({ lastSuccess: last('new'), changed: ['src/a.ts'], assets: fp }).build).toBe(true);
+    expect(decideBuild({ lastSuccess: last('new'), changed: ['tools/extract/groups.json'], assets: fp }).build).toBe(true);
+    // docs/tests only, assets the same: no build
+    const docs = decideBuild({ lastSuccess: last('new'), changed: ['docs/05.md', 'tools/extract/a.test.ts'], assets: fp });
+    expect(docs.build).toBe(false);
+    expect(docs.adoptAssets).toBeUndefined();
+    // docs only, but the assets were regenerated: build
+    const regen = decideBuild({ lastSuccess: last('old'), changed: ['docs/05.md'], assets: fp });
+    expect(regen.build).toBe(true);
+    expect(regen.reason).toContain('assets');
+    // the same commit (no changed files) with regenerated assets: build; with the same assets: no
+    expect(decideBuild({ lastSuccess: last('old'), changed: [], assets: fp }).build).toBe(true);
+    expect(decideBuild({ lastSuccess: last('new'), changed: [], assets: fp }).build).toBe(false);
+    // no assets/ at all: nothing to compare
+    expect(decideBuild({ lastSuccess: last('new'), changed: [], assets: null }).build).toBe(false);
+  });
+
+  it('migration: a state without a fingerprint is adopted when assets/ is older than the build, rebuilt when it is newer', () => {
+    const older = { fingerprint: 'cur', newestMtimeMs: Date.parse('2026-01-01T00:00:00Z') };
+    const newer = { fingerprint: 'cur', newestMtimeMs: Date.parse('2026-01-03T00:00:00Z') };
+    expect(compareAssets(last(), older)).toBe('unrecorded');
+    expect(compareAssets(last(), newer)).toBe('unrecorded-newer');
+    expect(compareAssets(last('cur'), newer)).toBe('same');
+    expect(compareAssets(last('x'), newer)).toBe('changed');
+    expect(compareAssets(last(), null)).toBe('none');
+
+    const adopt = decideBuild({ lastSuccess: last(), changed: [], assets: older });
+    expect(adopt).toMatchObject({ build: false, adoptAssets: 'cur' });
+    const rebuild = decideBuild({ lastSuccess: last(), changed: ['docs/a.md'], assets: newer });
+    expect(rebuild.build).toBe(true);
+    expect(rebuild.adoptAssets).toBeUndefined();
+
+    // adoption writes the fingerprint into the stored state and nothing else
+    const paths = distPaths(join(dir, 'adopt'));
+    const state: BuildState = { lastSuccess: last(), history: [{ commit: 'a'.repeat(40), date: 'd', dir: 'x' }] };
+    const next = adoptAssetsFingerprint(paths, state, adopt);
+    expect(next?.lastSuccess).toEqual({ ...last(), assets: 'cur' });
+    expect(next?.history).toEqual(state.history);
+    expect((JSON.parse(readFileSync(paths.state, 'utf8')) as BuildState).lastSuccess?.assets).toBe('cur');
+    expect(adoptAssetsFingerprint(paths, state, rebuild)).toBeNull();
+  });
+
+  it('state: the fingerprint is stored on success only; a failed or partial build keeps the old one', () => {
+    const withAssets = (c: string, assets: string, ok = true): BuildInfo => ({
+      ...info(c.repeat(40), ['x.dmg'], ok, `d-${c}`),
+      assets,
+    });
+    let s = recordBuild(EMPTY_STATE, withAssets('a', 'fp-a'));
+    expect(s.lastSuccess).toMatchObject({ commit: 'a'.repeat(40), assets: 'fp-a' });
+    s = recordBuild(s, withAssets('b', 'fp-b', false));
+    expect(s.lastSuccess).toMatchObject({ commit: 'a'.repeat(40), assets: 'fp-a' });
+    s = recordBuild(s, withAssets('c', 'fp-c'));
+    expect(s.lastSuccess).toMatchObject({ commit: 'c'.repeat(40), assets: 'fp-c' });
+    // a build record without a fingerprint (assets/ missing) stores none
+    expect(successOf(null, info('d'.repeat(40), ['x.dmg']))).not.toHaveProperty('assets');
+  });
+
+  it('state: finalizeBuild (what dist:all uses) stores the fingerprint, a partial build leaves it alone', () => {
+    const paths = distPaths(join(dir, 'fin'));
+    const ok = fakeBuild(paths, EMPTY_STATE, 'aaaaaaa', new Date(2026, 0, 1, 10, 0), KINDS, { assets: 'fp-1' });
+    expect(ok.state.lastSuccess).toMatchObject({ commit: commitOf('aaaaaaa'), assets: 'fp-1' });
+    const stored = JSON.parse(readFileSync(join(paths.latest, 'BUILD-INFO.json'), 'utf8')) as BuildInfo;
+    expect(stored.assets).toBe('fp-1');
+    const partial = fakeBuild(paths, ok.state, 'bbbbbbb', new Date(2026, 0, 1, 11, 0), ['mac'], { assets: 'fp-2' });
+    expect(partial.state.lastSuccess).toMatchObject({ commit: commitOf('aaaaaaa'), assets: 'fp-1' });
+    // the fingerprint of the partial build is in its own BUILD-INFO, but never becomes the comparison base
+    expect(partial.info.assets).toBe('fp-2');
+  });
+
+  it('end to end in a repository: docs-only and an idempotent re-extract do not build; regenerated assets and tools/extract do', () => {
+    const { root, paths, c1 } = repoWithAssets();
+    const fp1 = assetsFingerprint(root, paths.assetsCache);
+    expect(fp1).not.toBeNull();
+    const state: BuildState = {
+      lastSuccess: { commit: c1, date: new Date(Date.now() - 60000).toISOString(), assets: fp1?.fingerprint ?? '' },
+      history: [],
+    };
+
+    // same commit, nothing touched
+    expect(evaluateBuild(paths, state, c1).decision.build).toBe(false);
+
+    // docs-only merge
+    const c2 = commitFile(root, 'docs/a.md', 'changed\n');
+    expect(evaluateBuild(paths, state, c2).decision.build).toBe(false);
+
+    // `npm run extract` re-run with no change: every file is rewritten with identical content
+    rewriteSame(join(root, 'assets', 'manifest.json'));
+    rewriteSame(join(root, 'assets', 'gfx', '2x', 'atlas.png'));
+    const idem = evaluateBuild(paths, state, c2);
+    expect(idem.decision.build).toBe(false);
+    expect(idem.assets?.fingerprint).toBe(fp1?.fingerprint);
+
+    // the look changed through regenerated assets only (the T5.6 case): docs-only commit, assets differ
+    writeAsset(root, 'gfx/2x/atlas.png', 'PNG-2');
+    const regen = evaluateBuild(paths, state, c2);
+    expect(regen.decision.build).toBe(true);
+    expect(regen.decision.reason).toContain('assets');
+    // ... and the same commit as the build is not "up to date" either
+    expect(evaluateBuild(paths, state, c1).decision.build).toBe(true);
+    // once that build is recorded, the same assets are up to date again
+    const rebuilt: BuildState = {
+      lastSuccess: {
+        commit: c2,
+        date: new Date().toISOString(),
+        assets: assetsFingerprint(root, paths.assetsCache)?.fingerprint ?? '',
+      },
+      history: [],
+    };
+    expect(evaluateBuild(paths, rebuilt, c2).decision.build).toBe(false);
+
+    // a change under tools/extract/ builds even though assets/ is as recorded
+    const c3 = commitFile(root, 'tools/extract/x.ts', 'export const y = 1;\n');
+    expect(evaluateBuild(paths, rebuilt, c3).decision.build).toBe(true);
+    // its test file does not
+    const c4 = commitFile(root, 'tools/extract/x.test.ts', 'export {};\n');
+    const atC3: BuildState = { ...rebuilt, lastSuccess: { ...(rebuilt.lastSuccess ?? last()), commit: c3 } };
+    expect(evaluateBuild(paths, atC3, c4).decision.build).toBe(false);
+  });
+
+  it('status text: assets same / changed / not yet recorded', () => {
+    const base: StatusInput = {
+      running: null,
+      pending: null,
+      state: recordBuild(EMPTY_STATE, info('a'.repeat(40), ['a.dmg'])),
+      headCommit: 'b'.repeat(40),
+      changedSinceBuild: ['docs/a.md'],
+      distDir: '/d',
+      latest: info('a'.repeat(40), ['a.dmg']),
+      attempt: info('a'.repeat(40), ['a.dmg']),
+      archive: [],
+      flatLayout: false,
+    };
+    const docsOnly = formatStatus({ ...base, assets: 'same' });
+    expect(docsOnly).toContain('no build needed');
+    expect(docsOnly).toContain('assets/: same content');
+    const regen = formatStatus({ ...base, assets: 'changed' });
+    expect(regen).toContain('generated assets changed since the build: a build is needed');
+    expect(regen).not.toContain('no build needed');
+    expect(regen).toContain('assets/: CHANGED');
+    // same commit, regenerated assets
+    expect(formatStatus({ ...base, headCommit: 'a'.repeat(40), changedSinceBuild: [], assets: 'changed' })).toContain(
+      'same commit as the build, but the generated assets changed',
+    );
+    // a build made before the fingerprint existed and assets/ older than it: counts as up to date
+    const migrated = formatStatus({ ...base, headCommit: 'a'.repeat(40), changedSinceBuild: [], assets: 'unrecorded' });
+    expect(migrated).toContain('up to date');
+    expect(migrated).toContain('fingerprint is recorded at the next build check');
+    expect(formatStatus({ ...base, assets: 'unrecorded-newer' })).toContain('a build is needed');
+    expect(formatStatus({ ...base, headCommit: 'a'.repeat(40), changedSinceBuild: [] })).toContain('up to date');
   });
 });

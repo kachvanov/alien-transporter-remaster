@@ -15,7 +15,9 @@
 // Usage:
 //   tsx tools/build/dist-all.ts                  manual: build HEAD now (or queue it behind the running build)
 //   tsx tools/build/dist-all.ts --commit <rev>   manual: build that commit
-//   tsx tools/build/dist-all.ts --trigger [--commit <rev>]   from the post-merge hook: only if src/, electron/... changed
+//   tsx tools/build/dist-all.ts --trigger [--commit <rev>]   from the post-merge hook: only if src/, electron/..., tools/extract
+//                                                or the generated assets/ (fingerprint, FIX-8) changed since the last good build;
+//                                                also the manual way to "build if needed" after `npm run extract`
 import { spawn, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
@@ -47,7 +49,6 @@ import {
   enqueue,
   formatDuration,
   makeBuildInfo,
-  needsBuild,
   notificationFor,
   processQueue,
   readJson,
@@ -55,7 +56,8 @@ import {
   shortHash,
   writeJsonAtomic,
 } from './dist-lib';
-import { type DistPaths, changedFiles, cleanGitEnv, distPaths, git, resolveCommit } from './dist-env';
+import { adoptAssetsFingerprint, assetsFingerprint, evaluateBuild } from './dist-assets';
+import { type DistPaths, cleanGitEnv, distPaths, git, resolveCommit } from './dist-env';
 import { finalizeBuild, migrateFlatLayout, recoverLatest, rotateLog, sweepArchive } from './dist-layout';
 
 /** Folders of this checkout that the temporary build folder links to instead of copying (they are not in git or are huge). */
@@ -220,6 +222,9 @@ export async function buildCommit(paths: DistPaths, commit: string): Promise<Bui
 
   const env: NodeJS.ProcessEnv = { ...cleanGitEnv(), BUILD_ID: id, CSC_IDENTITY_AUTO_DISCOVERY: 'false' };
   const stageDirs: string[] = [];
+  // FIX-8: the assets are taken at the start; if they change while the build runs, the next comparison sees the difference.
+  const assets = assetsFingerprint(paths.root, paths.assetsCache);
+  if (assets !== null) log(`assets/ fingerprint ${assets.fingerprint.slice(0, 12)} (${assets.files} files, ${assets.hashed} hashed)`);
   try {
     const ready = await stage('prepare', async () => {
       if (!existsSync(join(paths.root, 'assets', 'manifest.json'))) {
@@ -282,6 +287,7 @@ export async function buildCommit(paths: DistPaths, commit: string): Promise<Bui
     files,
     durationMs: Date.now() - startedAt,
     archiveDir,
+    ...(assets !== null ? { assets: assets.fingerprint } : {}),
   });
   finishBuild(paths, info);
   return info;
@@ -359,10 +365,12 @@ async function main(): Promise<number> {
       shouldBuild: (r) => {
         if (r.force) return true;
         const state = readJson<BuildState>(paths.state, EMPTY_STATE);
-        if (state.lastSuccess === null) return true;
-        if (state.lastSuccess.commit === r.commit) return false;
-        const changed = changedFiles(root, state.lastSuccess.commit, r.commit);
-        return changed === null || needsBuild(changed);
+        // FIX-8: the sources (git diff) and the generated assets (fingerprint of assets/, not in git) both count.
+        const { decision } = evaluateBuild(paths, state, r.commit);
+        log(`${shortHash(r.commit)}: ${decision.build ? 'build needed' : 'no build'}: ${decision.reason}`);
+        // Migration of a build made before the fingerprint existed: record it, do not rebuild.
+        adoptAssetsFingerprint(paths, state, decision);
+        return decision.build;
       },
       build: async (r) => {
         tidyDist(paths);
